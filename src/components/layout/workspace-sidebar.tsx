@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -122,28 +123,39 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                     <Plus className="w-4 h-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-card border-border">
+                <DialogContent className="bg-card/95 backdrop-blur-xl border-white/10 shadow-2xl animate-in fade-in zoom-in duration-300 sm:max-w-[450px]">
                   <DialogHeader>
-                    <DialogTitle>Create a channel</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-2xl font-black">Create a channel</DialogTitle>
+                    <DialogDescription className="text-muted-foreground/80">
                       Channels are where your team communicates. They're best when organized around a topic.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input 
-                        id="name" 
-                        placeholder="e.g. project-x" 
-                        value={newChannelName}
-                        onChange={(e) => setNewChannelName(e.target.value)}
-                        className="bg-background border-white/10 focus:border-primary/50"
-                      />
+                  <div className="space-y-6 py-6">
+                    <div className="space-y-3">
+                      <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Channel Name</Label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          id="name" 
+                          placeholder="e.g. project-apollo" 
+                          value={newChannelName}
+                          onChange={(e) => setNewChannelName(e.target.value)}
+                          className="pl-9 bg-black/20 border-white/10 focus:border-primary/50 h-11 text-sm transition-all"
+                        />
+                      </div>
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="hover:bg-white/5">Cancel</Button>
-                    <Button onClick={handleCreateChannel} disabled={!newChannelName.trim()}>Create</Button>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="hover:bg-white/5 font-bold text-xs uppercase tracking-widest h-10 px-6">
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleCreateChannel} 
+                      disabled={!newChannelName.trim()}
+                      className="font-bold text-xs uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20"
+                    >
+                      Create Channel
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
