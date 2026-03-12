@@ -1,6 +1,7 @@
+
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Hash, 
   ChevronDown, 
@@ -13,7 +14,11 @@ import {
   Star,
   Copy,
   Columns2,
-  EyeOff
+  EyeOff,
+  Mail,
+  Briefcase,
+  MapPin,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +34,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface ChatHeaderProps {
   activeItem: any;
@@ -51,6 +63,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   activeView,
   onOpenSearch
 }) => {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const isDm = activeItem?.type === 'dm';
+
   return (
     <div className="flex flex-col shrink-0">
       {/* Top Global Search Bar */}
@@ -82,7 +98,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <header className="h-14 flex items-center justify-between px-4 border-b border-white/5 bg-[#1a1d21]">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-md transition-colors">
-                  <Hash className="w-5 h-5 text-muted-foreground" />
+                  {isDm ? (
+                     <div className="relative">
+                       <Avatar className="w-5 h-5 rounded-md">
+                         <AvatarImage src={activeItem.avatar} />
+                         <AvatarFallback className="rounded-md text-[8px]">{activeItem.name[0]}</AvatarFallback>
+                       </Avatar>
+                       <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-[#1a1d21] bg-green-500" />
+                     </div>
+                  ) : (
+                    <Hash className="w-5 h-5 text-muted-foreground" />
+                  )}
                   <h2 className="font-bold text-lg">{activeItem.name}</h2>
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </div>
@@ -141,10 +167,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
                       Open conversation details
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      View full profile
-                    </DropdownMenuItem>
+                    
+                    {isDm && (
+                      <DropdownMenuItem 
+                        onClick={() => setIsProfileOpen(true)}
+                        className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm"
+                      >
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        View full profile
+                      </DropdownMenuItem>
+                    )}
                     
                     <DropdownMenuSeparator className="bg-white/5 my-1.5" />
                     
@@ -163,7 +195,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="bg-[#1a1d21] border-white/10 text-white shadow-2xl min-w-[150px] p-1">
                           <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy link</DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy channel ID</DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy ID</DropdownMenuItem>
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -214,6 +246,84 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           </>
         )
+      )}
+
+      {/* User Profile Dialog */}
+      {isDm && (
+        <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+          <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
+            <DialogHeader className="sr-only">
+               <DialogTitle>User Profile</DialogTitle>
+               <DialogDescription>Full profile details for {activeItem.name}</DialogDescription>
+            </DialogHeader>
+            
+            <div className="relative h-32 bg-gradient-to-r from-primary/40 to-primary/10">
+              <div className="absolute -bottom-12 left-6">
+                <Avatar className="w-24 h-24 border-4 border-[#1a1d21] rounded-2xl">
+                  <AvatarImage src={activeItem.avatar} />
+                  <AvatarFallback className="text-2xl">{activeItem.name[0]}</AvatarFallback>
+                </Avatar>
+              </div>
+            </div>
+
+            <div className="pt-16 pb-8 px-8 space-y-6">
+              <div>
+                <h3 className="text-2xl font-black">{activeItem.name}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-xs text-muted-foreground font-medium">Active Now</span>
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <Briefcase className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Role</span>
+                    <span className="text-sm font-medium">Senior Software Engineer</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Email</span>
+                    <span className="text-sm font-medium lowercase">{activeItem.name.replace(' ', '.').toLowerCase()}@devtalk.app</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Location</span>
+                    <span className="text-sm font-medium">San Francisco, CA</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Local Time</span>
+                    <span className="text-sm font-medium">10:45 AM (UTC-7)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1 bg-primary hover:bg-primary/90">Message</Button>
+                <Button variant="outline" className="flex-1 border-white/10 hover:bg-white/5">Huddle</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
