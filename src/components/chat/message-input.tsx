@@ -5,17 +5,75 @@ import { Button } from "@/components/ui/button";
 import { 
   Send, Plus, Smile, Bold, Italic, Strikethrough, 
   Link2, List, ListOrdered, AlignLeft, Code, Quote,
-  AtSign, Video, Mic, Monitor, Terminal
+  AtSign, Video, Mic, Monitor, Terminal as TerminalIcon, X, Terminal
 } from "lucide-react";
 import { smartReply } from "@/ai/flows/smart-reply";
 import { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
   conversationHistory: Message[];
   placeholder?: string;
 }
+
+const MockTerminal = () => {
+  const [history, setHistory] = useState<string[]>(['DevTalk Terminal v1.0.0', 'Type "help" for a list of commands.']);
+  const [input, setInput] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [history]);
+
+  const handleCommand = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      const cmd = input.trim().toLowerCase();
+      let response = '';
+      if (cmd === 'help') response = 'Available commands: help, clear, status, ls, whoami';
+      else if (cmd === 'clear') { setHistory([]); setInput(''); return; }
+      else if (cmd === 'status') response = 'System healthy. Connection: Stable. AI: Active.';
+      else if (cmd === 'ls') response = 'src/  public/  package.json  next.config.ts  README.md';
+      else if (cmd === 'whoami') response = 'dev-user@devtalk-workspace';
+      else if (cmd === '') response = '';
+      else response = `Command not found: ${cmd}`;
+
+      setHistory([...history, `> ${input}`, response].filter(line => line !== ''));
+      setInput('');
+    }
+  };
+
+  return (
+    <div className="bg-black text-green-500 font-code p-6 h-full flex flex-col gap-4 overflow-hidden border-t border-white/10 rounded-t-xl mt-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 text-sm leading-relaxed scrollbar-hide">
+        {history.map((line, i) => (
+          <div key={i} className={cn(line.startsWith('>') ? "text-white" : "text-green-500")}>
+            {line}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 items-center border-t border-green-900/30 pt-4">
+        <span className="text-green-500 font-bold shrink-0">$</span>
+        <input 
+          autoFocus 
+          className="bg-transparent border-none outline-none flex-1 text-green-500 font-code placeholder:text-green-900"
+          placeholder="Enter command..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleCommand}
+        />
+      </div>
+    </div>
+  );
+};
 
 export const MessageInput: React.FC<MessageInputProps> = ({ 
   onSendMessage, 
@@ -24,6 +82,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const [content, setContent] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -116,8 +175,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" onClick={() => applyFormatting('```\n', '\n```')}>
             <Monitor className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" onClick={() => applyFormatting('```bash\n', '\n```')}>
-            <Terminal className="w-3.5 h-3.5" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7 text-muted-foreground hover:text-white"
+            onClick={() => setIsTerminalOpen(true)}
+          >
+            <TerminalIcon className="w-3.5 h-3.5" />
           </Button>
         </div>
         
@@ -172,6 +236,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           </Button>
         </div>
       </div>
+
+      <Sheet open={isTerminalOpen} onOpenChange={setIsTerminalOpen}>
+        <SheetContent side="bottom" className="h-[50vh] p-0 bg-[#0c0c0c] border-white/10">
+          <SheetHeader className="p-4 border-b border-white/10 bg-black flex flex-row items-center justify-between space-y-0">
+            <SheetTitle className="flex items-center gap-2 text-white font-code text-sm uppercase tracking-widest">
+              <TerminalIcon className="w-4 h-4 text-green-500" />
+              DevTalk Terminal
+            </SheetTitle>
+          </SheetHeader>
+          <MockTerminal />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
