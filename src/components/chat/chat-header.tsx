@@ -38,7 +38,8 @@ import {
   BellRing,
   FileText,
   CheckSquare,
-  Workflow
+  Workflow,
+  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,6 +64,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -730,16 +738,71 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             )}
 
             {activeDialogTab === 'settings' && (
-              <div className="space-y-2">
-                <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3">
-                  <EyeOff className="w-4 h-4" />
-                  Leave Channel
-                </Button>
-                <Button variant="ghost" className="w-full justify-start gap-3">
-                  <SettingsIcon className="w-4 h-4 text-muted-foreground" />
-                  Advanced Settings
-                </Button>
-              </div>
+              <ScrollArea className="h-[350px] pr-4 scrollbar-hide">
+                <div className="space-y-6">
+                  {/* Posting Permissions */}
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-sm text-white">Posting permissions</h4>
+                      <button className="text-xs text-primary font-bold hover:underline">Edit</button>
+                    </div>
+                    <ul className="text-xs text-muted-foreground space-y-2 list-disc pl-4">
+                      <li>Everyone except guests can post</li>
+                      <li>Everyone can reply to messages</li>
+                      <li>Because of your workspace settings, only people who have permission can use @everyone mentions</li>
+                    </ul>
+                    <button className="text-xs text-primary font-bold hover:underline mt-4">Learn more</button>
+                  </div>
+
+                  {/* Huddles */}
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-bold text-sm text-white">Huddles</h4>
+                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                      Members can start and join huddles in this channel. <button className="text-primary hover:underline">Learn more</button>
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold">
+                        <Headphones className="w-3.5 h-3.5" />
+                        Start Huddle
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold">
+                        <LinkIcon className="w-3.5 h-3.5" />
+                        Copy Huddle Link
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Tabs Permissions */}
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <h4 className="font-bold text-sm text-white mb-4">Choose who can add, remove, and reorder tabs</h4>
+                    <Select defaultValue="owner">
+                      <SelectTrigger className="w-full bg-black/20 border-white/10 h-10 text-xs">
+                        <SelectValue placeholder="Select permission" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1a1d21] border-white/10 text-white">
+                        <SelectItem value="everyone">Everyone</SelectItem>
+                        <SelectItem value="owner">Channel owner</SelectItem>
+                        <SelectItem value="admins">Workspace admins</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Advanced / Destructive */}
+                  <div className="pt-4 space-y-2">
+                    <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3 text-xs font-bold">
+                      <EyeOff className="w-4 h-4" />
+                      Leave Channel
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-3 text-xs font-bold text-muted-foreground hover:text-white">
+                      <SettingsIcon className="w-4 h-4" />
+                      Advanced Settings
+                    </Button>
+                  </div>
+                </div>
+              </ScrollArea>
             )}
           </div>
         </DialogContent>
