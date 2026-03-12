@@ -26,11 +26,10 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
     ''
   ]);
   const [input, setInput] = useState('');
-  const [textColor, setTextColor] = useState('text-green-500');
+  const [themeColor, setThemeColor] = useState('rgb(34 197 94)'); // green-500
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus logic to handle Radix UI animation delays
   useEffect(() => {
     const timer = setTimeout(() => {
       inputRef.current?.focus();
@@ -81,12 +80,20 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
           break;
         case 'theme':
           const color = args[0];
-          const validColors = ['green', 'blue', 'red', 'white', 'purple', 'yellow', 'cyan'];
-          if (validColors.includes(color)) {
-            setTextColor(`text-${color}-500`);
+          const colorMap: Record<string, string> = {
+            green: 'rgb(34 197 94)',
+            blue: 'rgb(59 130 246)',
+            red: 'rgb(239 68 68)',
+            white: 'rgb(255 255 255)',
+            purple: 'rgb(168 85 247)',
+            yellow: 'rgb(234 179 8)',
+            cyan: 'rgb(6 182 212)'
+          };
+          if (color && colorMap[color]) {
+            setThemeColor(colorMap[color]);
             response = `Terminal theme updated to ${color}.`;
           } else {
-            response = `Invalid color. Try: ${validColors.join(', ')}`;
+            response = `Invalid color. Try: ${Object.keys(colorMap).join(', ')}`;
           }
           break;
         case 'exit':
@@ -113,16 +120,20 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
         className="flex-1 overflow-y-auto p-6 space-y-1.5 text-sm leading-relaxed scrollbar-hide"
       >
         {history.map((line, i) => (
-          <div key={i} className={cn(line.startsWith('$') ? "text-white opacity-90" : textColor)}>
+          <div 
+            key={i} 
+            className={cn(line.startsWith('$') ? "text-white opacity-90" : "")}
+            style={!line.startsWith('$') ? { color: themeColor } : {}}
+          >
             {line}
           </div>
         ))}
       </div>
       <div className="flex gap-2 items-center border-t border-white/5 px-6 py-4 bg-black/40">
-        <span className={cn("font-bold shrink-0", textColor)}>$</span>
+        <span className="font-bold shrink-0" style={{ color: themeColor }}>$</span>
         <input 
           ref={inputRef}
-          className={cn("bg-transparent border-none outline-none flex-1 font-code placeholder:opacity-20", textColor)}
+          className="bg-transparent border-none outline-none flex-1 font-code text-white placeholder:text-white/20"
           placeholder="Type command..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -134,6 +145,12 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
     </div>
   );
 };
+
+interface MessageInputProps {
+  onSendMessage: (content: string) => void;
+  conversationHistory: Message[];
+  placeholder?: string;
+}
 
 export const MessageInput: React.FC<MessageInputProps> = ({ 
   onSendMessage, 
@@ -204,7 +221,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       )}
 
       <div className="bg-[#1a1d21] border border-white/10 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-white/20 transition-shadow">
-        {/* Formatting Bar */}
         <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-white/5">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" onClick={() => applyFormatting('**', '**')}>
             <Bold className="w-3.5 h-3.5" />
@@ -262,7 +278,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           />
         </div>
 
-        {/* Bottom Actions */}
         <div className="flex items-center justify-between px-2 py-1.5 bg-[#1a1d21]">
           <div className="flex items-center gap-0.5">
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white">
