@@ -27,7 +27,18 @@ import {
   Puzzle,
   Layout,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Layers,
+  AlertTriangle,
+  RefreshCw,
+  Palette,
+  Trello as TrelloIcon,
+  BookOpen,
+  Activity,
+  BellRing,
+  FileText,
+  CheckSquare,
+  Workflow
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -485,6 +496,136 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       </div>
                     </div>
                     <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Enable</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
+                        <Workflow className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Linear</p>
+                        <p className="text-xs text-muted-foreground">Issue tracking for high-performance teams</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Configure</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
+                        <AlertTriangle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Sentry</p>
+                        <p className="text-xs text-muted-foreground">Error monitoring and crash reporting</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Connect</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-green-400 group-hover:scale-110 transition-transform">
+                        <RefreshCw className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">CircleCI</p>
+                        <p className="text-xs text-muted-foreground">Continuous integration and delivery</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Setup</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                        <Palette className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Figma</p>
+                        <p className="text-xs text-muted-foreground">Collaborative design tool</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Link File</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                        <TrelloIcon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Trello</p>
+                        <p className="text-xs text-muted-foreground">Project management and boards</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Add Board</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Notion</p>
+                        <p className="text-xs text-muted-foreground">All-in-one workspace for notes and docs</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Sync</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Datadog</p>
+                        <p className="text-xs text-muted-foreground">Cloud-scale monitoring</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">View Metrics</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
+                        <BellRing className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">PagerDuty</p>
+                        <p className="text-xs text-muted-foreground">Incident response and on-call</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Manage</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Confluence</p>
+                        <p className="text-xs text-muted-foreground">Team workspace for documentation</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">View Docs</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
+                        <CheckSquare className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Asana</p>
+                        <p className="text-xs text-muted-foreground">Manage team projects and tasks</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Add Task</Button>
                   </div>
                 </div>
               </ScrollArea>
