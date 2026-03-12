@@ -467,6 +467,7 @@ export default function DevTalkApp() {
           onToggleHuddle={() => setIsHuddleActive(!isHuddleActive)}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          activeView={activeView}
         />
         {isHuddleActive && <HuddleMeeting onLeave={() => setIsHuddleActive(false)} channelName={activeItem?.name} />}
         <div className="flex-1 flex flex-col min-h-0">
@@ -491,7 +492,7 @@ export default function DevTalkApp() {
                               <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center">
                                 {file.type === 'image' ? <ImageIcon className="w-4 h-4 text-blue-400" /> : file.type === 'code' ? <Code className="w-4 h-4 text-green-400" /> : <FileText className="w-4 h-4 text-orange-400" />}
                               </div>
-                              <span className="font-medium text-sm truncate">{file.name}</span>
+                              <span className="font-medium text-sm truncate max-w-[200px]">{file.name}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4">

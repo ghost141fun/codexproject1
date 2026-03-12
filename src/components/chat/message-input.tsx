@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -23,10 +24,17 @@ interface MessageInputProps {
   placeholder?: string;
 }
 
-const MockTerminal = () => {
-  const [history, setHistory] = useState<string[]>(['DevTalk Terminal v1.0.0', 'Type "help" for a list of commands.']);
+const MockTerminal = ({ onClose }: { onClose: () => void }) => {
+  const [history, setHistory] = useState<string[]>([
+    'DevTalk Terminal v1.2.0 (Active Workspace)',
+    'Connected to: node-main-01.local',
+    'Type "help" for a list of commands.',
+    ''
+  ]);
   const [input, setInput] = useState('');
+  const [textColor, setTextColor] = useState('text-green-500');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -36,36 +44,82 @@ const MockTerminal = () => {
 
   const handleCommand = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      const cmd = input.trim().toLowerCase();
+      const trimmedInput = input.trim();
+      const [cmd, ...args] = trimmedInput.toLowerCase().split(' ');
       let response = '';
-      if (cmd === 'help') response = 'Available commands: help, clear, status, ls, whoami';
-      else if (cmd === 'clear') { setHistory([]); setInput(''); return; }
-      else if (cmd === 'status') response = 'System healthy. Connection: Stable. AI: Active.';
-      else if (cmd === 'ls') response = 'src/  public/  package.json  next.config.ts  README.md';
-      else if (cmd === 'whoami') response = 'dev-user@devtalk-workspace';
-      else if (cmd === '') response = '';
-      else response = `Command not found: ${cmd}`;
 
-      setHistory([...history, `> ${input}`, response].filter(line => line !== ''));
+      switch (cmd) {
+        case 'help':
+          response = 'Available commands: help, clear, status, ls, whoami, date, echo, theme, exit';
+          break;
+        case 'clear':
+          setHistory([]);
+          setInput('');
+          return;
+        case 'status':
+          response = 'System: Online | Latency: 12ms | Storage: 4.2GB free | Active Sessions: 8';
+          break;
+        case 'ls':
+          response = 'src/  public/  docs/  package.json  next.config.ts  README.md  .env  components/';
+          break;
+        case 'whoami':
+          response = 'dev-user@devtalk-hq';
+          break;
+        case 'date':
+          response = new Date().toLocaleString();
+          break;
+        case 'echo':
+          response = args.join(' ');
+          break;
+        case 'theme':
+          const color = args[0];
+          const validColors = ['green', 'blue', 'red', 'white', 'purple', 'yellow', 'cyan'];
+          if (validColors.includes(color)) {
+            setTextColor(`text-${color}-500`);
+            response = `Terminal theme updated to ${color}.`;
+          } else {
+            response = `Invalid color. Try: ${validColors.join(', ')}`;
+          }
+          break;
+        case 'exit':
+          onClose();
+          return;
+        case '':
+          response = '';
+          break;
+        default:
+          response = `zsh: command not found: ${cmd}`;
+      }
+
+      const newHistory = [...history, `> ${trimmedInput}`];
+      if (response) newHistory.push(response);
+      setHistory(newHistory.filter(line => line !== null));
       setInput('');
     }
   };
 
   return (
-    <div className="bg-black text-green-500 font-code p-6 h-full flex flex-col gap-4 overflow-hidden border-t border-white/10 rounded-t-xl mt-4">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 text-sm leading-relaxed scrollbar-hide">
+    <div 
+      className="bg-[#0a0a0c] h-full flex flex-col font-code border-t border-white/10"
+      onClick={() => inputRef.current?.focus()}
+    >
+      <div 
+        ref={scrollRef} 
+        className="flex-1 overflow-y-auto p-6 space-y-1.5 text-sm leading-relaxed scrollbar-hide"
+      >
         {history.map((line, i) => (
-          <div key={i} className={cn(line.startsWith('>') ? "text-white" : "text-green-500")}>
+          <div key={i} className={cn(line.startsWith('>') ? "text-white opacity-90" : textColor)}>
             {line}
           </div>
         ))}
       </div>
-      <div className="flex gap-2 items-center border-t border-green-900/30 pt-4">
-        <span className="text-green-500 font-bold shrink-0">$</span>
+      <div className="flex gap-2 items-center border-t border-white/5 px-6 py-4 bg-black/40">
+        <span className={cn("font-bold shrink-0", textColor)}>$</span>
         <input 
+          ref={inputRef}
           autoFocus 
-          className="bg-transparent border-none outline-none flex-1 text-green-500 font-code placeholder:text-green-900"
-          placeholder="Enter command..."
+          className={cn("bg-transparent border-none outline-none flex-1 font-code placeholder:opacity-20", textColor)}
+          placeholder="Type command..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleCommand}
@@ -245,7 +299,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               DevTalk Terminal
             </SheetTitle>
           </SheetHeader>
-          <MockTerminal />
+          <MockTerminal onClose={() => setIsTerminalOpen(false)} />
         </SheetContent>
       </Sheet>
     </div>
