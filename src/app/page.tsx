@@ -317,7 +317,10 @@ export default function DevTalkApp() {
           <div className="w-64 h-full flex bg-[#19171d] flex-col overflow-hidden border-r border-white/5">
             <div className="p-4 border-b border-white/5">
               <h2 className="text-xl font-bold mb-4">Huddles</h2>
-              <Button className="w-full gap-2 h-9 bg-primary/20 text-primary hover:bg-primary/30 border border-primary/20">
+              <Button 
+                onClick={() => setIsHuddleActive(true)}
+                className="w-full gap-2 h-9 bg-primary/20 text-primary hover:bg-primary/30 border border-primary/20"
+              >
                 <Radio className="w-4 h-4" />
                 Start Huddle
               </Button>
@@ -327,9 +330,16 @@ export default function DevTalkApp() {
                 <div className="space-y-1">
                   <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Now</p>
                   {channels.slice(0, 2).map((c) => (
-                    <button key={c.id} className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors group">
+                    <button 
+                      key={c.id} 
+                      onClick={() => {
+                        handleSelect(c.id, 'channel');
+                        setIsHuddleActive(true);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors group text-left"
+                    >
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="truncate">#{c.name}</span>
+                      <span className="truncate flex-1">#{c.name}</span>
                       <div className="ml-auto opacity-0 group-hover:opacity-100 bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded">Join</div>
                     </button>
                   ))}
@@ -447,7 +457,7 @@ export default function DevTalkApp() {
           <header className="h-14 flex items-center px-6 border-b border-white/5 shrink-0">
             <h2 className="font-bold text-lg">Huddle Hub</h2>
           </header>
-          <div className="flex-1 p-8 overflow-y-auto space-y-8">
+          <div className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
              <div className="bg-gradient-to-br from-primary/20 to-transparent border border-primary/20 rounded-2xl p-8 space-y-4">
                <h3 className="text-2xl font-black">Jump into a huddle</h3>
                <p className="text-muted-foreground max-w-md">Connect with your team instantly through voice and video. No scheduling required.</p>
@@ -461,7 +471,14 @@ export default function DevTalkApp() {
                <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Recent Activity</h4>
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                  {channels.slice(0, 3).map((c) => (
-                    <div key={c.id} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-all cursor-pointer group">
+                    <div 
+                      key={c.id} 
+                      onClick={() => {
+                        handleSelect(c.id, 'channel');
+                        setIsHuddleActive(true);
+                      }}
+                      className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-all cursor-pointer group"
+                    >
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center">
                           <Radio className="w-5 h-5 text-primary" />
