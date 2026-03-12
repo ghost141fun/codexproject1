@@ -476,19 +476,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Slack Connect</p>
-                        <p className="text-xs text-muted-foreground">Bridge external channels</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Manage</Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
                         <Video className="w-5 h-5" />
                       </div>
