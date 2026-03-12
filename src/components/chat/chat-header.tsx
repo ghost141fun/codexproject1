@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Hash, ChevronDown, Search, Headphones, Edit2, Info, Clock, Video } from "lucide-react";
+import { Hash, ChevronDown, Search, Headphones, Edit2, MoreVertical, Clock, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -110,7 +110,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <Search className="w-4 h-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white">
-                  <Info className="w-4 h-4" />
+                  <MoreVertical className="w-4 h-4" />
                 </Button>
               </div>
             </header>
