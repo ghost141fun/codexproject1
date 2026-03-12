@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -71,6 +72,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -113,6 +118,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [copied, setCopied] = useState(false);
   const [activeDialogTab, setActiveDialogTab] = useState<'about' | 'members' | 'integrations' | 'settings'>('members');
 
+  // Permission Editor State
+  const [isEditingPermissions, setIsEditingPermissions] = useState(false);
+  const [postingRule, setPostingRule] = useState('guests');
+  const [allowThreads, setAllowThreads] = useState(true);
+  const [allowMentions, setAllowMentions] = useState(true);
+
   const isDm = activeItem?.type === 'dm';
 
   const filteredMembers = useMemo(() => {
@@ -148,10 +159,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
 
   const handleEditPermissions = () => {
-    toast({
-      title: "Permissions Editor",
-      description: "The posting permissions editor is only available to workspace administrators.",
-    });
+    setIsEditingPermissions(true);
   };
 
   const handleLeaveChannel = () => {
@@ -201,7 +209,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <header className="h-14 flex items-center justify-between px-4 border-b border-white/5 bg-[#1a1d21]">
               <div className="flex items-center gap-2">
                 <div 
-                  onClick={() => setIsMemberListOpen(true)}
+                  onClick={() => {
+                    setIsMemberListOpen(true);
+                    setIsEditingPermissions(false);
+                  }}
                   className="flex items-center gap-1 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-md transition-colors"
                 >
                   {isDm ? (
@@ -277,6 +288,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       onClick={() => {
                         setIsMemberListOpen(true);
                         setActiveDialogTab('about');
+                        setIsEditingPermissions(false);
                       }}
                       className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm"
                     >
@@ -370,497 +382,345 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <div className="flex items-center justify-between mb-4">
               <DialogTitle className="text-2xl font-black flex items-center gap-2">
                 <Hash className="w-6 h-6 text-muted-foreground" />
-                {activeItem?.name}
+                {isEditingPermissions ? "Posting permissions" : activeItem?.name}
               </DialogTitle>
+              {isEditingPermissions && (
+                <Button variant="ghost" size="icon" onClick={() => setIsEditingPermissions(false)} className="h-8 w-8 text-muted-foreground hover:text-white">
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
             </div>
             
-            <div className="flex items-center gap-2 mb-6">
-              <Star className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-yellow-400" />
-              <Button variant="outline" size="sm" className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2">
-                <Bell className="w-4 h-4" />
-                All new posts
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onToggleHuddle}
-                className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2"
-              >
-                <Headphones className="w-4 h-4" />
-                Huddle
-              </Button>
-            </div>
+            {!isEditingPermissions && (
+              <>
+                <div className="flex items-center gap-2 mb-6">
+                  <Star className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-yellow-400" />
+                  <Button variant="outline" size="sm" className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2">
+                    <Bell className="w-4 h-4" />
+                    All new posts
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={onToggleHuddle}
+                    className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2"
+                  >
+                    <Headphones className="w-4 h-4" />
+                    Huddle
+                  </Button>
+                </div>
 
-            <DialogDescription className="sr-only">
-              Channel details, members, and settings for {activeItem?.name}
-            </DialogDescription>
+                <DialogDescription className="sr-only">
+                  Channel details, members, and settings for {activeItem?.name}
+                </DialogDescription>
 
-            {/* Tabs Row */}
-            <div className="flex border-b border-white/10">
-              {[
-                { id: 'about', label: 'About' },
-                { id: 'members', label: `Members ${mockMembers.length + 5}` },
-                { id: 'integrations', label: 'Integrations' },
-                { id: 'settings', label: 'Settings' }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveDialogTab(tab.id as any)}
-                  className={cn(
-                    "px-4 py-2 text-xs font-bold transition-colors border-b-2 relative -mb-[2px]",
-                    activeDialogTab === tab.id 
-                      ? "text-white border-primary" 
-                      : "text-muted-foreground border-transparent hover:text-white hover:border-white/20"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+                {/* Tabs Row */}
+                <div className="flex border-b border-white/10">
+                  {[
+                    { id: 'about', label: 'About' },
+                    { id: 'members', label: `Members ${mockMembers.length + 5}` },
+                    { id: 'integrations', label: 'Integrations' },
+                    { id: 'settings', label: 'Settings' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveDialogTab(tab.id as any)}
+                      className={cn(
+                        "px-4 py-2 text-xs font-bold transition-colors border-b-2 relative -mb-[2px]",
+                        activeDialogTab === tab.id 
+                          ? "text-white border-primary" 
+                          : "text-muted-foreground border-transparent hover:text-white hover:border-white/20"
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </DialogHeader>
 
           <div className="p-6">
-            {activeDialogTab === 'members' && (
-              <div className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Find members"
-                    value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
-                    className="pl-9 bg-transparent border-white/10 h-10 focus-visible:ring-primary/40 focus-visible:border-primary/50"
-                  />
+            {isEditingPermissions ? (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <p className="text-sm font-bold text-white/90">Who can post in this channel?</p>
+                  <RadioGroup value={postingRule} onValueChange={setPostingRule} className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="everyone" id="p-everyone" className="border-white/30 text-primary" />
+                      <Label htmlFor="p-everyone" className="text-sm font-medium cursor-pointer">Everyone</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="guests" id="p-guests" className="border-white/30 text-primary" />
+                      <Label htmlFor="p-guests" className="text-sm font-medium cursor-pointer">Everyone, except guests</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="specific" id="p-specific" className="border-white/30 text-primary" />
+                      <Label htmlFor="p-specific" className="text-sm font-medium cursor-pointer">You, and specific people</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                
-                <ScrollArea className="h-[300px]">
-                  <div className="space-y-1">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => {
-                        setIsMemberListOpen(false);
-                        setIsInviteOpen(true);
-                      }}
-                      className="w-full justify-start gap-3 h-12 text-sm font-bold text-white hover:bg-white/5 mb-2"
-                    >
-                      <div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center">
-                        <UserPlus className="w-4 h-4 text-primary" />
-                      </div>
-                      Add people
-                    </Button>
 
-                    {filteredMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-all group cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <Avatar className="w-8 h-8 rounded-md border border-white/5">
-                              <AvatarImage src={member.avatar} />
-                              <AvatarFallback className="rounded-md font-bold text-xs">{member.name[0]}</AvatarFallback>
-                            </Avatar>
-                            <div className={cn(
-                              "absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a1d21]",
-                              member.status === 'online' ? "bg-green-500" : member.status === 'away' ? "bg-yellow-500" : "bg-white/20"
-                            )} />
+                <Separator className="bg-white/10" />
+
+                <div className="space-y-6">
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="allow-threads" 
+                      checked={allowThreads} 
+                      onCheckedChange={(val) => setAllowThreads(!!val)}
+                      className="mt-1 border-white/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="allow-threads" className="text-sm font-bold leading-none cursor-pointer">Allow threads</Label>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Everyone will be able to add replies to messages posted in this channel, regardless of overall posting permissions
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="allow-mentions" 
+                      checked={allowMentions} 
+                      onCheckedChange={(val) => setAllowMentions(!!val)}
+                      className="mt-1 border-white/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="allow-mentions" className="text-sm font-bold leading-none cursor-pointer">Allow @everyone, @here and @channel mentions</Label>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        <span className="font-bold">@everyone</span> notifies every person in the #{activeItem?.name} channel, <span className="font-bold">@channel</span> notifies all members of a channel, and <span className="font-bold">@here</span> notifies members of a channel who are active at that moment. <button className="text-[#36C5F0] hover:underline">how mentions work.</button> <span className="font-bold">Note:</span> Because of your workspace settings, only people who have permission can use @here and @channel.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => setIsEditingPermissions(false)} className="bg-black/20 border-white/10 hover:bg-white/5 text-sm font-bold px-6">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setIsEditingPermissions(false);
+                      toast({ title: "Permissions saved", description: "Channel posting rules have been updated." });
+                    }} 
+                    className="bg-[#35373b] hover:bg-[#4a4d52] text-white border-none text-sm font-bold px-6"
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {activeDialogTab === 'members' && (
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Find members"
+                        value={memberSearch}
+                        onChange={(e) => setMemberSearch(e.target.value)}
+                        className="pl-9 bg-transparent border-white/10 h-10 focus-visible:ring-primary/40 focus-visible:border-primary/50"
+                      />
+                    </div>
+                    
+                    <ScrollArea className="h-[300px]">
+                      <div className="space-y-1">
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => {
+                            setIsMemberListOpen(false);
+                            setIsInviteOpen(true);
+                          }}
+                          className="w-full justify-start gap-3 h-12 text-sm font-bold text-white hover:bg-white/5 mb-2"
+                        >
+                          <div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center">
+                            <UserPlus className="w-4 h-4 text-primary" />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold group-hover:text-primary transition-colors">{member.name}</span>
+                          Add people
+                        </Button>
+
+                        {filteredMembers.map((member) => (
+                          <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <Avatar className="w-8 h-8 rounded-md border border-white/5">
+                                  <AvatarImage src={member.avatar} />
+                                  <AvatarFallback className="rounded-md font-bold text-xs">{member.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className={cn(
+                                  "absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a1d21]",
+                                  member.status === 'online' ? "bg-green-500" : member.status === 'away' ? "bg-yellow-500" : "bg-white/20"
+                                )} />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold group-hover:text-primary transition-colors">{member.name}</span>
+                              </div>
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+
+                {activeDialogTab === 'about' && (
+                  <div className="space-y-6 text-sm">
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-white">Description</h4>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {activeItem?.description || "No description set for this channel."}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Created by</span>
+                        <p className="font-medium">Alex Rivera</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Created on</span>
+                        <p className="font-medium">October 12, 2023</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeDialogTab === 'integrations' && (
+                  <ScrollArea className="h-[350px]">
+                    <div className="space-y-4">
+                      {[
+                        { name: 'GitHub', desc: 'Sync PRs and issues', icon: Puzzle, color: 'text-primary' },
+                        { name: 'Jira Cloud', desc: 'Manage tickets and sprints', icon: Layout, color: 'text-blue-400' },
+                        { name: 'Zoom Meetings', desc: 'Auto-generate call links', icon: Video, color: 'text-cyan-400' },
+                        { name: 'Linear', desc: 'Issue tracking for teams', icon: Workflow, color: 'text-indigo-400' },
+                        { name: 'Sentry', desc: 'Error monitoring', icon: AlertTriangle, color: 'text-red-500' },
+                        { name: 'CircleCI', desc: 'CI/CD pipeline', icon: RefreshCw, color: 'text-green-400' },
+                        { name: 'Figma', desc: 'Collaborative design', icon: Palette, color: 'text-purple-400' },
+                        { name: 'Trello', desc: 'Project management', icon: TrelloIcon, color: 'text-blue-500' },
+                        { name: 'Notion', desc: 'Notes and docs', icon: BookOpen, color: 'text-white' },
+                        { name: 'Datadog', desc: 'Cloud monitoring', icon: Activity, color: 'text-purple-500' },
+                        { name: 'PagerDuty', desc: 'Incident response', icon: BellRing, color: 'text-green-500' },
+                        { name: 'Confluence', desc: 'Team documentation', icon: FileText, color: 'text-blue-400' },
+                        { name: 'Asana', desc: 'Project management', icon: CheckSquare, color: 'text-red-400' }
+                      ].map((item) => (
+                        <div key={item.name} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform", item.color)}>
+                              <item.icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm">{item.name}</p>
+                              <p className="text-xs text-muted-foreground">{item.desc}</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 border-white/10 hover:bg-white/5"
+                            onClick={() => handleIntegrationAction(item.name, 'Configure')}
+                          >
+                            Configure
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+
+                {activeDialogTab === 'settings' && (
+                  <ScrollArea className="h-[350px] pr-4 scrollbar-hide">
+                    <div className="space-y-6">
+                      {/* Posting Permissions */}
+                      <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-sm text-white">Posting permissions</h4>
+                          <button 
+                            onClick={handleEditPermissions}
+                            className="text-xs text-primary font-bold hover:underline"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                        <ul className="text-xs text-muted-foreground space-y-2 list-disc pl-4">
+                          <li>Everyone except guests can post</li>
+                          <li>Everyone can reply to messages</li>
+                          <li>Because of your workspace settings, only people who have permission can use @everyone mentions</li>
+                        </ul>
+                      </div>
+
+                      {/* Huddles */}
+                      <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-sm text-white">Huddles</h4>
+                          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                          Members can start and join huddles in this channel.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold"
+                            onClick={() => {
+                              onToggleHuddle();
+                              setIsMemberListOpen(false);
+                            }}
+                          >
+                            <Headphones className="w-3.5 h-3.5" />
+                            Start Huddle
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold"
+                            onClick={() => {
+                              const link = `https://devtalk.app/huddle/${activeItem?.id || 'general'}`;
+                              navigator.clipboard.writeText(link);
+                              toast({ title: "Link Copied", description: "Huddle link is ready." });
+                            }}
+                          >
+                            <LinkIcon className="w-3.5 h-3.5" />
+                            Copy Link
+                          </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
 
-            {activeDialogTab === 'about' && (
-              <div className="space-y-6 text-sm">
-                <div className="space-y-2">
-                  <h4 className="font-bold text-white">Description</h4>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {activeItem?.description || "No description set for this channel."}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Created by</span>
-                    <p className="font-medium">Alex Rivera</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Created on</span>
-                    <p className="font-medium">October 12, 2023</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeDialogTab === 'integrations' && (
-              <ScrollArea className="h-[350px]">
-                <div className="space-y-4">
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <Puzzle className="w-5 h-5" />
+                      {/* Tab Management */}
+                      <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                        <h4 className="font-bold text-sm text-white mb-4">Choose who can manage tabs</h4>
+                        <Select 
+                          defaultValue="owner"
+                          onValueChange={(val) => {
+                            toast({ title: "Permissions Updated", description: `Tab management restricted to ${val}.` });
+                          }}
+                        >
+                          <SelectTrigger className="w-full bg-black/20 border-white/10 h-10 text-xs">
+                            <SelectValue placeholder="Select permission" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1d21] border-white/10 text-white">
+                            <SelectItem value="everyone">Everyone</SelectItem>
+                            <SelectItem value="owner">Channel owner</SelectItem>
+                            <SelectItem value="admins">Workspace admins</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm">GitHub</p>
-                        <p className="text-xs text-muted-foreground">Sync PRs and issues</p>
+
+                      <div className="pt-4 space-y-2">
+                        <Button 
+                          variant="ghost" 
+                          onClick={handleLeaveChannel}
+                          className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3 text-xs font-bold"
+                        >
+                          <EyeOff className="w-4 h-4" />
+                          Leave Channel
+                        </Button>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('GitHub', 'Configure')}
-                    >
-                      Configure
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                        <Layout className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Jira Cloud</p>
-                        <p className="text-xs text-muted-foreground">Manage tickets and sprints</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Jira Cloud', 'Connect')}
-                    >
-                      Connect
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
-                        <Video className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Zoom Meetings</p>
-                        <p className="text-xs text-muted-foreground">Auto-generate call links</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Zoom Meetings', 'Enable')}
-                    >
-                      Enable
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
-                        <Workflow className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Linear</p>
-                        <p className="text-xs text-muted-foreground">Issue tracking for high-performance teams</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Linear', 'Configure')}
-                    >
-                      Configure
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
-                        <AlertTriangle className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Sentry</p>
-                        <p className="text-xs text-muted-foreground">Error monitoring and crash reporting</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Sentry', 'Connect')}
-                    >
-                      Connect
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-green-400 group-hover:scale-110 transition-transform">
-                        <RefreshCw className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">CircleCI</p>
-                        <p className="text-xs text-muted-foreground">Continuous integration and delivery</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('CircleCI', 'Setup')}
-                    >
-                      Setup
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-                        <Palette className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Figma</p>
-                        <p className="text-xs text-muted-foreground">Collaborative design tool</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Figma', 'Link File')}
-                    >
-                      Link File
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                        <TrelloIcon className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Trello</p>
-                        <p className="text-xs text-muted-foreground">Project management and boards</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Trello', 'Add Board')}
-                    >
-                      Add Board
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                        <BookOpen className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Notion</p>
-                        <p className="text-xs text-muted-foreground">All-in-one workspace for notes and docs</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Notion', 'Sync')}
-                    >
-                      Sync
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
-                        <Activity className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Datadog</p>
-                        <p className="text-xs text-muted-foreground">Cloud-scale monitoring</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Datadog', 'View Metrics')}
-                    >
-                      View Metrics
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
-                        <BellRing className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">PagerDuty</p>
-                        <p className="text-xs text-muted-foreground">Incident response and on-call</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('PagerDuty', 'Manage')}
-                    >
-                      Manage
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Confluence</p>
-                        <p className="text-xs text-muted-foreground">Team workspace for documentation</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Confluence', 'View Docs')}
-                    >
-                      View Docs
-                    </Button>
-                  </div>
-
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
-                        <CheckSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">Asana</p>
-                        <p className="text-xs text-muted-foreground">Manage team projects and tasks</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 border-white/10 hover:bg-white/5"
-                      onClick={() => handleIntegrationAction('Asana', 'Add Task')}
-                    >
-                      Add Task
-                    </Button>
-                  </div>
-                </div>
-              </ScrollArea>
-            )}
-
-            {activeDialogTab === 'settings' && (
-              <ScrollArea className="h-[350px] pr-4 scrollbar-hide">
-                <div className="space-y-6">
-                  {/* Posting Permissions */}
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-sm text-white">Posting permissions</h4>
-                      <button 
-                        onClick={handleEditPermissions}
-                        className="text-xs text-primary font-bold hover:underline"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    <ul className="text-xs text-muted-foreground space-y-2 list-disc pl-4">
-                      <li>Everyone except guests can post</li>
-                      <li>Everyone can reply to messages</li>
-                      <li>Because of your workspace settings, only people who have permission can use @everyone mentions</li>
-                    </ul>
-                    <button className="text-xs text-primary font-bold hover:underline mt-4">Learn more</button>
-                  </div>
-
-                  {/* Huddles */}
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-bold text-sm text-white">Huddles</h4>
-                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                      Members can start and join huddles in this channel. <button className="text-primary hover:underline">Learn more</button>
-                    </p>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold"
-                        onClick={() => {
-                          onToggleHuddle();
-                          setIsMemberListOpen(false);
-                        }}
-                      >
-                        <Headphones className="w-3.5 h-3.5" />
-                        Start Huddle
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold"
-                        onClick={() => {
-                          const link = `https://devtalk.app/huddle/${activeItem?.id || 'general'}`;
-                          navigator.clipboard.writeText(link);
-                          toast({ title: "Link Copied", description: "Huddle link is ready to share." });
-                        }}
-                      >
-                        <LinkIcon className="w-3.5 h-3.5" />
-                        Copy Huddle Link
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Tabs Permissions */}
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h4 className="font-bold text-sm text-white mb-4">Choose who can add, remove, and reorder tabs</h4>
-                    <Select 
-                      defaultValue="owner"
-                      onValueChange={(val) => {
-                        toast({ title: "Permissions Updated", description: `Tab management restricted to ${val.replace('-', ' ')}.` });
-                      }}
-                    >
-                      <SelectTrigger className="w-full bg-black/20 border-white/10 h-10 text-xs">
-                        <SelectValue placeholder="Select permission" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#1a1d21] border-white/10 text-white">
-                        <SelectItem value="everyone">Everyone</SelectItem>
-                        <SelectItem value="owner">Channel owner</SelectItem>
-                        <SelectItem value="admins">Workspace admins</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Advanced / Destructive */}
-                  <div className="pt-4 space-y-2">
-                    <Button 
-                      variant="ghost" 
-                      onClick={handleLeaveChannel}
-                      className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3 text-xs font-bold"
-                    >
-                      <EyeOff className="w-4 h-4" />
-                      Leave Channel
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={handleAdvancedSettings}
-                      className="w-full justify-start gap-3 text-xs font-bold text-muted-foreground hover:text-white"
-                    >
-                      <SettingsIcon className="w-4 h-4" />
-                      Advanced Settings
-                    </Button>
-                  </div>
-                </div>
-              </ScrollArea>
+                  </ScrollArea>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
@@ -871,9 +731,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle className="text-xl font-black">Invite people to {activeItem?.name}</DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-2">
-              Add teammates to this conversation or share an invite link.
-            </DialogDescription>
           </DialogHeader>
 
           <div className="p-6 space-y-6">
@@ -897,13 +754,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
             <div className="space-y-3">
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Workspace Members</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search by name or email"
-                  className="pl-9 bg-white/5 border-white/10 h-10 focus-visible:ring-primary/40"
-                />
-              </div>
               <ScrollArea className="h-40 rounded-md border border-white/5 p-2">
                 <div className="space-y-1">
                   {mockMembers.slice(0, 4).map((member) => (
@@ -929,10 +779,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </ScrollArea>
             </div>
           </div>
-
-          <div className="p-4 bg-black/20 border-t border-white/5 flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setIsInviteOpen(false)} className="text-muted-foreground hover:text-white">Done</Button>
-          </div>
         </DialogContent>
       </Dialog>
 
@@ -940,11 +786,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       {isDm && (
         <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
           <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
-            <DialogHeader className="sr-only">
-               <DialogTitle>User Profile</DialogTitle>
-               <DialogDescription>Full profile details for {activeItem.name}</DialogDescription>
-            </DialogHeader>
-            
             <div className="relative h-32 bg-gradient-to-r from-primary/40 to-primary/10">
               <div className="absolute -bottom-12 left-6">
                 <Avatar className="w-24 h-24 border-4 border-[#1a1d21] rounded-2xl">
@@ -981,26 +822,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <div className="flex flex-col">
                     <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Email</span>
                     <span className="text-sm font-medium lowercase">{activeItem.name.replace(' ', '.').toLowerCase()}@devtalk.app</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 group">
-                  <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Location</span>
-                    <span className="text-sm font-medium">San Francisco, CA</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 group">
-                  <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Local Time</span>
-                    <span className="text-sm font-medium">10:45 AM (UTC-7)</span>
                   </div>
                 </div>
               </div>
