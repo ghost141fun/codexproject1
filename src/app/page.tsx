@@ -216,6 +216,23 @@ export default function DevTalkApp() {
     setActiveView('home');
   };
 
+  const handleLeaveChannel = (id: string) => {
+    setChannels(prev => prev.filter(c => c.id !== id));
+    
+    // Redirect if leaving the active channel
+    if (activeId === id) {
+      const remainingChannels = channels.filter(c => c.id !== id);
+      if (remainingChannels.length > 0) {
+        setActiveId(remainingChannels[0].id);
+        setActiveType('channel');
+        setActiveView('home');
+      } else {
+        setActiveId('');
+        setActiveView('home');
+      }
+    }
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -525,6 +542,7 @@ export default function DevTalkApp() {
           onTabChange={setActiveTab}
           activeView={activeView}
           onOpenSearch={() => setIsSearchOpen(true)}
+          onLeaveChannel={handleLeaveChannel}
         />
         {isHuddleActive && <HuddleMeeting onLeave={() => setIsHuddleActive(false)} channelName={activeItem?.name} />}
         <div className="flex-1 flex flex-col min-h-0">

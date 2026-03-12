@@ -88,6 +88,7 @@ interface ChatHeaderProps {
   onTabChange: (tab: 'messages' | 'files' | 'pins') => void;
   activeView: string;
   onOpenSearch: () => void;
+  onLeaveChannel?: (id: string) => void;
 }
 
 const mockMembers = [
@@ -108,7 +109,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   activeTab,
   onTabChange,
   activeView,
-  onOpenSearch
+  onOpenSearch,
+  onLeaveChannel
 }) => {
   const { toast } = useToast();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -163,6 +165,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
 
   const handleLeaveChannel = () => {
+    if (activeItem && onLeaveChannel) {
+      onLeaveChannel(activeItem.id);
+    }
     toast({
       title: "Channel Update",
       description: `You have successfully left the #${activeItem?.name} channel.`,
