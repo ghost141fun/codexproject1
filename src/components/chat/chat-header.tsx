@@ -132,6 +132,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     });
   };
 
+  const handleIntegrationAction = (serviceName: string, action: string) => {
+    toast({
+      title: `${serviceName} Integration`,
+      description: `Initiating ${action.toLowerCase()} for ${serviceName}. Please follow the authentication prompts.`,
+    });
+  };
+
   return (
     <div className="flex flex-col shrink-0">
       {/* Top Global Search Bar */}
@@ -469,7 +476,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Sync PRs and issues</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Configure</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('GitHub', 'Configure')}
+                    >
+                      Configure
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -482,7 +496,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Manage tickets and sprints</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Connect</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Jira Cloud', 'Connect')}
+                    >
+                      Connect
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -495,7 +516,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Auto-generate call links</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Enable</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Zoom Meetings', 'Enable')}
+                    >
+                      Enable
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -508,7 +536,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Issue tracking for high-performance teams</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Configure</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Linear', 'Configure')}
+                    >
+                      Configure
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -521,7 +556,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Error monitoring and crash reporting</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Connect</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Sentry', 'Connect')}
+                    >
+                      Connect
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -534,7 +576,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Continuous integration and delivery</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Setup</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('CircleCI', 'Setup')}
+                    >
+                      Setup
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -547,7 +596,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Collaborative design tool</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Link File</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Figma', 'Link File')}
+                    >
+                      Link File
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -560,7 +616,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Project management and boards</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Add Board</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Trello', 'Add Board')}
+                    >
+                      Add Board
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -573,7 +636,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">All-in-one workspace for notes and docs</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Sync</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Notion', 'Sync')}
+                    >
+                      Sync
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -586,7 +656,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Cloud-scale monitoring</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">View Metrics</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Datadog', 'View Metrics')}
+                    >
+                      View Metrics
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -599,7 +676,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Incident response and on-call</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Manage</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('PagerDuty', 'Manage')}
+                    >
+                      Manage
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -612,7 +696,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Team workspace for documentation</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">View Docs</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Confluence', 'View Docs')}
+                    >
+                      View Docs
+                    </Button>
                   </div>
 
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
@@ -625,7 +716,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         <p className="text-xs text-muted-foreground">Manage team projects and tasks</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Add Task</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 border-white/10 hover:bg-white/5"
+                      onClick={() => handleIntegrationAction('Asana', 'Add Task')}
+                    >
+                      Add Task
+                    </Button>
                   </div>
                 </div>
               </ScrollArea>
