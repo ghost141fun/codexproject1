@@ -18,12 +18,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-interface MessageInputProps {
-  onSendMessage: (content: string) => void;
-  conversationHistory: Message[];
-  placeholder?: string;
-}
-
 const MockTerminal = ({ onClose }: { onClose: () => void }) => {
   const [history, setHistory] = useState<string[]>([
     'DevTalk Terminal v1.2.0 (Active Workspace)',
@@ -36,6 +30,14 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-focus logic to handle Radix UI animation delays
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -45,6 +47,12 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
   const handleCommand = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       const trimmedInput = input.trim();
+      if (!trimmedInput) {
+        setHistory(prev => [...prev, '$']);
+        setInput('');
+        return;
+      }
+
       const [cmd, ...args] = trimmedInput.toLowerCase().split(' ');
       let response = '';
 
@@ -84,16 +92,13 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
         case 'exit':
           onClose();
           return;
-        case '':
-          response = '';
-          break;
         default:
           response = `zsh: command not found: ${cmd}`;
       }
 
-      const newHistory = [...history, `> ${trimmedInput}`];
+      const newHistory = [...history, `$ ${trimmedInput}`];
       if (response) newHistory.push(response);
-      setHistory(newHistory.filter(line => line !== null));
+      setHistory(newHistory);
       setInput('');
     }
   };
@@ -108,7 +113,7 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
         className="flex-1 overflow-y-auto p-6 space-y-1.5 text-sm leading-relaxed scrollbar-hide"
       >
         {history.map((line, i) => (
-          <div key={i} className={cn(line.startsWith('>') ? "text-white opacity-90" : textColor)}>
+          <div key={i} className={cn(line.startsWith('$') ? "text-white opacity-90" : textColor)}>
             {line}
           </div>
         ))}
@@ -117,12 +122,13 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
         <span className={cn("font-bold shrink-0", textColor)}>$</span>
         <input 
           ref={inputRef}
-          autoFocus 
           className={cn("bg-transparent border-none outline-none flex-1 font-code placeholder:opacity-20", textColor)}
           placeholder="Type command..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleCommand}
+          autoComplete="off"
+          spellCheck="false"
         />
       </div>
     </div>
