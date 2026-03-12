@@ -1,10 +1,37 @@
 "use client";
 
 import React from 'react';
-import { Hash, ChevronDown, Search, Headphones, Edit2, MoreVertical, Clock, Video } from "lucide-react";
+import { 
+  Hash, 
+  ChevronDown, 
+  Search, 
+  Headphones, 
+  Edit2, 
+  MoreVertical, 
+  Clock, 
+  Video,
+  User,
+  Star,
+  Copy,
+  Columns2,
+  EyeOff,
+  Sparkles
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 interface ChatHeaderProps {
   activeItem: any;
@@ -35,9 +62,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onClick={onOpenSearch}
           className="flex items-center gap-4 w-full max-w-2xl px-3 h-7 bg-white/10 rounded-md border border-white/10 group hover:bg-white/15 cursor-pointer transition-colors"
         >
-          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+          <Search className="w-3.5 h-3.5 text-muted-foreground" />
           <div className="flex items-center gap-2 flex-1 text-xs text-muted-foreground">
-            <Search className="w-3.5 h-3.5" />
             <span>Search Workspace</span>
           </div>
           <div className="flex items-center gap-1">
@@ -107,9 +133,72 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 >
                   <Search className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 bg-[#1a1d21] border-white/10 text-white shadow-2xl p-1.5">
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                      Open conversation details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      View full profile
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator className="bg-white/5 my-1.5" />
+                    
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer bg-primary/10 text-white font-medium focus:bg-primary/20 transition-colors rounded-sm group">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      Summarize conversation
+                      <Badge className="ml-auto bg-[#b33de0] hover:bg-[#b33de0] text-[10px] font-black h-4 px-1.5 rounded-sm border-none text-white">PRO</Badge>
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator className="bg-white/5 my-1.5" />
+                    
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                      <Star className="w-4 h-4 text-muted-foreground" />
+                      Star conversation
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator className="bg-white/5 my-1.5" />
+                    
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                        <Copy className="w-4 h-4 text-muted-foreground" />
+                        Copy
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="bg-[#1a1d21] border-white/10 text-white shadow-2xl min-w-[150px] p-1">
+                          <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy link</DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy channel ID</DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                      <Search className="w-4 h-4 text-muted-foreground" />
+                      Search in conversation
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator className="bg-white/5 my-1.5" />
+                    
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                      <Columns2 className="w-4 h-4 text-muted-foreground" />
+                      Open in split view
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator className="bg-white/5 my-1.5" />
+                    
+                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer text-[#ff6b6b] focus:text-[#ff6b6b] focus:bg-red-500/10 rounded-sm font-medium">
+                      <EyeOff className="w-4 h-4" />
+                      Hide
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </header>
 
