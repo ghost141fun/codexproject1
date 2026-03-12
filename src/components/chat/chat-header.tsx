@@ -8,14 +8,12 @@ import {
   Headphones, 
   Edit2, 
   MoreVertical, 
-  Clock, 
   Video,
   User,
   Star,
   Copy,
   Columns2,
-  EyeOff,
-  Sparkles
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,7 +29,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 
 interface ChatHeaderProps {
   activeItem: any;
@@ -147,14 +144,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
                       <User className="w-4 h-4 text-muted-foreground" />
                       View full profile
-                    </DropdownMenuItem>
-                    
-                    <DropdownMenuSeparator className="bg-white/5 my-1.5" />
-                    
-                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer bg-primary/10 text-white font-medium focus:bg-primary/20 transition-colors rounded-sm group">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      Summarize conversation
-                      <Badge className="ml-auto bg-[#b33de0] hover:bg-[#b33de0] text-[10px] font-black h-4 px-1.5 rounded-sm border-none text-white">PRO</Badge>
                     </DropdownMenuItem>
                     
                     <DropdownMenuSeparator className="bg-white/5 my-1.5" />
