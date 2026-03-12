@@ -25,7 +25,8 @@ import {
   X,
   Settings as SettingsIcon,
   Puzzle,
-  Layout
+  Layout,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,6 +52,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface ChatHeaderProps {
   activeItem: any;
@@ -89,7 +91,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [copied, setCopied] = useState(false);
-  const [activeDialogTab, setActiveDialogTab] = useState<'about' | 'members' | 'tabs' | 'integrations' | 'settings'>('members');
+  const [activeDialogTab, setActiveDialogTab] = useState<'about' | 'members' | 'integrations' | 'settings'>('members');
 
   const isDm = activeItem?.type === 'dm';
 
@@ -320,14 +322,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <Hash className="w-6 h-6 text-muted-foreground" />
                 {activeItem?.name}
               </DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsMemberListOpen(false)}
-                className="h-8 w-8 text-muted-foreground hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </Button>
             </div>
             
             <div className="flex items-center gap-2 mb-6">
@@ -359,7 +353,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               {[
                 { id: 'about', label: 'About' },
                 { id: 'members', label: `Members ${mockMembers.length + 5}` },
-                { id: 'tabs', label: 'Tabs' },
                 { id: 'integrations', label: 'Integrations' },
                 { id: 'settings', label: 'Settings' }
               ].map((tab) => (
