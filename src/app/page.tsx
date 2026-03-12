@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -10,17 +9,15 @@ import { ChatHeader } from "@/components/chat/chat-header";
 import { MessageList } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { HuddleMeeting } from "@/components/chat/huddle-meeting";
+import { GlobalSearch } from "@/components/chat/global-search";
 import { useUser, useAuth } from '@/database';
 import { initiateAnonymousSignIn } from '@/database/non-blocking-login';
 import { 
   Loader2, 
   MessageSquare, 
-  UserPlus, 
   Sparkles, 
   FileText, 
   Upload, 
-  MoreHorizontal, 
-  Download, 
   Trash2,
   Image as ImageIcon,
   Code,
@@ -38,7 +35,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from '@/lib/utils';
 
 export default function DevTalkApp() {
   const { user, isUserLoading } = useUser();
@@ -58,6 +54,7 @@ export default function DevTalkApp() {
   const [activeFileCategory, setActiveFileCategory] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'messages' | 'files' | 'pins'>('messages');
   const [isHuddleActive, setIsHuddleActive] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // File Upload Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +79,13 @@ export default function DevTalkApp() {
           description: 'The community hub for all developers', 
           isPrivate: false, 
           type: 'channel' 
+        },
+        { 
+          id: 'frontend-dev', 
+          name: 'frontend-dev', 
+          description: 'React, Next.js and Tailwind chatter', 
+          isPrivate: false, 
+          type: 'channel' 
         }
       ]);
     }
@@ -93,7 +97,10 @@ export default function DevTalkApp() {
         console.error("Failed to parse messages", e);
       }
     } else {
-      setMessages({ 'general': [] });
+      setMessages({ 
+        'general': [],
+        'frontend-dev': []
+      });
     }
 
     if (savedFiles) {
@@ -111,6 +118,18 @@ export default function DevTalkApp() {
     }
     
     setIsInitialized(true);
+  }, []);
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Save to LocalStorage on changes
@@ -278,7 +297,7 @@ export default function DevTalkApp() {
               <h2 className="text-xl font-bold mb-4">Activity</h2>
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input placeholder="Filter activity" className="w-full bg-white/5 border-none rounded-md pl-8 h-9 text-sm focus:ring-1 focus:ring-white/20" />
+                <input placeholder="Filter activity" className="w-full bg-white/5 border-none rounded-md pl-8 h-9 text-sm focus:ring-1 focus:ring-white/20 outline-none" />
               </div>
             </div>
             <ScrollArea className="flex-1 p-3">
@@ -468,6 +487,7 @@ export default function DevTalkApp() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           activeView={activeView}
+          onOpenSearch={() => setIsSearchOpen(true)}
         />
         {isHuddleActive && <HuddleMeeting onLeave={() => setIsHuddleActive(false)} channelName={activeItem?.name} />}
         <div className="flex-1 flex flex-col min-h-0">
@@ -535,6 +555,15 @@ export default function DevTalkApp() {
       <main className="flex-1 flex flex-col min-w-0 bg-[#1a1d21] relative">
         {renderContent()}
       </main>
+      <GlobalSearch 
+        open={isSearchOpen} 
+        onOpenChange={setIsSearchOpen} 
+        messages={messages} 
+        files={files}
+        onSelectResult={(id, type) => {
+          handleSelect(id, type as any);
+        }}
+      />
       <Toaster />
     </div>
   );
