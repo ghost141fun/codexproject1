@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { 
   Send, Plus, Smile, Bold, Italic, Strikethrough, 
   Link2, List, ListOrdered, AlignLeft, Code, Quote,
-  AtSign, Video, Mic, Monitor
+  AtSign, Video, Mic, Monitor, Terminal
 } from "lucide-react";
 import { smartReply } from "@/ai/flows/smart-reply";
 import { Message } from "@/lib/types";
@@ -115,6 +115,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" onClick={() => applyFormatting('```\n', '\n```')}>
             <Monitor className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" onClick={() => applyFormatting('```bash\n', '\n```')}>
+            <Terminal className="w-3.5 h-3.5" />
           </Button>
         </div>
         
