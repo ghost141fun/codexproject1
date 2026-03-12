@@ -26,7 +26,8 @@ import {
   Settings as SettingsIcon,
   Puzzle,
   Layout,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -325,9 +326,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
             
             <div className="flex items-center gap-2 mb-6">
-              <Button variant="outline" size="sm" className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 px-2">
-                <Star className="w-4 h-4" />
-              </Button>
+              <Star className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-yellow-400" />
               <Button variant="outline" size="sm" className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2">
                 <Bell className="w-4 h-4" />
                 All new posts
@@ -447,20 +446,61 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             )}
 
             {activeDialogTab === 'integrations' && (
-              <div className="space-y-4">
-                <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-primary">
-                      <Puzzle className="w-5 h-5" />
+              <ScrollArea className="h-[350px]">
+                <div className="space-y-4">
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <Puzzle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">GitHub</p>
+                        <p className="text-xs text-muted-foreground">Sync PRs and issues</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-sm">GitHub</p>
-                      <p className="text-xs text-muted-foreground">Sync PRs and issues</p>
-                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Configure</Button>
                   </div>
-                  <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Configure</Button>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                        <Layout className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Jira Cloud</p>
+                        <p className="text-xs text-muted-foreground">Manage tickets and sprints</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Connect</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                        <MessageSquare className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Slack Connect</p>
+                        <p className="text-xs text-muted-foreground">Bridge external channels</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Manage</Button>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+                        <Video className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Zoom Meetings</p>
+                        <p className="text-xs text-muted-foreground">Auto-generate call links</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Enable</Button>
+                  </div>
                 </div>
-              </div>
+              </ScrollArea>
             )}
 
             {activeDialogTab === 'settings' && (
