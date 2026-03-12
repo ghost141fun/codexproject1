@@ -19,7 +19,8 @@ import {
   MapPin,
   Clock,
   UserPlus,
-  X
+  Check,
+  Link as LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatHeaderProps {
   activeItem: any;
@@ -76,9 +78,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   activeView,
   onOpenSearch
 }) => {
+  const { toast } = useToast();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMemberListOpen, setIsMemberListOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const isDm = activeItem?.type === 'dm';
 
@@ -88,6 +93,24 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       m.role.toLowerCase().includes(memberSearch.toLowerCase())
     );
   }, [memberSearch]);
+
+  const copyInviteLink = () => {
+    const link = `https://devtalk.app/join/${activeItem?.id || 'general'}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    toast({
+      title: "Link Copied",
+      description: "Invitation link has been copied to your clipboard.",
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleInviteUser = (name: string) => {
+    toast({
+      title: "Invitation Sent",
+      description: `We've sent an invitation to ${name} to join this channel.`,
+    });
+  };
 
   return (
     <div className="flex flex-col shrink-0">
@@ -143,7 +166,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 >
                   {[1, 2, 3].map((i) => (
                     <Avatar key={i} className="w-6 h-6 border-2 border-[#1a1d21] rounded">
-                      <AvatarImage src={`https://picsum.photos/seed/${i + 20}/100/100`} data-ai-hint="user avatar" />
+                      <AvatarImage src={`https://picsum.photos/seed/${i + 20}/100/100`} />
                       <AvatarFallback>U</AvatarFallback>
                     </Avatar>
                   ))}
@@ -219,7 +242,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="bg-[#1a1d21] border-white/10 text-white shadow-2xl min-w-[150px] p-1">
-                          <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy link</DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer focus:bg-white/10" onClick={copyInviteLink}>Copy link</DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer focus:bg-white/10">Copy ID</DropdownMenuItem>
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
@@ -282,13 +305,23 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <Hash className="w-5 h-5 text-muted-foreground" />
                 {activeItem?.name} Members
               </DialogTitle>
-              <Button size="sm" variant="ghost" className="text-primary hover:bg-primary/10 h-8 gap-2">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="text-primary hover:bg-primary/10 h-8 gap-2"
+                onClick={() => {
+                  setIsMemberListOpen(false);
+                  setIsInviteOpen(true);
+                }}
+              >
                 <UserPlus className="w-4 h-4" />
                 Invite
               </Button>
             </div>
-            <DialogDescription className="sr-only">List of all members in this conversation.</DialogDescription>
-            <div className="relative">
+            <DialogDescription className="text-muted-foreground text-xs">
+              View all people who have access to this conversation.
+            </DialogDescription>
+            <div className="relative mt-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 placeholder="Find a member"
@@ -336,6 +369,76 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               {filteredMembers.length} Members Total
             </span>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite Dialog */}
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="text-xl font-black">Invite people to {activeItem?.name}</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm mt-2">
+              Add teammates to this conversation or share an invite link.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-6 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Invite via Link</label>
+              <div className="flex gap-2">
+                <Input 
+                  readOnly 
+                  value={`https://devtalk.app/join/${activeItem?.id || 'general'}`}
+                  className="bg-white/5 border-white/10 text-sm focus-visible:ring-primary/40"
+                />
+                <Button 
+                  onClick={copyInviteLink} 
+                  variant="secondary" 
+                  className="shrink-0 bg-primary/20 text-primary hover:bg-primary/30"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Workspace Members</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by name or email"
+                  className="pl-9 bg-white/5 border-white/10 h-10 focus-visible:ring-primary/40"
+                />
+              </div>
+              <ScrollArea className="h-40 rounded-md border border-white/5 p-2">
+                <div className="space-y-1">
+                  {mockMembers.slice(0, 4).map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-2 rounded hover:bg-white/5 group">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8 rounded border border-white/10">
+                          <AvatarImage src={member.avatar} />
+                          <AvatarFallback>{member.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{member.name}</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-primary text-xs hover:bg-primary/10"
+                        onClick={() => handleInviteUser(member.name)}
+                      >
+                        Invite
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          <div className="p-4 bg-black/20 border-t border-white/5 flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setIsInviteOpen(false)} className="text-muted-foreground hover:text-white">Done</Button>
           </div>
         </DialogContent>
       </Dialog>
