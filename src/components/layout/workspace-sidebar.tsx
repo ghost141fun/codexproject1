@@ -37,6 +37,7 @@ interface WorkspaceSidebarProps {
   channels: Channel[];
   directMessages: DirectMessage[];
   onCreateChannel: (name: string, isPrivate: boolean) => void;
+  onViewChange?: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles') => void;
 }
 
 export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ 
@@ -44,7 +45,8 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   onSelect, 
   channels,
   directMessages,
-  onCreateChannel 
+  onCreateChannel,
+  onViewChange
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -86,15 +88,21 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               <span>Invite member</span>
             </button>
 
-            <button className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors">
+            <button 
+              onClick={() => onViewChange?.('huddles')}
+              className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors text-left"
+            >
               <Radio className="w-4 h-4" />
               <span>Huddles</span>
             </button>
-            <button className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors">
+            <button 
+              onClick={() => onViewChange?.('files')}
+              className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors text-left"
+            >
               <FolderOpen className="w-4 h-4" />
               <span>Files</span>
             </button>
-            <button className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors">
+            <button className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors text-left">
               <CheckSquare className="w-4 h-4" />
               <span>All Workspace</span>
             </button>

@@ -339,7 +339,16 @@ export default function DevTalkApp() {
           </div>
         );
       default:
-        return <WorkspaceSidebar activeId={activeId} onSelect={handleSelect} channels={channels} directMessages={directMessages} onCreateChannel={handleCreateChannel} />;
+        return (
+          <WorkspaceSidebar 
+            activeId={activeId} 
+            onSelect={handleSelect} 
+            channels={channels} 
+            directMessages={directMessages} 
+            onCreateChannel={handleCreateChannel}
+            onViewChange={handleViewChange}
+          />
+        );
     }
   };
 
