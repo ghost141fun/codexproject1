@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -25,7 +26,9 @@ import {
   Radio,
   Clock,
   Search,
-  Users
+  Users,
+  Hash,
+  Lock
 } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { Message, Channel, DirectMessage, FileAsset } from '@/lib/types';
@@ -35,6 +38,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function DevTalkApp() {
   const { user, isUserLoading } = useUser();
@@ -55,6 +65,7 @@ export default function DevTalkApp() {
   const [activeTab, setActiveTab] = useState<'messages' | 'files' | 'pins'>('messages');
   const [isHuddleActive, setIsHuddleActive] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isHuddleSelectOpen, setIsHuddleSelectOpen] = useState(false);
 
   // File Upload Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -318,7 +329,7 @@ export default function DevTalkApp() {
             <div className="p-4 border-b border-white/5">
               <h2 className="text-xl font-bold mb-4">Huddles</h2>
               <Button 
-                onClick={() => setIsHuddleActive(true)}
+                onClick={() => setIsHuddleSelectOpen(true)}
                 className="w-full gap-2 h-9 bg-primary/20 text-primary hover:bg-primary/30 border border-primary/20"
               >
                 <Radio className="w-4 h-4" />
@@ -461,7 +472,7 @@ export default function DevTalkApp() {
              <div className="bg-gradient-to-br from-primary/20 to-transparent border border-primary/20 rounded-2xl p-8 space-y-4">
                <h3 className="text-2xl font-black">Jump into a huddle</h3>
                <p className="text-muted-foreground max-w-md">Connect with your team instantly through voice and video. No scheduling required.</p>
-               <Button className="gap-2" onClick={() => setIsHuddleActive(true)}>
+               <Button className="gap-2" onClick={() => setIsHuddleSelectOpen(true)}>
                  <Radio className="w-4 h-4" />
                  Start Workspace Huddle
                </Button>
@@ -590,6 +601,50 @@ export default function DevTalkApp() {
           handleSelect(id, type as any);
         }}
       />
+      
+      {/* Huddle Selection Dialog */}
+      <Dialog open={isHuddleSelectOpen} onOpenChange={setIsHuddleSelectOpen}>
+        <DialogContent className="bg-[#1a1d21] border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black flex items-center gap-2">
+              <Radio className="w-5 h-5 text-primary" />
+              Start a Huddle
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Select a channel to start a voice and video conversation with your team.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <ScrollArea className="h-[300px] pr-4 scrollbar-hide">
+              <div className="space-y-2">
+                {channels.map((channel) => (
+                  <button
+                    key={channel.id}
+                    onClick={() => {
+                      handleSelect(channel.id, 'channel');
+                      setIsHuddleActive(true);
+                      setIsHuddleSelectOpen(false);
+                    }}
+                    className="flex items-center justify-between w-full p-3 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                         {channel.isPrivate ? <Lock className="w-5 h-5 text-muted-foreground" /> : <Hash className="w-5 h-5 text-muted-foreground" />}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm">#{channel.name}</p>
+                        <p className="text-[10px] text-muted-foreground line-clamp-1">{channel.description}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100 h-8 text-primary font-bold uppercase tracking-widest text-[10px]">Start</Button>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <Toaster />
     </div>
   );
