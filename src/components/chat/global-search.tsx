@@ -4,6 +4,9 @@ import React, { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,6 +59,13 @@ export function GlobalSearch({ open, onOpenChange, messages, files, onSelectResu
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] p-0 gap-0 bg-[#1a1d21] border-white/10 text-white overflow-hidden">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Search Workspace</DialogTitle>
+          <DialogDescription>
+            Find messages, files, and members across all your channels and direct messages.
+          </DialogDescription>
+        </DialogHeader>
+
         <div className="flex items-center px-4 h-14 border-b border-white/5 bg-white/5">
           <Search className="w-5 h-5 text-muted-foreground mr-3" />
           <Input

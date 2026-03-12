@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -22,6 +21,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
+  DialogDescription,
   DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
@@ -117,6 +117,9 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 <DialogContent className="bg-card border-border">
                   <DialogHeader>
                     <DialogTitle>Create a channel</DialogTitle>
+                    <DialogDescription>
+                      Channels are where your team communicates. They're best when organized around a topic.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">

@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,9 @@ export const AiSummaryDialog: React.FC<AiSummaryDialogProps> = ({ messages, chan
             <Sparkles className="w-5 h-5 text-primary" />
             AI Channel Insight: #{channelName}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            An AI-generated summary of recent activity and key points discussed in this channel.
+          </DialogDescription>
         </DialogHeader>
         <div className="py-6 min-h-[150px] flex flex-col items-center justify-center space-y-4">
           {!summary && !loading && (
@@ -99,7 +103,7 @@ export const AiSummaryDialog: React.FC<AiSummaryDialogProps> = ({ messages, chan
                   <Copy className="w-4 h-4 mr-2" />
                   Copy
                 </Button>
-                <Button variant="primary" size="sm" onClick={handleSummarize}>
+                <Button variant="default" size="sm" onClick={handleSummarize}>
                   Refresh
                 </Button>
               </div>
