@@ -123,40 +123,42 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                     <Plus className="w-4 h-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-card/95 backdrop-blur-xl border-white/10 shadow-2xl animate-in fade-in zoom-in duration-300 sm:max-w-[450px]">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-black">Create a channel</DialogTitle>
-                    <DialogDescription className="text-muted-foreground/80 pt-2">
+                <DialogContent className="bg-[#1a1d21]/90 backdrop-blur-xl border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5 animate-in fade-in zoom-in duration-500 sm:max-w-[450px] p-8 rounded-2xl overflow-hidden">
+                  <DialogHeader className="space-y-2">
+                    <DialogTitle className="text-2xl font-black text-white">Create a channel</DialogTitle>
+                    <DialogDescription className="text-muted-foreground/80 leading-relaxed text-sm">
                       Channels are where your team communicates. They're best when organized around a topic.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-6 py-6">
+                  <div className="space-y-6 py-8">
                     <div className="space-y-3">
-                      <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Channel Name</Label>
-                      <div className="relative">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Channel Name</Label>
+                      <div className="relative group">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center transition-colors group-focus-within:text-primary">
+                          <Hash className="w-4 h-4 text-muted-foreground" />
+                        </div>
                         <Input 
                           id="name" 
                           placeholder="e.g. project-apollo" 
                           value={newChannelName}
                           onChange={(e) => setNewChannelName(e.target.value)}
-                          className="pl-9 bg-black/20 border-white/10 focus:border-primary/50 h-11 text-sm transition-all placeholder:text-muted-foreground/50"
+                          className="pl-10 bg-black/40 border-white/10 focus-visible:ring-primary/40 focus-visible:border-primary/50 h-12 text-sm transition-all placeholder:text-muted-foreground/30 rounded-xl"
                         />
                       </div>
                     </div>
                   </div>
-                  <DialogFooter className="gap-2 sm:gap-2 items-center">
+                  <DialogFooter className="gap-3 sm:gap-3 flex-row justify-end items-center">
                     <Button 
                       variant="ghost" 
                       onClick={() => setIsDialogOpen(false)} 
-                      className="hover:bg-white/5 font-bold text-xs uppercase tracking-widest h-10 px-6 text-white"
+                      className="hover:bg-white/5 font-bold text-[11px] uppercase tracking-[0.2em] h-11 px-8 text-white transition-all active:scale-95"
                     >
                       Cancel
                     </Button>
                     <Button 
                       onClick={handleCreateChannel} 
                       disabled={!newChannelName.trim()}
-                      className="font-bold text-xs uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white"
+                      className="font-bold text-[11px] uppercase tracking-[0.2em] h-11 px-8 shadow-[0_10px_30px_rgba(168,85,247,0.3)] bg-primary hover:bg-primary/90 text-white transition-all active:scale-95 disabled:opacity-20 disabled:shadow-none rounded-xl"
                     >
                       Create Channel
                     </Button>
