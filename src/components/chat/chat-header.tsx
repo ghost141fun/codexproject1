@@ -20,7 +20,12 @@ import {
   Clock,
   UserPlus,
   Check,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Bell,
+  X,
+  Settings as SettingsIcon,
+  Puzzle,
+  Layout
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,6 +89,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [copied, setCopied] = useState(false);
+  const [activeDialogTab, setActiveDialogTab] = useState<'about' | 'members' | 'tabs' | 'integrations' | 'settings'>('members');
 
   const isDm = activeItem?.type === 'dm';
 
@@ -132,7 +138,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
 
-      {/* Channel Header (only if on home or dms and item selected) */}
+      {/* Channel Header */}
       {!activeItem && (activeView === 'home' || activeView === 'dms') ? (
         <header className="h-14 flex items-center px-4 border-b border-white/5 bg-[#1a1d21]">
           <span className="text-muted-foreground animate-pulse text-sm">Select a conversation...</span>
@@ -142,7 +148,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <>
             <header className="h-14 flex items-center justify-between px-4 border-b border-white/5 bg-[#1a1d21]">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-md transition-colors">
+                <div 
+                  onClick={() => setIsMemberListOpen(true)}
+                  className="flex items-center gap-1 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-md transition-colors"
+                >
                   {isDm ? (
                      <div className="relative">
                        <Avatar className="w-5 h-5 rounded-md">
@@ -212,7 +221,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64 bg-[#1a1d21] border-white/10 text-white shadow-2xl p-1.5">
-                    <DropdownMenuItem className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm">
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setIsMemberListOpen(true);
+                        setActiveDialogTab('about');
+                      }}
+                      className="gap-2 py-2 cursor-pointer focus:bg-white/10 rounded-sm"
+                    >
                       Open conversation details
                     </DropdownMenuItem>
                     
@@ -296,79 +311,177 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         )
       )}
 
-      {/* Member List Dialog */}
+      {/* Redesigned Member List / Channel Details Dialog */}
       <Dialog open={isMemberListOpen} onOpenChange={setIsMemberListOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
-          <DialogHeader className="p-6 pb-2">
+        <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
+          <DialogHeader className="p-6 pb-0">
             <div className="flex items-center justify-between mb-4">
-              <DialogTitle className="text-xl font-black flex items-center gap-2">
-                <Hash className="w-5 h-5 text-muted-foreground" />
-                {activeItem?.name} Members
+              <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                <Hash className="w-6 h-6 text-muted-foreground" />
+                {activeItem?.name}
               </DialogTitle>
               <Button 
-                size="sm" 
                 variant="ghost" 
-                className="text-primary hover:bg-primary/10 h-8 gap-2"
-                onClick={() => {
-                  setIsMemberListOpen(false);
-                  setIsInviteOpen(true);
-                }}
+                size="icon" 
+                onClick={() => setIsMemberListOpen(false)}
+                className="h-8 w-8 text-muted-foreground hover:text-white"
               >
-                <UserPlus className="w-4 h-4" />
-                Invite
+                <X className="w-5 h-5" />
               </Button>
             </div>
-            <DialogDescription className="text-muted-foreground text-xs">
-              View all people who have access to this conversation.
+            
+            <div className="flex items-center gap-2 mb-6">
+              <Button variant="outline" size="sm" className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 px-2">
+                <Star className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2">
+                <Bell className="w-4 h-4" />
+                All new posts
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onToggleHuddle}
+                className="bg-[#1a1d21] border-white/10 text-white hover:bg-white/5 h-8 gap-2"
+              >
+                <Headphones className="w-4 h-4" />
+                Huddle
+              </Button>
+            </div>
+
+            <DialogDescription className="sr-only">
+              Channel details, members, and settings for {activeItem?.name}
             </DialogDescription>
-            <div className="relative mt-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Find a member"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                className="pl-9 bg-white/5 border-white/5 h-10 focus-visible:ring-primary/40"
-              />
+
+            {/* Tabs Row */}
+            <div className="flex border-b border-white/10">
+              {[
+                { id: 'about', label: 'About' },
+                { id: 'members', label: `Members ${mockMembers.length + 5}` },
+                { id: 'tabs', label: 'Tabs' },
+                { id: 'integrations', label: 'Integrations' },
+                { id: 'settings', label: 'Settings' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveDialogTab(tab.id as any)}
+                  className={cn(
+                    "px-4 py-2 text-xs font-bold transition-colors border-b-2 relative -mb-[2px]",
+                    activeDialogTab === tab.id 
+                      ? "text-white border-primary" 
+                      : "text-muted-foreground border-transparent hover:text-white hover:border-white/20"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </DialogHeader>
 
-          <ScrollArea className="h-[400px] p-6 pt-2">
-            <div className="space-y-1">
-              {filteredMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-all group cursor-pointer">
+          <div className="p-6">
+            {activeDialogTab === 'members' && (
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Find members"
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="pl-9 bg-transparent border-white/10 h-10 focus-visible:ring-primary/40 focus-visible:border-primary/50"
+                  />
+                </div>
+                
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-1">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => {
+                        setIsMemberListOpen(false);
+                        setIsInviteOpen(true);
+                      }}
+                      className="w-full justify-start gap-3 h-12 text-sm font-bold text-white hover:bg-white/5 mb-2"
+                    >
+                      <div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center">
+                        <UserPlus className="w-4 h-4 text-primary" />
+                      </div>
+                      Add people
+                    </Button>
+
+                    {filteredMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-all group cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Avatar className="w-8 h-8 rounded-md border border-white/5">
+                              <AvatarImage src={member.avatar} />
+                              <AvatarFallback className="rounded-md font-bold text-xs">{member.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className={cn(
+                              "absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a1d21]",
+                              member.status === 'online' ? "bg-green-500" : member.status === 'away' ? "bg-yellow-500" : "bg-white/20"
+                            )} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold group-hover:text-primary transition-colors">{member.name}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {activeDialogTab === 'about' && (
+              <div className="space-y-6 text-sm">
+                <div className="space-y-2">
+                  <h4 className="font-bold text-white">Description</h4>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {activeItem?.description || "No description set for this channel."}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Created by</span>
+                    <p className="font-medium">Alex Rivera</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Created on</span>
+                    <p className="font-medium">October 12, 2023</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeDialogTab === 'integrations' && (
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar className="w-10 h-10 rounded-md border border-white/5">
-                        <AvatarImage src={member.avatar} />
-                        <AvatarFallback className="rounded-md font-bold">{member.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className={cn(
-                        "absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#1a1d21]",
-                        member.status === 'online' ? "bg-green-500" : member.status === 'away' ? "bg-yellow-500" : "bg-white/20"
-                      )} />
+                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-primary">
+                      <Puzzle className="w-5 h-5" />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold group-hover:text-primary transition-colors">{member.name}</span>
-                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">{member.role}</span>
+                    <div>
+                      <p className="font-bold text-sm">GitHub</p>
+                      <p className="text-xs text-muted-foreground">Sync PRs and issues</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-white">
-                    <Mail className="w-4 h-4" />
-                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 border-white/10 hover:bg-white/5">Configure</Button>
                 </div>
-              ))}
-              {filteredMembers.length === 0 && (
-                <div className="py-12 text-center text-muted-foreground">
-                  No members found matching "{memberSearch}"
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+              </div>
+            )}
 
-          <div className="p-4 bg-black/20 border-t border-white/5 flex items-center justify-center">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              {filteredMembers.length} Members Total
-            </span>
+            {activeDialogTab === 'settings' && (
+              <div className="space-y-2">
+                <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3">
+                  <EyeOff className="w-4 h-4" />
+                  Leave Channel
+                </Button>
+                <Button variant="ghost" className="w-full justify-start gap-3">
+                  <SettingsIcon className="w-4 h-4 text-muted-foreground" />
+                  Advanced Settings
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
