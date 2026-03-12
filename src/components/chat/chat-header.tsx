@@ -29,7 +29,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   return (
     <div className="flex flex-col shrink-0">
-      {/* Top Global Search Bar with Dynamic Path */}
+      {/* Top Global Search Bar */}
       <div className="h-10 bg-[#121016] flex items-center justify-center px-4 border-b border-white/5">
         <div 
           onClick={onOpenSearch}
@@ -37,8 +37,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         >
           <Clock className="w-3.5 h-3.5 text-muted-foreground" />
           <div className="flex items-center gap-2 flex-1 text-xs text-muted-foreground">
-            <span className="text-primary font-bold">/{activeView}</span>
-            <div className="w-px h-3 bg-white/10 mx-1" />
             <Search className="w-3.5 h-3.5" />
             <span>Search Workspace</span>
           </div>
