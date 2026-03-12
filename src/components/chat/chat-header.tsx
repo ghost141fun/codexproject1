@@ -147,6 +147,29 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     });
   };
 
+  const handleEditPermissions = () => {
+    toast({
+      title: "Permissions Editor",
+      description: "The posting permissions editor is only available to workspace administrators.",
+    });
+  };
+
+  const handleLeaveChannel = () => {
+    toast({
+      title: "Channel Update",
+      description: `You have successfully left the #${activeItem?.name} channel.`,
+      variant: "destructive"
+    });
+    setIsMemberListOpen(false);
+  };
+
+  const handleAdvancedSettings = () => {
+    toast({
+      title: "Advanced Settings",
+      description: "Loading advanced configuration options for this channel...",
+    });
+  };
+
   return (
     <div className="flex flex-col shrink-0">
       {/* Top Global Search Bar */}
@@ -744,7 +767,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-sm text-white">Posting permissions</h4>
-                      <button className="text-xs text-primary font-bold hover:underline">Edit</button>
+                      <button 
+                        onClick={handleEditPermissions}
+                        className="text-xs text-primary font-bold hover:underline"
+                      >
+                        Edit
+                      </button>
                     </div>
                     <ul className="text-xs text-muted-foreground space-y-2 list-disc pl-4">
                       <li>Everyone except guests can post</li>
@@ -764,11 +792,28 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       Members can start and join huddles in this channel. <button className="text-primary hover:underline">Learn more</button>
                     </p>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold"
+                        onClick={() => {
+                          onToggleHuddle();
+                          setIsMemberListOpen(false);
+                        }}
+                      >
                         <Headphones className="w-3.5 h-3.5" />
                         Start Huddle
                       </Button>
-                      <Button variant="outline" size="sm" className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 bg-black/20 border-white/10 gap-2 text-[11px] font-bold"
+                        onClick={() => {
+                          const link = `https://devtalk.app/huddle/${activeItem?.id || 'general'}`;
+                          navigator.clipboard.writeText(link);
+                          toast({ title: "Link Copied", description: "Huddle link is ready to share." });
+                        }}
+                      >
                         <LinkIcon className="w-3.5 h-3.5" />
                         Copy Huddle Link
                       </Button>
@@ -778,7 +823,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   {/* Tabs Permissions */}
                   <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                     <h4 className="font-bold text-sm text-white mb-4">Choose who can add, remove, and reorder tabs</h4>
-                    <Select defaultValue="owner">
+                    <Select 
+                      defaultValue="owner"
+                      onValueChange={(val) => {
+                        toast({ title: "Permissions Updated", description: `Tab management restricted to ${val.replace('-', ' ')}.` });
+                      }}
+                    >
                       <SelectTrigger className="w-full bg-black/20 border-white/10 h-10 text-xs">
                         <SelectValue placeholder="Select permission" />
                       </SelectTrigger>
@@ -792,11 +842,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
                   {/* Advanced / Destructive */}
                   <div className="pt-4 space-y-2">
-                    <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3 text-xs font-bold">
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleLeaveChannel}
+                      className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 gap-3 text-xs font-bold"
+                    >
                       <EyeOff className="w-4 h-4" />
                       Leave Channel
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start gap-3 text-xs font-bold text-muted-foreground hover:text-white">
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleAdvancedSettings}
+                      className="w-full justify-start gap-3 text-xs font-bold text-muted-foreground hover:text-white"
+                    >
                       <SettingsIcon className="w-4 h-4" />
                       Advanced Settings
                     </Button>
