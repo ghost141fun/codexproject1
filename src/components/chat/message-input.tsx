@@ -41,7 +41,7 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [history]);
+  }, [history, input]); // Also scroll on input changes to keep cursor visible
 
   const handleCommand = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -128,19 +128,21 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
             {line}
           </div>
         ))}
-      </div>
-      <div className="flex gap-2 items-center border-t border-white/5 px-6 py-4 bg-black/40">
-        <span className="font-bold shrink-0" style={{ color: themeColor }}>$</span>
-        <input 
-          ref={inputRef}
-          className="bg-transparent border-none outline-none flex-1 font-code text-white placeholder:text-white/20"
-          placeholder="Type command..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleCommand}
-          autoComplete="off"
-          spellCheck="false"
-        />
+        
+        {/* Active Input Line inside the terminal area */}
+        <div className="flex gap-2 items-center">
+          <span className="font-bold shrink-0" style={{ color: themeColor }}>$</span>
+          <input 
+            ref={inputRef}
+            className="bg-transparent border-none outline-none flex-1 font-code text-white p-0 caret-white"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleCommand}
+            autoComplete="off"
+            spellCheck="false"
+            autoFocus
+          />
+        </div>
       </div>
     </div>
   );
