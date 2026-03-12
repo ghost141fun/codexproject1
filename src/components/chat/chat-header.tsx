@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Hash, 
   ChevronDown, 
@@ -18,11 +17,15 @@ import {
   Mail,
   Briefcase,
   MapPin,
-  Clock
+  Clock,
+  UserPlus,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +56,16 @@ interface ChatHeaderProps {
   onOpenSearch: () => void;
 }
 
+const mockMembers = [
+  { id: '1', name: 'Alex Rivera', role: 'Senior Software Engineer', avatar: 'https://picsum.photos/seed/alex/100/100', status: 'online' },
+  { id: '2', name: 'Sarah Chen', role: 'Staff Engineer', avatar: 'https://picsum.photos/seed/sarah/100/100', status: 'online' },
+  { id: '3', name: 'Marcus Bell', role: 'DevOps', avatar: 'https://picsum.photos/seed/marcus/200/200', status: 'offline' },
+  { id: '4', name: 'Elena Rodriguez', role: 'Designer', avatar: 'https://picsum.photos/seed/elena/200/200', status: 'online' },
+  { id: '5', name: 'David Kim', role: 'Backend Lead', avatar: 'https://picsum.photos/seed/david/200/200', status: 'away' },
+  { id: '6', name: 'Jordan Smith', role: 'Frontend Developer', avatar: 'https://picsum.photos/seed/jordan/100/100', status: 'online' },
+  { id: '7', name: 'Taylor Lee', role: 'Product Manager', avatar: 'https://picsum.photos/seed/taylor/100/100', status: 'online' },
+];
+
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   activeItem, 
   messages, 
@@ -64,8 +77,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenSearch
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMemberListOpen, setIsMemberListOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
 
   const isDm = activeItem?.type === 'dm';
+
+  const filteredMembers = useMemo(() => {
+    return mockMembers.filter(m => 
+      m.name.toLowerCase().includes(memberSearch.toLowerCase()) || 
+      m.role.toLowerCase().includes(memberSearch.toLowerCase())
+    );
+  }, [memberSearch]);
 
   return (
     <div className="flex flex-col shrink-0">
@@ -115,7 +137,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </div>
 
               <div className="flex items-center gap-1">
-                <div className="flex -space-x-2 mr-4 hidden sm:flex">
+                <div 
+                  onClick={() => setIsMemberListOpen(true)}
+                  className="flex -space-x-2 mr-4 hidden sm:flex cursor-pointer hover:opacity-80 transition-opacity"
+                >
                   {[1, 2, 3].map((i) => (
                     <Avatar key={i} className="w-6 h-6 border-2 border-[#1a1d21] rounded">
                       <AvatarImage src={`https://picsum.photos/seed/${i + 20}/100/100`} data-ai-hint="user avatar" />
@@ -247,6 +272,73 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </>
         )
       )}
+
+      {/* Member List Dialog */}
+      <Dialog open={isMemberListOpen} onOpenChange={setIsMemberListOpen}>
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-[#1a1d21] border-white/10 text-white">
+          <DialogHeader className="p-6 pb-2">
+            <div className="flex items-center justify-between mb-4">
+              <DialogTitle className="text-xl font-black flex items-center gap-2">
+                <Hash className="w-5 h-5 text-muted-foreground" />
+                {activeItem?.name} Members
+              </DialogTitle>
+              <Button size="sm" variant="ghost" className="text-primary hover:bg-primary/10 h-8 gap-2">
+                <UserPlus className="w-4 h-4" />
+                Invite
+              </Button>
+            </div>
+            <DialogDescription className="sr-only">List of all members in this conversation.</DialogDescription>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Find a member"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                className="pl-9 bg-white/5 border-white/5 h-10 focus-visible:ring-primary/40"
+              />
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="h-[400px] p-6 pt-2">
+            <div className="space-y-1">
+              {filteredMembers.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-all group cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Avatar className="w-10 h-10 rounded-md border border-white/5">
+                        <AvatarImage src={member.avatar} />
+                        <AvatarFallback className="rounded-md font-bold">{member.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className={cn(
+                        "absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#1a1d21]",
+                        member.status === 'online' ? "bg-green-500" : member.status === 'away' ? "bg-yellow-500" : "bg-white/20"
+                      )} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold group-hover:text-primary transition-colors">{member.name}</span>
+                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">{member.role}</span>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-white">
+                    <Mail className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              {filteredMembers.length === 0 && (
+                <div className="py-12 text-center text-muted-foreground">
+                  No members found matching "{memberSearch}"
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="p-4 bg-black/20 border-t border-white/5 flex items-center justify-center">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {filteredMembers.length} Members Total
+            </span>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* User Profile Dialog */}
       {isDm && (
