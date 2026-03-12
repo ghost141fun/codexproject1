@@ -126,7 +126,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 <DialogContent className="bg-card/95 backdrop-blur-xl border-white/10 shadow-2xl animate-in fade-in zoom-in duration-300 sm:max-w-[450px]">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black">Create a channel</DialogTitle>
-                    <DialogDescription className="text-muted-foreground/80">
+                    <DialogDescription className="text-muted-foreground/80 pt-2">
                       Channels are where your team communicates. They're best when organized around a topic.
                     </DialogDescription>
                   </DialogHeader>
@@ -140,19 +140,23 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                           placeholder="e.g. project-apollo" 
                           value={newChannelName}
                           onChange={(e) => setNewChannelName(e.target.value)}
-                          className="pl-9 bg-black/20 border-white/10 focus:border-primary/50 h-11 text-sm transition-all"
+                          className="pl-9 bg-black/20 border-white/10 focus:border-primary/50 h-11 text-sm transition-all placeholder:text-muted-foreground/50"
                         />
                       </div>
                     </div>
                   </div>
-                  <DialogFooter className="gap-2 sm:gap-0">
-                    <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="hover:bg-white/5 font-bold text-xs uppercase tracking-widest h-10 px-6">
+                  <DialogFooter className="gap-2 sm:gap-2 items-center">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setIsDialogOpen(false)} 
+                      className="hover:bg-white/5 font-bold text-xs uppercase tracking-widest h-10 px-6 text-white"
+                    >
                       Cancel
                     </Button>
                     <Button 
                       onClick={handleCreateChannel} 
                       disabled={!newChannelName.trim()}
-                      className="font-bold text-xs uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20"
+                      className="font-bold text-xs uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white"
                     >
                       Create Channel
                     </Button>
