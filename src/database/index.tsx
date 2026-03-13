@@ -5,12 +5,13 @@ import { getAuth, signOut, onAuthStateChanged, Auth, type User } from 'firebase/
 import { useState, useEffect } from 'react';
 import { firebaseConfig } from '@/firebase/config';
 
-// Global instances to ensure singleton behavior on the client side
+// Module-level cache for initialized instances
 let firebaseApp: FirebaseApp | undefined;
 let firebaseAuth: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization helper.
+ * Returns null values on server, initialized instances on client.
  */
 export function initializeDatabase() {
   if (typeof window === 'undefined') {
@@ -27,10 +28,9 @@ export function initializeDatabase() {
   
   if (firebaseApp && !firebaseAuth) {
     try {
-      // Calling getAuth registers the auth component
       firebaseAuth = getAuth(firebaseApp);
     } catch (e) {
-      console.warn('Firebase Auth registration issue:', e);
+      console.warn('Firebase Auth registration is pending or failed', e);
     }
   }
   
@@ -39,14 +39,28 @@ export function initializeDatabase() {
 
 /**
  * Data Connect Client Shim
- * Aligned with the provided schema: User, Channel, Message, etc.
+ * Supports Channel, Message, User, FileAsset, and HuddlePresence queries.
  */
 export const client = {
   user: {
     useQuery: () => ({ 
       data: [
-        { id: 'u-1', username: 'alex', email: 'alex@devtalk.app', displayName: 'Alex Rivera', profilePictureUrl: 'https://picsum.photos/seed/alex/100/100' },
-        { id: 'u-2', username: 'sarah', email: 'sarah@devtalk.app', displayName: 'Sarah Chen', profilePictureUrl: 'https://picsum.photos/seed/sarah/100/100' },
+        { 
+          id: 'u-1', 
+          username: 'alex', 
+          email: 'alex@devtalk.app', 
+          displayName: 'Alex Rivera', 
+          profilePictureUrl: 'https://picsum.photos/seed/alex/100/100',
+          createdAt: new Date().toISOString()
+        },
+        { 
+          id: 'u-2', 
+          username: 'sarah', 
+          email: 'sarah@devtalk.app', 
+          displayName: 'Sarah Chen', 
+          profilePictureUrl: 'https://picsum.photos/seed/sarah/100/100',
+          createdAt: new Date().toISOString()
+        },
       ], 
       isLoading: false 
     }),
@@ -73,7 +87,15 @@ export const client = {
     useQuery: ({ variables }: any) => {
       const channelId = variables?.where?.channelId || 'general';
       const mockMsgs = [
-        { id: 'm-1', senderId: 'u-1', senderName: 'Alex Rivera', senderAvatar: 'https://picsum.photos/seed/alex/100/100', content: 'Connection established with Data Connect.', timestamp: new Date().toISOString(), type: 'text' }
+        { 
+          id: 'm-1', 
+          senderId: 'u-1', 
+          senderName: 'Alex Rivera', 
+          senderAvatar: 'https://picsum.photos/seed/alex/100/100', 
+          content: 'Welcome to the DevTalk prototype! Data Connect shim is active.', 
+          timestamp: new Date().toISOString(), 
+          type: 'text' 
+        }
       ];
       return { 
         data: { [channelId]: mockMsgs }, 
@@ -115,6 +137,7 @@ export const client = {
 
 /**
  * Hook to manage and provide the current authenticated user state.
+ * Gracefully handles null auth instances during initialization.
  */
 export function useUser(): { user: User | null; isUserLoading: boolean } {
   const [user, setUser] = useState<User | null>(null);
@@ -136,6 +159,9 @@ export function useUser(): { user: User | null; isUserLoading: boolean } {
   return { user, isUserLoading };
 }
 
+/**
+ * Hook to access the Auth service instance.
+ */
 export function useAuth() {
   const { auth } = initializeDatabase();
   return {
