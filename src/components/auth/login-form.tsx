@@ -8,16 +8,18 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('password123'); // Default for simplified prototype flow
+  const [password, setPassword] = useState('password123'); // Simple password for the prototype
   const [isLoading, setIsLoading] = useState(false);
   const { auth } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Animated background logic from Landing Page
+  // Animated background logic
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -44,10 +46,11 @@ export function LoginForm() {
       t++;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Orbs
+      // Render Orbs
       [
         { x: canvas.width * 0.2, y: canvas.height * 0.4, r: 350, h: 172 },
         { x: canvas.width * 0.75, y: canvas.height * 0.6, r: 280, h: 190 },
+        { x: canvas.width * 0.5, y: canvas.height * 0.1, r: 200, h: 155 },
       ].forEach((o, i) => {
         const ox = o.x + Math.sin(t * 0.0003 + i) * 80;
         const oy = o.y + Math.cos(t * 0.0004 + i) * 50;
@@ -60,7 +63,7 @@ export function LoginForm() {
         ctx.fill();
       });
 
-      // Grid
+      // Render Grid
       ctx.strokeStyle = 'rgba(0,210,180,0.03)';
       ctx.lineWidth = 0.5;
       for (let x = 0; x < canvas.width; x += 60) {
@@ -70,7 +73,7 @@ export function LoginForm() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
 
-      // Dots + connections
+      // Render Connections
       dots.forEach(d => {
         d.x = (d.x + d.vx + canvas.width) % canvas.width;
         d.y = (d.y + d.vy + canvas.height) % canvas.height;
@@ -107,37 +110,50 @@ export function LoginForm() {
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth) {
+      toast({ 
+        variant: "destructive", 
+        title: "Auth Error", 
+        description: "Firebase Authentication is not yet initialized. Please wait a moment." 
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
       try {
+        // Attempt sign in
         await signInWithEmailAndPassword(auth, email, password);
+        toast({ title: "Welcome Back", description: "Signing you into the workspace..." });
       } catch (loginError: any) {
-        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential' || loginError.code === 'auth/invalid-email') {
+        // Auto-register for prototype convenience if user doesn't exist
+        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential') {
           await createUserWithEmailAndPassword(auth, email, password);
-          toast({ title: "Account Created", description: "Welcome to DevTalk!" });
+          toast({ title: "Account Created", description: "Welcome to the DevTalk community!" });
         } else {
           throw loginError;
         }
       }
+      
+      // Navigate explicitly to ensure the user moves to the workspace
+      router.push('/workspace');
     } catch (error: any) {
+      console.error('Authentication Error:', error);
       toast({
         variant: "destructive",
         title: "Authentication Failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred during sign in.",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    toast({ title: "Google Sign-In", description: "This feature is coming soon to the DevTalk prototype." });
-  };
-
-  const handleAppleSignIn = () => {
-    toast({ title: "Apple Sign-In", description: "This feature is coming soon to the DevTalk prototype." });
+  const handleSocialSignIn = (provider: string) => {
+    toast({ 
+      title: `${provider} Sign-In`, 
+      description: "Social authentication will be enabled in the production release." 
+    });
   };
 
   return (
@@ -190,7 +206,7 @@ export function LoginForm() {
           <div className="w-full grid grid-cols-2 gap-3 mb-10">
             <Button 
               variant="outline" 
-              onClick={handleGoogleSignIn}
+              onClick={() => handleSocialSignIn('Google')}
               className="h-[44px] border-white/10 bg-white/5 rounded-[4px] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-white/10 text-white"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -203,7 +219,7 @@ export function LoginForm() {
             </Button>
             <Button 
               variant="outline" 
-              onClick={handleAppleSignIn}
+              onClick={() => handleSocialSignIn('Apple')}
               className="h-[44px] border-white/10 bg-white/5 rounded-[4px] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-white/10 text-white"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

@@ -11,7 +11,6 @@ let firebaseAuth: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization helper.
- * Returns null values on server, initialized instances on client.
  */
 export function initializeDatabase() {
   if (typeof window === 'undefined') {
@@ -28,6 +27,7 @@ export function initializeDatabase() {
   
   if (firebaseApp && !firebaseAuth) {
     try {
+      // In Next.js 15, we ensure the auth component is registered properly
       firebaseAuth = getAuth(firebaseApp);
     } catch (e) {
       console.warn('Firebase Auth registration is pending or failed', e);
@@ -39,7 +39,6 @@ export function initializeDatabase() {
 
 /**
  * Data Connect Client Shim
- * Supports Channel, Message, User, FileAsset, and HuddlePresence queries.
  */
 export const client = {
   user: {
@@ -52,15 +51,7 @@ export const client = {
           displayName: 'Alex Rivera', 
           profilePictureUrl: 'https://picsum.photos/seed/alex/100/100',
           createdAt: new Date().toISOString()
-        },
-        { 
-          id: 'u-2', 
-          username: 'sarah', 
-          email: 'sarah@devtalk.app', 
-          displayName: 'Sarah Chen', 
-          profilePictureUrl: 'https://picsum.photos/seed/sarah/100/100',
-          createdAt: new Date().toISOString()
-        },
+        }
       ], 
       isLoading: false 
     }),
@@ -92,7 +83,7 @@ export const client = {
           senderId: 'u-1', 
           senderName: 'Alex Rivera', 
           senderAvatar: 'https://picsum.photos/seed/alex/100/100', 
-          content: 'Welcome to the DevTalk prototype! Data Connect shim is active.', 
+          content: 'Welcome to the DevTalk prototype!', 
           timestamp: new Date().toISOString(), 
           type: 'text' 
         }
@@ -136,8 +127,7 @@ export const client = {
 } as any;
 
 /**
- * Hook to manage and provide the current authenticated user state.
- * Gracefully handles null auth instances during initialization.
+ * Hook to manage the current user state.
  */
 export function useUser(): { user: User | null; isUserLoading: boolean } {
   const [user, setUser] = useState<User | null>(null);
@@ -160,7 +150,7 @@ export function useUser(): { user: User | null; isUserLoading: boolean } {
 }
 
 /**
- * Hook to access the Auth service instance.
+ * Hook to access Auth service.
  */
 export function useAuth() {
   const { auth } = initializeDatabase();
