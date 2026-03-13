@@ -11,8 +11,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { HuddleMeeting } from "@/components/chat/huddle-meeting";
 import { GlobalSearch } from "@/components/chat/global-search";
-import { useUser, useAuth, useFirestore, useMemoDatabase, useDoc } from '@/database';
-import { initiateAnonymousSignIn } from '@/database/non-blocking-login';
+import { useUser, client } from '@/database';
 import { 
   Loader2, 
   MessageSquare, 
@@ -32,7 +31,6 @@ import {
 } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { Message, Channel, DirectMessage, FileAsset } from '@/lib/types';
-import { directMessages as initialDms } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
@@ -45,23 +43,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { doc, setDoc } from 'firebase/firestore';
 
 const WORKSPACE_ID = 'w-1'; // Default workspace for prototype
 
 export default function DevTalkApp() {
   const { user, isUserLoading } = useUser();
-  const auth = useAuth();
-  const db = useFirestore();
   const { toast } = useToast();
   
   // Local State
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(initialDms);
-  const [messages, setMessages] = useState<Record<string, Message[]>>({});
-  const [files, setFiles] = useState<FileAsset[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
   const [activeId, setActiveId] = useState<string>('general');
   const [activeType, setActiveType] = useState<'channel' | 'dm'>('channel');
   const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles'>('home');
@@ -74,89 +63,25 @@ export default function DevTalkApp() {
   // File Upload Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync user profile to Firestore
-  useEffect(() => {
-    if (user && db) {
-      const profileRef = doc(db, 'userProfiles', user.uid);
-      setDoc(profileRef, {
-        id: user.uid,
-        displayName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
-        email: user.email || 'anonymous@devtalk.app',
-        avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`
-      }, { merge: true });
-      
-      // Sync default workspace
-      const workspaceRef = doc(db, 'workspaces', WORKSPACE_ID);
-      setDoc(workspaceRef, {
-        id: WORKSPACE_ID,
-        name: 'DevTalk HQ',
-        memberIds: [user.uid],
-        ownerId: user.uid,
-        createdAt: new Date().toISOString()
-      }, { merge: true });
-    }
-  }, [user, db]);
+  // Data Connect Queries
+  const { data: channels = [], isLoading: isChannelsLoading } = client.channel.useQuery({});
+  const { data: directMessages = [], isLoading: isDmsLoading } = client.directMessage.useQuery({});
+  const { data: messages = {}, isLoading: isMessagesLoading } = client.message.useQuery({ variables: { where: { channelId: activeId } } });
+  const { data: files = [], isLoading: isFilesLoading } = client.fileAsset.useQuery({});
 
-  // Load from LocalStorage on mount
+  // Sync user profile
   useEffect(() => {
-    const savedChannels = localStorage.getItem('devtalk_channels');
-    const savedMessages = localStorage.getItem('devtalk_messages');
-    const savedFiles = localStorage.getItem('devtalk_files');
-    
-    if (savedChannels) {
-      try {
-        setChannels(JSON.parse(savedChannels));
-      } catch (e) {
-        console.error("Failed to parse channels", e);
-      }
-    } else {
-      setChannels([
-        { 
-          id: 'general', 
-          name: 'general', 
-          description: 'The community hub for all developers', 
-          isPrivate: false, 
-          type: 'channel' 
-        },
-        { 
-          id: 'frontend-dev', 
-          name: 'frontend-dev', 
-          description: 'React, Next.js and Tailwind chatter', 
-          isPrivate: false, 
-          type: 'channel' 
+    if (user) {
+      client.userProfile.upsert({
+        variables: {
+          id: user.uid,
+          displayName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
+          email: user.email || 'anonymous@devtalk.app',
+          avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
         }
-      ]);
-    }
-
-    if (savedMessages) {
-      try {
-        setMessages(JSON.parse(savedMessages));
-      } catch (e) {
-        console.error("Failed to parse messages", e);
-      }
-    } else {
-      setMessages({ 
-        'general': [],
-        'frontend-dev': []
       });
     }
-
-    if (savedFiles) {
-      try {
-        setFiles(JSON.parse(savedFiles));
-      } catch (e) {
-        console.error("Failed to parse files", e);
-      }
-    } else {
-      setFiles([
-        { id: '1', name: 'app-architecture.pdf', size: '2.4 MB', type: 'document', uploadedAt: new Date().toISOString(), ownerName: 'Alex Rivera', ownerAvatar: 'https://picsum.photos/seed/alex/100/100', url: '#' },
-        { id: '2', name: 'hero-banner-v2.png', size: '1.8 MB', type: 'image', uploadedAt: new Date().toISOString(), ownerName: 'Sarah Chen', ownerAvatar: 'https://picsum.photos/seed/sarah/100/100', url: '#' },
-        { id: '3', name: 'auth-flow.tsx', size: '12 KB', type: 'code', uploadedAt: new Date().toISOString(), ownerName: 'Alex Rivera', ownerAvatar: 'https://picsum.photos/seed/alex/100/100', url: '#' },
-      ]);
-    }
-    
-    setIsInitialized(true);
-  }, []);
+  }, [user]);
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -170,26 +95,10 @@ export default function DevTalkApp() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Save to LocalStorage on changes
-  useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem('devtalk_channels', JSON.stringify(channels));
-      localStorage.setItem('devtalk_messages', JSON.stringify(messages));
-      localStorage.setItem('devtalk_files', JSON.stringify(files));
-    }
-  }, [channels, messages, files, isInitialized]);
-
   // Reset tab when changing channel/dm
   useEffect(() => {
     setActiveTab('messages');
   }, [activeId]);
-
-  // Initialize anonymous sign-in if not authenticated
-  useEffect(() => {
-    if (!isUserLoading && !user && auth) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [user, isUserLoading, auth]);
 
   const activeItem = useMemo(() => {
     if (activeType === 'channel') return channels.find(c => c.id === activeId);
@@ -210,41 +119,38 @@ export default function DevTalkApp() {
   const handleSendMessage = (content: string) => {
     if (!user || !activeId) return;
 
-    const newMessage: Message = {
-      id: Math.random().toString(36).substring(7),
-      senderId: user.uid,
-      senderName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
-      senderAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-      content,
-      timestamp: new Date().toISOString(),
-      type: 'text'
-    };
-
-    setMessages(prev => ({
-      ...prev,
-      [activeId]: [...(prev[activeId] || []), newMessage]
-    }));
+    client.message.create({
+      variables: {
+        channelId: activeId,
+        senderId: user.uid,
+        senderName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
+        senderAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
+        content,
+        type: 'text'
+      }
+    });
   };
 
   const handleCreateChannel = (name: string, isPrivate: boolean) => {
     const id = name.toLowerCase().replace(/\s+/g, '-');
-    const newChannel: Channel = {
-      id,
-      name,
-      description: 'A brand new channel',
-      isPrivate,
-      type: 'channel'
-    };
-
-    setChannels(prev => [...prev, newChannel]);
-    setMessages(prev => ({ ...prev, [id]: [] }));
-    setActiveId(id);
-    setActiveType('channel');
-    setActiveView('home');
+    client.channel.create({
+      variables: {
+        id,
+        name,
+        description: 'A brand new channel',
+        isPrivate,
+        type: 'channel'
+      },
+      onSuccess: () => {
+        setActiveId(id);
+        setActiveType('channel');
+        setActiveView('home');
+      }
+    });
   };
 
   const handleLeaveChannel = (id: string) => {
-    setChannels(prev => prev.filter(c => c.id !== id));
+    client.channel.delete({ variables: { id } });
     if (activeId === id) {
       const remainingChannels = channels.filter(c => c.id !== id);
       if (remainingChannels.length > 0) {
@@ -277,32 +183,36 @@ export default function DevTalkApp() {
       type = 'document';
     }
 
-    const newFile: FileAsset = {
-      id: Math.random().toString(36).substring(7),
-      name: file.name,
-      size: file.size > 1024 * 1024 
-        ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' 
-        : (file.size / 1024).toFixed(2) + ' KB',
-      type,
-      uploadedAt: new Date().toISOString(),
-      ownerName: user.displayName || 'Alex Rivera',
-      ownerAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-      url: '#'
-    };
-
-    setFiles(prev => [newFile, ...prev]);
-    toast({
-      title: "File Uploaded",
-      description: `${file.name} successfully added to workspace.`,
+    client.fileAsset.create({
+      variables: {
+        name: file.name,
+        size: file.size > 1024 * 1024 
+          ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' 
+          : (file.size / 1024).toFixed(2) + ' KB',
+        type,
+        ownerName: user.displayName || 'Alex Rivera',
+        ownerAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
+        url: '#'
+      },
+      onSuccess: () => {
+        toast({
+          title: "File Uploaded",
+          description: `${file.name} successfully added to workspace.`,
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
     });
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDeleteFile = (id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
-    toast({
-      title: "File Deleted",
-      description: "The file has been removed from your workspace.",
+    client.fileAsset.delete({
+      variables: { id },
+      onSuccess: () => {
+        toast({
+          title: "File Deleted",
+          description: "The file has been removed from your workspace.",
+        });
+      }
     });
   };
 
@@ -324,7 +234,7 @@ export default function DevTalkApp() {
     }
   };
 
-  if (!isInitialized || isUserLoading) {
+  if (isUserLoading || isChannelsLoading || isDmsLoading || isMessagesLoading || isFilesLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

@@ -1,0 +1,75 @@
+# Mutations for DevTalk Workspace
+
+mutation CreateMessage(
+  $content: String!,
+  $channelId: String!,
+  $senderId: String!,
+  $senderName: String!,
+  $senderAvatar: String,
+  $type: String
+) @auth(level: USER) {
+  message_insert(data: {
+    content: $content,
+    channelId: $channelId,
+    senderId: $senderId,
+    senderName: $senderName,
+    senderAvatar: $senderAvatar,
+    type: $type
+  })
+}
+
+mutation CreateChannel(
+  $id: String!,
+  $name: String!,
+  $description: String,
+  $isPrivate: Boolean,
+  $type: String
+) @auth(level: USER) {
+  channel_insert(data: {
+    id: $id,
+    name: $name,
+    description: $description,
+    isPrivate: $isPrivate,
+    type: $type
+  })
+}
+
+mutation UpsertUserProfile(
+  $id: String!,
+  $displayName: String!,
+  $email: String!,
+  $avatarUrl: String
+) @auth(level: USER) {
+  userProfile_upsert(data: {
+    id: $id,
+    displayName: $displayName,
+    email: $email,
+    avatarUrl: $avatarUrl
+  })
+}
+
+mutation DeleteChannel($id: String!) @auth(level: USER) {
+  channel_delete(id: $id)
+}
+
+mutation CreateFileAsset(
+  $name: String!,
+  $size: String!,
+  $type: String!,
+  $url: String!,
+  $ownerName: String!,
+  $ownerAvatar: String
+) @auth(level: USER) {
+  fileAsset_insert(data: {
+    name: $name,
+    size: $size,
+    type: $type,
+    url: $url,
+    ownerName: $ownerName,
+    ownerAvatar: $ownerAvatar
+  })
+}
+
+mutation DeleteFileAsset($id: UUID!) @auth(level: USER) {
+  fileAsset_delete(id: $id)
+}

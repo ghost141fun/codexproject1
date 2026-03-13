@@ -1,6 +1,6 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
-import { DatabaseClientProvider } from '@/database';
+import { DatabaseClientProvider } from '@/database/client-provider';
 
 export const metadata: Metadata = {
   title: 'DevTalk | Collaborative Engineering Workspace',
@@ -9,9 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
       <head>

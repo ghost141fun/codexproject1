@@ -1,4 +1,9 @@
+/*
+ This file is no longer needed with Data Connect. 
+ The Firestore rules have been commented out.
+*/
 
+/*
 rules_version = '2';
 service cloud.database {
   match /databases/{database}/documents {
@@ -17,34 +22,46 @@ service cloud.database {
 
     match /userProfiles/{userId} {
       allow get, list: if isSignedIn();
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+
+      // Anyone can see a user's presence, but only the user can update it.
+      match /presence/{presenceId} {
+        allow get: if isSignedIn();
+        allow list, create, update, delete: if isOwner(userId);
+      }
     }
 
     match /workspaces/{workspaceId} {
-      allow get, list: if isSignedIn(); // Simplified for prototype
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn();
+      // User who created the workspace is the owner.
+      // Owners can do anything.
+      // Members can read and write.
+      // Non-members with a link can read.
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isOwner(resource.data.owner);
+
+      match /members/{userId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isOwner(resource.data.owner);
+      }
 
       match /channels/{channelId} {
         allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update, delete: if isSignedIn();
+        allow create: if isMember(resource.data.members);
+        allow update, delete: if isOwner(resource.data.owner);
 
-        match /huddle/active {
-          allow get, list: if isSignedIn();
-          allow create, update, delete: if isSignedIn();
+        match /members/{userId} {
+          allow get, list: if isMember(resource.data.members);
+          allow create, update, delete: if isOwner(resource.data.owner);
         }
 
         match /messages/{messageId} {
-          allow get, list: if isSignedIn();
-          allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+          allow get, list: if isMember(resource.data.members);
+          allow create, update: if isOwner(request.resource.data.author);
+          allow delete: if isOwner(resource.data.owner);
         }
-      }
-
-      match /directMessages/{dmId} {
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
       }
     }
   }
 }
+*/

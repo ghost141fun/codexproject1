@@ -1,0 +1,49 @@
+# Queries for DevTalk Workspace
+
+query ListChannels @auth(level: USER) {
+  channels {
+    id
+    name
+    description
+    isPrivate
+    type
+  }
+}
+
+query ListMessages($channelId: String!) @auth(level: USER) {
+  messages(where: { channelId: { eq: $channelId } }, orderBy: [{ createdAt: ASC }]) {
+    id
+    content
+    createdAt
+    type
+    senderId
+    senderName
+    senderAvatar
+    channelId
+  }
+}
+
+query ListFileAssets @auth(level: USER) {
+  fileAssets(orderBy: [{ uploadedAt: DESC }]) {
+    id
+    name
+    size
+    type
+    url
+    ownerName
+    ownerAvatar
+    uploadedAt
+  }
+}
+
+query GetDirectMessages @auth(level: USER) {
+  directMessages(orderBy: [{ createdAt: ASC }]) {
+    id
+    content
+    createdAt
+    senderId
+    receiverId
+    senderName
+    senderAvatar
+  }
+}

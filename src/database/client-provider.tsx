@@ -1,26 +1,23 @@
 'use client';
 
-import React, { useMemo, type ReactNode } from 'react';
-import { DatabaseProvider } from '@/database/provider';
+import { createContext, useContext, type ReactNode, useMemo } from 'react';
 import { initializeDatabase } from '@/database';
 
-interface DatabaseClientProviderProps {
-  children: ReactNode;
-}
+const DatabaseContext = createContext<ReturnType<typeof initializeDatabase> | null>(null);
 
-export function DatabaseClientProvider({ children }: DatabaseClientProviderProps) {
-  const databaseServices = useMemo(() => {
-    // Initialize Database on the client side, once per component mount.
-    return initializeDatabase();
-  }, []); // Empty dependency array ensures this runs only once on mount
+export function DatabaseClientProvider({ children }: { children: ReactNode }) {
+  // Use useMemo to ensure initialization only happens on the client after mounting
+  const db = useMemo(() => initializeDatabase(), []);
 
   return (
-    <DatabaseProvider
-      databaseApp={databaseServices.databaseApp}
-      auth={databaseServices.auth}
-      firestore={databaseServices.firestore}
-    >
+    <DatabaseContext.Provider value={db}>
       {children}
-    </DatabaseProvider>
+    </DatabaseContext.Provider>
   );
+}
+
+export function useDatabaseClient() {
+  const ctx = useContext(DatabaseContext);
+  if (!ctx) throw new Error('useDatabaseClient must be used within DatabaseClientProvider');
+  return ctx;
 }

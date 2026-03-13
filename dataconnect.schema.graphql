@@ -1,0 +1,43 @@
+type User @table {
+  username: String!
+  email: String!
+  createdAt: Timestamp!
+  displayName: String
+  profilePictureUrl: String
+}
+
+type Channel @table {
+  name: String!
+  isPrivate: Boolean!
+  createdAt: Timestamp!
+  description: String
+  owner: User!
+}
+
+type ChannelMembership @table(key: ["user", "channel"]) {
+  user: User!
+  channel: Channel!
+  joinedAt: Timestamp!
+}
+
+type Message @table {
+  content: String!
+  createdAt: Timestamp!
+  editedAt: Timestamp
+  author: User!
+  channel: Channel
+}
+
+type DirectMessageConversation @table {
+  createdAt: Timestamp!
+  user1: User!
+  user2: User!
+}
+
+type DirectMessage @table {
+  content: String!
+  createdAt: Timestamp!
+  editedAt: Timestamp
+  sender: User!
+  conversation: DirectMessageConversation!
+}

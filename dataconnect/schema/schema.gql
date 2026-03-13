@@ -1,0 +1,58 @@
+
+# DevTalk Data Connect Schema
+
+type User @table {
+  id: String! @primaryKey
+  username: String!
+  email: String!
+  createdAt: Timestamp! @default(expr: "request.time")
+  displayName: String
+  profilePictureUrl: String
+}
+
+type Channel @table {
+  id: String! @primaryKey
+  name: String!
+  isPrivate: Boolean!
+  createdAt: Timestamp! @default(expr: "request.time")
+  description: String
+  ownerId: String!
+}
+
+type ChannelMembership @table(key: ["userId", "channelId"]) {
+  userId: String!
+  channelId: String!
+  joinedAt: Timestamp! @default(expr: "request.time")
+}
+
+type Message @table {
+  id: UUID! @default(expr: "uuidV4()")
+  content: String!
+  createdAt: Timestamp! @default(expr: "request.time")
+  editedAt: Timestamp
+  authorId: String!
+  channelId: String!
+  type: String! # text, image, code
+}
+
+type DirectMessageConversation @table {
+  id: UUID! @default(expr: "uuidV4()")
+  createdAt: Timestamp! @default(expr: "request.time")
+  user1Id: String!
+  user2Id: String!
+}
+
+type DirectMessage @table {
+  id: UUID! @default(expr: "uuidV4()")
+  content: String!
+  createdAt: Timestamp! @default(expr: "request.time")
+  editedAt: Timestamp
+  senderId: String!
+  conversationId: UUID!
+}
+
+type HuddlePresence @table(key: ["userId", "channelId"]) {
+  userId: String!
+  channelId: String!
+  joinedAt: Timestamp! @default(expr: "request.time")
+}
