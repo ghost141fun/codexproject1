@@ -1,13 +1,22 @@
 'use client';
 
-import { createContext, useContext, type ReactNode, useMemo } from 'react';
+import { createContext, useContext, type ReactNode, useMemo, useState, useEffect } from 'react';
 import { initializeDatabase } from '@/database';
 
 const DatabaseContext = createContext<ReturnType<typeof initializeDatabase> | null>(null);
 
 export function DatabaseClientProvider({ children }: { children: ReactNode }) {
-  // Use useMemo to ensure initialization only happens on the client after mounting
-  const db = useMemo(() => initializeDatabase(), []);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Ensure initialization only happens on the client
+  const db = useMemo(() => {
+    if (typeof window === 'undefined' || !isMounted) return { app: null, auth: null };
+    return initializeDatabase();
+  }, [isMounted]);
 
   return (
     <DatabaseContext.Provider value={db}>

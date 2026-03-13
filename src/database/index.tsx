@@ -1,7 +1,7 @@
 'use client';
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signOut, onAuthStateChanged, type User } from 'firebase/auth';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, signOut, onAuthStateChanged, Auth, type User } from 'firebase/auth';
 import { useState, useEffect } from 'react';
 
 const firebaseConfig = {
@@ -13,14 +13,25 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Internal cache to avoid multiple initializations
+let firebaseApp: FirebaseApp | null = null;
+let firebaseAuth: Auth | null = null;
+
 /**
  * SSR-safe Firebase initialization.
  */
 function getFirebase() {
   if (typeof window === 'undefined') return { app: null, auth: null };
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const auth = getAuth(app);
-  return { app, auth };
+  
+  if (!firebaseApp) {
+    firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  }
+  
+  if (!firebaseAuth && firebaseApp) {
+    firebaseAuth = getAuth(firebaseApp);
+  }
+  
+  return { app: firebaseApp, auth: firebaseAuth };
 }
 
 export function initializeDatabase() {
@@ -28,28 +39,28 @@ export function initializeDatabase() {
 }
 
 /**
- * Functional Data Connect client shim.
- * Mimics the schema provided by the user while maintaining real-time behavior.
+ * Data Connect Client Shim
+ * Matches the schema provided by the user.
  */
 export const client = {
+  user: {
+    useQuery: () => ({ 
+      data: [{ id: 'u-1', username: 'alex', email: 'alex@devtalk.app', displayName: 'Alex Rivera', profilePictureUrl: 'https://picsum.photos/seed/alex/100/100' }], 
+      isLoading: false 
+    }),
+    upsert: (args: any) => Promise.resolve(),
+  },
   channel: {
     useQuery: () => ({ 
       data: [
         { id: 'general', name: 'general', description: 'General announcements and chatter', isPrivate: false, type: 'channel' },
         { id: 'dev-hq', name: 'dev-hq', description: 'Main development channel', isPrivate: false, type: 'channel' },
         { id: 'frontend-dev', name: 'frontend-dev', description: 'All things React and Next.js', isPrivate: false, type: 'channel' },
-        { id: 'backend-api', name: 'backend-api', description: 'Node.js and Database talk', isPrivate: false, type: 'channel' },
       ], 
       isLoading: false 
     }),
-    create: (args: any) => {
-      console.log('Data Connect: Channel Created', args);
-      return Promise.resolve();
-    },
+    create: (args: any) => Promise.resolve(),
     delete: (args: any) => Promise.resolve(),
-  },
-  directMessage: {
-    useQuery: () => ({ data: [], isLoading: false }),
   },
   message: {
     useQuery: ({ variables }: any) => {
@@ -57,7 +68,7 @@ export const client = {
       return { 
         data: {
           [channelId]: [
-            { id: 'm-1', senderId: 'u-1', senderName: 'Alex Rivera', senderAvatar: 'https://picsum.photos/seed/alex/100/100', content: 'System: Connection established with Data Connect backend.', timestamp: new Date().toISOString(), type: 'text' }
+            { id: 'm-1', senderId: 'u-1', senderName: 'Alex Rivera', senderAvatar: 'https://picsum.photos/seed/alex/100/100', content: 'Connection established with Data Connect.', timestamp: new Date().toISOString(), type: 'text' }
           ]
         }, 
         isLoading: false 
@@ -65,13 +76,18 @@ export const client = {
     },
     create: (args: any) => Promise.resolve(),
   },
-  fileAsset: {
+  directMessage: {
     useQuery: () => ({ data: [], isLoading: false }),
+  },
+  fileAsset: {
+    useQuery: () => ({ 
+      data: [
+        { id: 'f-1', name: 'design-spec.pdf', size: '1.2 MB', type: 'document', ownerName: 'Alex Rivera', ownerAvatar: 'https://picsum.photos/seed/alex/100/100', uploadedAt: new Date().toISOString(), url: '#' }
+      ], 
+      isLoading: false 
+    }),
     create: (args: any) => Promise.resolve(),
     delete: (args: any) => Promise.resolve(),
-  },
-  userProfile: {
-    upsert: (args: any) => Promise.resolve(),
   },
   huddlePresence: {
     useQuery: ({ variables }: any) => ({ 
@@ -82,18 +98,11 @@ export const client = {
     }),
     join: (args: any) => Promise.resolve(),
     leave: (args: any) => Promise.resolve(),
+  },
+  userProfile: {
+    upsert: (args: any) => Promise.resolve(),
   }
 } as any;
-
-/**
- * Hook to manage authentication actions.
- */
-export function useAuth() {
-  const { auth } = getFirebase();
-  return {
-    signOut: () => auth && signOut(auth),
-  };
-}
 
 /**
  * Hook to manage and provide the current authenticated user state.
@@ -116,4 +125,11 @@ export function useUser(): { user: User | null; isUserLoading: boolean } {
   }, []);
 
   return { user, isUserLoading };
+}
+
+export function useAuth() {
+  const { auth } = getFirebase();
+  return {
+    signOut: () => auth && signOut(auth),
+  };
 }

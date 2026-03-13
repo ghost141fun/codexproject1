@@ -1,0 +1,5 @@
+connectorId: "default"
+generate:
+  javascriptSdk:
+    outputDir: "../../src/database/generated"
+    packageJsonDir: "../../src/database/generated"

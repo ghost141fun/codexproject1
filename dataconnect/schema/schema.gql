@@ -1,8 +1,4 @@
-
-# DevTalk Data Connect Schema
-
 type User @table {
-  id: String! @primaryKey
   username: String!
   email: String!
   createdAt: Timestamp! @default(expr: "request.time")
@@ -11,48 +7,52 @@ type User @table {
 }
 
 type Channel @table {
-  id: String! @primaryKey
   name: String!
   isPrivate: Boolean!
   createdAt: Timestamp! @default(expr: "request.time")
   description: String
-  ownerId: String!
+  owner: User!
 }
 
-type ChannelMembership @table(key: ["userId", "channelId"]) {
-  userId: String!
-  channelId: String!
+type ChannelMembership @table(key: ["user", "channel"]) {
+  user: User!
+  channel: Channel!
   joinedAt: Timestamp! @default(expr: "request.time")
 }
 
 type Message @table {
-  id: UUID! @default(expr: "uuidV4()")
   content: String!
   createdAt: Timestamp! @default(expr: "request.time")
   editedAt: Timestamp
-  authorId: String!
-  channelId: String!
-  type: String! # text, image, code
+  author: User!
+  channel: Channel
 }
 
 type DirectMessageConversation @table {
-  id: UUID! @default(expr: "uuidV4()")
   createdAt: Timestamp! @default(expr: "request.time")
-  user1Id: String!
-  user2Id: String!
+  user1: User!
+  user2: User!
 }
 
 type DirectMessage @table {
-  id: UUID! @default(expr: "uuidV4()")
   content: String!
   createdAt: Timestamp! @default(expr: "request.time")
   editedAt: Timestamp
-  senderId: String!
-  conversationId: UUID!
+  sender: User!
+  conversation: DirectMessageConversation!
 }
 
-type HuddlePresence @table(key: ["userId", "channelId"]) {
-  userId: String!
-  channelId: String!
+type FileAsset @table {
+  name: String!
+  size: String!
+  type: String!
+  url: String!
+  uploadedAt: Timestamp! @default(expr: "request.time")
+  owner: User!
+}
+
+type HuddlePresence @table(key: ["user", "channel"]) {
+  user: User!
+  channel: Channel!
   joinedAt: Timestamp! @default(expr: "request.time")
 }
