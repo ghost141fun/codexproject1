@@ -72,12 +72,14 @@ export default function WorkspacePage() {
   // Sync user profile
   useEffect(() => {
     if (user) {
-      client.userProfile.upsert({
+      client.user.upsert({
         variables: {
           id: user.uid,
+          username: user.email?.split('@')[0] || `dev-${user.uid.slice(0, 4)}`,
           displayName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
           email: user.email || 'anonymous@devtalk.app',
-          avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
+          profilePictureUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
+          createdAt: new Date().toISOString()
         }
       });
     }

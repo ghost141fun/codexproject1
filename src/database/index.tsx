@@ -11,8 +11,6 @@ let firebaseAuth: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization helper.
- * This ensures we don't attempt to access Firebase services on the server
- * or before the app is fully registered.
  */
 export function initializeDatabase() {
   if (typeof window === 'undefined') {
@@ -29,21 +27,19 @@ export function initializeDatabase() {
   
   if (firebaseApp && !firebaseAuth) {
     try {
-      // Calling getAuth registers the auth component if it's the first time
+      // Calling getAuth registers the auth component
       firebaseAuth = getAuth(firebaseApp);
     } catch (e) {
-      // Fallback removed to prevent "No Firebase App" error reported in logs
       console.warn('Firebase Auth registration issue:', e);
     }
   }
   
-  return { app: firebaseApp, auth: firebaseAuth };
+  return { app: firebaseApp || null, auth: firebaseAuth || null };
 }
 
 /**
  * Data Connect Client Shim
- * Provides a mock interface for the application to interact with
- * the Data Connect schema provided: User, Channel, Message, etc.
+ * Aligned with the provided schema: User, Channel, Message, etc.
  */
 export const client = {
   user: {
@@ -51,20 +47,19 @@ export const client = {
       data: [
         { id: 'u-1', username: 'alex', email: 'alex@devtalk.app', displayName: 'Alex Rivera', profilePictureUrl: 'https://picsum.photos/seed/alex/100/100' },
         { id: 'u-2', username: 'sarah', email: 'sarah@devtalk.app', displayName: 'Sarah Chen', profilePictureUrl: 'https://picsum.photos/seed/sarah/100/100' },
-        { id: 'u-3', username: 'marcus', email: 'marcus@devtalk.app', displayName: 'Marcus Bell', profilePictureUrl: 'https://picsum.photos/seed/marcus/100/100' },
-        { id: 'u-4', username: 'elena', email: 'elena@devtalk.app', displayName: 'Elena Rodriguez', profilePictureUrl: 'https://picsum.photos/seed/elena/100/100' },
-        { id: 'u-5', username: 'david', email: 'david@devtalk.app', displayName: 'David Kim', profilePictureUrl: 'https://picsum.photos/seed/david/100/100' },
       ], 
       isLoading: false 
     }),
-    upsert: (args: any) => Promise.resolve(),
+    upsert: (args: any) => {
+      console.log('Syncing User Profile to Data Connect:', args.variables);
+      return Promise.resolve();
+    },
   },
   channel: {
     useQuery: () => ({ 
       data: [
         { id: 'general', name: 'general', description: 'General announcements and chatter', isPrivate: false, type: 'channel' },
         { id: 'dev-hq', name: 'dev-hq', description: 'Main development channel', isPrivate: false, type: 'channel' },
-        { id: 'frontend-dev', name: 'frontend-dev', description: 'All things React and Next.js', isPrivate: false, type: 'channel' },
       ], 
       isLoading: false 
     }),
@@ -115,9 +110,6 @@ export const client = {
     }),
     join: (args: any) => Promise.resolve(),
     leave: (args: any) => Promise.resolve(),
-  },
-  userProfile: {
-    upsert: (args: any) => Promise.resolve(),
   }
 } as any;
 

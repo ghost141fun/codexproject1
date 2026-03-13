@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/database';
-import { signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Loader2, Terminal, Shield, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,10 +19,32 @@ export function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth) {
+      toast({
+        variant: "destructive",
+        title: "Auth Not Initialized",
+        description: "Firebase service is still warming up. Please wait a moment.",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // For prototypes, we try to login first, if fail due to user not found, we create the user
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (loginError: any) {
+        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential') {
+          // Attempt registration for better prototype flow
+          await createUserWithEmailAndPassword(auth, email, password);
+          toast({
+            title: "Account Created",
+            description: "New developer profile established.",
+          });
+        } else {
+          throw loginError;
+        }
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -84,7 +106,7 @@ export function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" university-id="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-1">Security Key</Label>
+              <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-1">Security Key</Label>
               <Input 
                 id="password" 
                 type="password" 
