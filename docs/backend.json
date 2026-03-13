@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -127,6 +128,33 @@
         "memberIds"
       ]
     },
+    "Huddle": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Huddle",
+      "type": "object",
+      "description": "Represents an active video/voice huddle session within a channel.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Huddle session."
+        },
+        "participantIds": {
+          "type": "array",
+          "description": "List of user IDs currently in the huddle.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "participantIds"
+      ]
+    },
     "DirectMessageConversation": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DirectMessageConversation",
@@ -221,11 +249,11 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores individual user profile information. The 'userId' wildcard matches the authenticated user's UID. Publicly readable (display name, avatar) for other users in shared contexts, but write access is restricted to the owning user. Explicitly uses path-based ownership for security.",
+          "description": "Stores individual user profile information.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user, corresponding to `request.auth.uid`."
+              "description": "The unique identifier of the user."
             }
           ]
         }
@@ -237,7 +265,7 @@
           "schema": {
             "$ref": "#/backend/entities/Workspace"
           },
-          "description": "Collection of collaborative workspaces. Each document includes 'ownerId' and 'memberIds' (a map of UID to role/status or just a list of UIDs) for authorization independence. Allows querying workspaces a user is a member of without requiring parent lookups. Includes denormalized 'memberIds' array for authorization independence and QAPs.",
+          "description": "Top-level workspace container.",
           "params": [
             {
               "name": "workspaceId",
@@ -253,88 +281,39 @@
           "schema": {
             "$ref": "#/backend/entities/Channel"
           },
-          "description": "Subcollection of channels within a specific workspace. Each channel document includes 'workspaceId' (implicitly from path) and 'memberIds' array. For public channels, 'memberIds' are typically synchronized with workspace members; for private, they are explicitly managed. This denormalization ensures authorization independence for channel access. Includes denormalized 'memberIds' array for authorization independence and QAPs.",
+          "description": "Channel within a workspace.",
           "params": [
             {
               "name": "workspaceId",
-              "description": "The unique identifier of the parent workspace."
+              "description": "Parent workspace ID."
             },
             {
               "name": "channelId",
-              "description": "The unique identifier of the channel."
+              "description": "Channel ID."
             }
           ]
         }
       },
       {
-        "path": "/workspaces/{workspaceId}/directMessages/{dmId}",
+        "path": "/workspaces/{workspaceId}/channels/{channelId}/huddle/active",
         "definition": {
-          "entityName": "DirectMessageConversation",
+          "entityName": "Huddle",
           "schema": {
-            "$ref": "#/backend/entities/DirectMessageConversation"
+            "$ref": "#/backend/entities/Huddle"
           },
-          "description": "Subcollection of direct message conversations within a specific workspace. Each document includes 'workspaceId' (implicitly from path) and 'participantIds' array. This denormalization ensures authorization independence for DM access. Includes denormalized 'participantIds' array for authorization independence and QAPs.",
+          "description": "Active huddle session for a channel.",
           "params": [
             {
               "name": "workspaceId",
-              "description": "The unique identifier of the parent workspace."
-            },
-            {
-              "name": "dmId",
-              "description": "The unique identifier of the direct message conversation."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/workspaces/{workspaceId}/channels/{channelId}/messages/{messageId}",
-        "definition": {
-          "entityName": "Message",
-          "schema": {
-            "$ref": "#/backend/entities/Message"
-          },
-          "description": "Subcollection of messages within a specific channel. Each message document includes denormalized 'channelId', 'workspaceId', and 'channelMemberIds' (a copy of the parent channel's memberIds at the time of message creation) to achieve authorization independence for read/list operations without needing to fetch the parent channel document. Also includes 'isChannelPrivate' for additional context.",
-          "params": [
-            {
-              "name": "workspaceId",
-              "description": "The unique identifier of the parent workspace."
+              "description": "Workspace ID."
             },
             {
               "name": "channelId",
-              "description": "The unique identifier of the parent channel."
-            },
-            {
-              "name": "messageId",
-              "description": "The unique identifier of the message."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/workspaces/{workspaceId}/directMessages/{dmId}/messages/{messageId}",
-        "definition": {
-          "entityName": "Message",
-          "schema": {
-            "$ref": "#/backend/entities/Message"
-          },
-          "description": "Subcollection of messages within a specific direct message conversation. Each message document includes denormalized 'directMessageConversationId', 'workspaceId', and 'dmParticipantIds' (a copy of the parent DM's participantIds at the time of message creation) to achieve authorization independence for read/list operations without needing to fetch the parent DM document.",
-          "params": [
-            {
-              "name": "workspaceId",
-              "description": "The unique identifier of the parent workspace."
-            },
-            {
-              "name": "dmId",
-              "description": "The unique identifier of the parent direct message conversation."
-            },
-            {
-              "name": "messageId",
-              "description": "The unique identifier of the message."
+              "description": "Channel ID."
             }
           ]
         }
       }
-    ],
-    "reasoning": "The proposed Firestore structure prioritizes Authorization Independence and Query-Accurate Permissions (QAPs) by consistently denormalizing authorization context directly into relevant documents. This design minimizes the need for `get()` calls in security rules, especially for read and list operations, thereby improving performance, simplifying rule logic, and enhancing debuggability.\n\n1.  **User Profiles (`/userProfiles/{userId}`):** User profiles are stored at the top level. Read access to `displayName` and `avatarUrl` is generally considered public within a shared context (workspace/channel/DM), while sensitive data or profile editing is restricted to the authenticated user (`request.auth.uid`).\n\n2.  **Workspaces (`/workspaces/{workspaceId}`):** Workspaces are top-level collections representing collaborative environments. To achieve Authorization Independence, each `Workspace` document includes `ownerId` and `memberIds`. This allows security rules to check `request.auth.uid` against these fields directly for read/write access to the workspace itself and enables QAPs for listing all workspaces a user belongs to (`where('memberIds', 'array-contains', request.auth.uid)`).\n\n3.  **Channels (`/workspaces/{workspaceId}/channels/{channelId}`):** Channels are subcollections of workspaces. Each `Channel` document denormalizes its `workspaceId` (from the path) and includes a `memberIds` array. For public channels, this `memberIds` list is synchronized with the `workspace.memberIds`; for private channels, it's explicitly managed. This denormalization ensures that channel access rules (`request.auth.uid in resource.data.memberIds`) do not require a `get()` call to the parent workspace document, upholding Authorization Independence for reads/lists. QAPs for listing channels within a workspace are supported by querying `where('memberIds', 'array-contains', request.auth.uid)`.\n\n4.  **Direct Message Conversations (`/workspaces/{workspaceId}/directMessages/{dmId}`):** Similar to channels, direct message conversations are subcollections. Each `DirectMessageConversation` document denormalizes `workspaceId` (from the path) and explicitly lists `participantIds`. This allows direct rule evaluation (`request.auth.uid in resource.data.participantIds`) without external document lookups, ensuring Authorization Independence and enabling QAPs for listing DMs (`where('participantIds', 'array-contains', request.auth.uid)`).\n\n5.  **Messages (`/workspaces/{workspaceId}/channels/{channelId}/messages/{messageId}` and `/workspaces/{workspaceId}/directMessages/{dmId}/messages/{messageId}`):** Messages are nested as subcollections under their respective channels or direct message conversations. This hierarchical structure aligns with data relationships. **Crucially, for Authorization Independence, each `Message` document itself contains denormalized authorization context.**\n    *   For messages in channels, `channelId`, `workspaceId`, and `channelMemberIds` (a copy of the parent channel's `memberIds`) are stored within the message document.\n    *   For messages in direct messages, `directMessageConversationId`, `workspaceId`, and `dmParticipantIds` (a copy of the parent DM's `participantIds`) are stored within the message document.\n    \n    This strategy means that when a user reads or lists messages, the security rule can evaluate `request.auth.uid in resource.data.channelMemberIds` or `request.auth.uid in resource.data.dmParticipantIds` directly on the message document, completely avoiding `get()` calls to the parent channel or DM conversation. This ensures robust Authorization Independence for all message operations, making rules highly performant and debuggable. The application layer is responsible for maintaining the consistency of these denormalized authorization arrays within message documents upon channel/DM membership changes (e.g., via Cloud Functions for fan-out writes, or assuming historical messages retain visibility based on past membership)."
+    ]
   }
 }

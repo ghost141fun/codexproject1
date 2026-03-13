@@ -11,7 +11,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { HuddleMeeting } from "@/components/chat/huddle-meeting";
 import { GlobalSearch } from "@/components/chat/global-search";
-import { useUser, useAuth } from '@/database';
+import { useUser, useAuth, useFirestore, useMemoDatabase, useDoc } from '@/database';
 import { initiateAnonymousSignIn } from '@/database/non-blocking-login';
 import { 
   Loader2, 
@@ -45,10 +45,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { doc, setDoc } from 'firebase/firestore';
+
+const WORKSPACE_ID = 'w-1'; // Default workspace for prototype
 
 export default function DevTalkApp() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const db = useFirestore();
   const { toast } = useToast();
   
   // Local State
@@ -69,6 +73,29 @@ export default function DevTalkApp() {
 
   // File Upload Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync user profile to Firestore
+  useEffect(() => {
+    if (user && db) {
+      const profileRef = doc(db, 'userProfiles', user.uid);
+      setDoc(profileRef, {
+        id: user.uid,
+        displayName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
+        email: user.email || 'anonymous@devtalk.app',
+        avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`
+      }, { merge: true });
+      
+      // Sync default workspace
+      const workspaceRef = doc(db, 'workspaces', WORKSPACE_ID);
+      setDoc(workspaceRef, {
+        id: WORKSPACE_ID,
+        name: 'DevTalk HQ',
+        memberIds: [user.uid],
+        ownerId: user.uid,
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+    }
+  }, [user, db]);
 
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -218,8 +245,6 @@ export default function DevTalkApp() {
 
   const handleLeaveChannel = (id: string) => {
     setChannels(prev => prev.filter(c => c.id !== id));
-    
-    // Redirect if leaving the active channel
     if (activeId === id) {
       const remainingChannels = channels.filter(c => c.id !== id);
       if (remainingChannels.length > 0) {
@@ -266,12 +291,10 @@ export default function DevTalkApp() {
     };
 
     setFiles(prev => [newFile, ...prev]);
-    
     toast({
       title: "File Uploaded",
       description: `${file.name} successfully added to workspace.`,
     });
-
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -357,7 +380,7 @@ export default function DevTalkApp() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Now</p>
-                  {channels.slice(0, 2).map((c) => (
+                  {channels.slice(0, 5).map((c) => (
                     <button 
                       key={c.id} 
                       onClick={() => {
@@ -544,7 +567,14 @@ export default function DevTalkApp() {
           onOpenSearch={() => setIsSearchOpen(true)}
           onLeaveChannel={handleLeaveChannel}
         />
-        {isHuddleActive && <HuddleMeeting onLeave={() => setIsHuddleActive(false)} channelName={activeItem?.name} />}
+        {isHuddleActive && activeType === 'channel' && (
+          <HuddleMeeting 
+            workspaceId={WORKSPACE_ID}
+            channelId={activeId}
+            onLeave={() => setIsHuddleActive(false)} 
+            channelName={activeItem?.name} 
+          />
+        )}
         <div className="flex-1 flex flex-col min-h-0">
           {activeTab === 'files' ? (
             <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
@@ -556,7 +586,7 @@ export default function DevTalkApp() {
                       <tr className="bg-white/5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-b border-white/5">
                         <th className="px-6 py-4">Name</th>
                         <th className="px-6 py-4">Uploaded By</th>
-                        <th className="px-6 py-4">Date</th>
+                        <th className="px-6 py-4 text-right">Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -578,7 +608,7 @@ export default function DevTalkApp() {
                               <span className="text-xs text-muted-foreground">{file.ownerName}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 text-right">
                             <span className="text-xs text-muted-foreground">{format(new Date(file.uploadedAt), 'MMM d, yyyy')}</span>
                           </td>
                         </tr>
@@ -620,7 +650,6 @@ export default function DevTalkApp() {
         }}
       />
       
-      {/* Huddle Selection Dialog */}
       <Dialog open={isHuddleSelectOpen} onOpenChange={setIsHuddleSelectOpen}>
         <DialogContent className="bg-[#1a1d21] border-white/10 text-white sm:max-w-md">
           <DialogHeader>
@@ -662,7 +691,6 @@ export default function DevTalkApp() {
           </div>
         </DialogContent>
       </Dialog>
-      
       <Toaster />
     </div>
   );

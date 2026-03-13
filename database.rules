@@ -1,146 +1,49 @@
+
 rules_version = '2';
 service cloud.database {
   match /databases/{database}/documents {
 
-    /**
-     * DevTalk Security Rules
-     *
-     * CORE PHILOSOPHY:
-     * This ruleset implements a robust, identity-based security model designed for a high-performance 
-     * real-time chat application. It prioritizes "Authorization Independence," meaning documents 
-     * carry the necessary metadata (like member lists) to authorize access without requiring 
-     * expensive cross-document lookups (get() calls).
-     *
-     * DATA STRUCTURE:
-     * - /userProfiles/{userId}: Publicly viewable profiles, owner-only writes.
-     * - /workspaces/{workspaceId}: Top-level collaborative containers.
-     * - /workspaces/.../channels/{channelId}: Discussion areas within workspaces.
-     * - /workspaces/.../directMessages/{dmId}: Private 1:1 conversations.
-     * - /workspaces/.../messages/{messageId}: Chat content nested under channels or DMs.
-     *
-     * KEY SECURITY DECISIONS:
-     * 1. DENORMALIZATION: Security context (memberIds, participantIds) is copied into sub-documents 
-     *    (like Messages) to ensure that listing or reading data is extremely fast and secure 
-     *    at scale.
-     * 2. CLOSED COLLABORATORS: Access to workspaces and their contents is strictly limited to 
-     *    users whose UIDs appear in the 'memberIds' or 'participantIds' arrays of the resource.
-     * 3. RELATIONAL INTEGRITY: Rules enforce that the 'creatorId' or 'senderId' of new data 
-     *    matches the authenticated user, preventing identity spoofing.
-     * 4. PROTOTYPING FLEXIBILITY: While authorization is strictly enforced, the specific 
-     *    shape of data (strings vs. objects) is not validated to allow for rapid UI iteration.
-     */
-
-    // --- Helper Functions ---
-
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the user's UID matches the provided ID. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if a document exists and the user is the owner. Used for updates/deletes. */
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    /** @description Checks if the user's UID is present in a list of members/participants. */
     function isMember(memberList) {
       return isSignedIn() && (request.auth.uid in memberList);
     }
 
-    /** @description Validates that a field is not being changed during an update. */
-    function isImmutable(fieldName) {
-      return request.resource.data[fieldName] == resource.data[fieldName];
-    }
-
-    // --- Collection Rules ---
-
-    /**
-     * @description Rules for user profile management. Profiles are public for discovery but strictly owned for writes.
-     * @path /userProfiles/{userId}
-     * @allow (get) Signed-in users can view any profile.
-     * @allow (create) Users can create their own profile document.
-     * @deny (update) Users cannot modify profiles belonging to others.
-     * @principle Ownership-based write access with public read for collaboration.
-     */
     match /userProfiles/{userId} {
       allow get, list: if isSignedIn();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isImmutable('id');
-      allow delete: if isExistingOwner(userId);
+      allow create, update: if isOwner(userId);
     }
 
-    /**
-     * @description Top-level workspaces. Access is restricted to members listed in the document.
-     * @path /workspaces/{workspaceId}
-     * @allow (get) Any user in the 'memberIds' list.
-     * @allow (create) Any signed-in user who sets themselves as owner and member.
-     * @deny (delete) Anyone who is not the designated 'ownerId'.
-     * @principle Closed-loop collaboration via denormalized member lists.
-     */
     match /workspaces/{workspaceId} {
       allow get, list: if isMember(resource.data.memberIds);
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid && (request.auth.uid in request.resource.data.memberIds);
-      allow update: if isMember(resource.data.memberIds) && isImmutable('ownerId');
-      allow delete: if resource != null && isOwner(resource.data.ownerId);
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data.ownerId);
 
-      /**
-       * @description Channels within a workspace.
-       * @path /workspaces/{workspaceId}/channels/{channelId}
-       * @allow (list) Members of the specific channel.
-       * @deny (create) Non-members of the parent workspace (enforced via workspace lookup if needed, but here relying on internal memberIds).
-       * @principle Authorization independence: the channel document contains its own access list.
-       */
       match /channels/{channelId} {
-        allow get, list: if isMember(resource.data.memberIds);
-        allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid && request.resource.data.workspaceId == workspaceId;
-        allow update: if isMember(resource.data.memberIds) && isImmutable('workspaceId') && isImmutable('creatorId');
-        allow delete: if resource != null && (isOwner(resource.data.creatorId) || isOwner(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId));
+        allow get, list: if isMember(resource.data.memberIds) || !resource.data.isPrivate;
+        allow create: if isSignedIn();
+        allow update, delete: if isOwner(resource.data.creatorId);
 
-        /**
-         * @description Messages within a channel.
-         * @path /workspaces/{workspaceId}/channels/{channelId}/messages/{messageId}
-         * @allow (list) Users whose UID is in the 'channelMemberIds' array on the message itself.
-         * @deny (update) Users trying to edit someone else's message.
-         * @principle Denormalized authorization for high-performance message listing.
-         */
+        match /huddle/active {
+          allow get, list: if isSignedIn();
+          allow create, update, delete: if isSignedIn();
+        }
+
         match /messages/{messageId} {
-          allow get, list: if isMember(resource.data.channelMemberIds);
-          allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && (request.auth.uid in request.resource.data.channelMemberIds);
-          allow update: if resource != null && isOwner(resource.data.senderId) && isImmutable('senderId') && isImmutable('channelId');
-          allow delete: if resource != null && isOwner(resource.data.senderId);
+          allow get, list: if isSignedIn();
+          allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
         }
       }
 
-      /**
-       * @description Direct Message conversations.
-       * @path /workspaces/{workspaceId}/directMessages/{dmId}
-       * @allow (get) Only the two participants listed in 'participantIds'.
-       * @deny (list) Anyone not in the participant list.
-       * @principle Strict 1:1 privacy using participant arrays.
-       */
       match /directMessages/{dmId} {
         allow get, list: if isMember(resource.data.participantIds);
-        allow create: if isSignedIn() && (request.auth.uid in request.resource.data.participantIds) && request.resource.data.workspaceId == workspaceId;
-        allow update: if isMember(resource.data.participantIds) && isImmutable('workspaceId') && isImmutable('participantIds');
-        allow delete: if false; // DM conversations are typically permanent records
-
-        /**
-         * @description Messages within a Direct Message conversation.
-         * @path /workspaces/{workspaceId}/directMessages/{dmId}/messages/{messageId}
-         * @allow (get) Participants of the DM (via denormalized 'dmParticipantIds').
-         * @principle Denormalized authorization avoids parent document lookups for every message read.
-         */
-        match /messages/{messageId} {
-          allow get, list: if isMember(resource.data.dmParticipantIds);
-          allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && (request.auth.uid in request.resource.data.dmParticipantIds);
-          allow update: if resource != null && isOwner(resource.data.senderId) && isImmutable('senderId') && isImmutable('directMessageConversationId');
-          allow delete: if resource != null && isOwner(resource.data.senderId);
-        }
+        allow create: if isSignedIn();
       }
     }
   }
