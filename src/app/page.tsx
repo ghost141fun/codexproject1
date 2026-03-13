@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -11,6 +10,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { HuddleMeeting } from "@/components/chat/huddle-meeting";
 import { GlobalSearch } from "@/components/chat/global-search";
+import { LoginForm } from "@/components/auth/login-form";
 import { useUser, client } from '@/database';
 import { 
   Loader2, 
@@ -234,7 +234,27 @@ export default function DevTalkApp() {
     }
   };
 
-  if (isUserLoading || isChannelsLoading || isDmsLoading || isMessagesLoading || isFilesLoading) {
+  if (isUserLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#0a0a0c]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-white/40 animate-pulse font-black uppercase tracking-[0.3em] text-[10px]">Verifying Protocol...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <LoginForm />
+        <Toaster />
+      </>
+    );
+  }
+
+  if (isChannelsLoading || isDmsLoading || isMessagesLoading || isFilesLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

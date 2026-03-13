@@ -18,7 +18,6 @@ let firebaseAuth: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization.
- * Ensures services are only requested on the client side after the app instance is ready.
  */
 function getFirebase() {
   if (typeof window === 'undefined') {
@@ -30,7 +29,6 @@ function getFirebase() {
   }
   
   if (!firebaseAuth && firebaseApp) {
-    // getAuth(app) is the standard way to register/retrieve the auth service.
     firebaseAuth = getAuth(firebaseApp);
   }
   
@@ -43,7 +41,6 @@ export function initializeDatabase() {
 
 /**
  * Data Connect Client Shim
- * This mirrors the schema provided and satisfies the application's interface.
  */
 export const client = {
   user: {
@@ -81,7 +78,7 @@ export const client = {
         { id: 'm-1', senderId: 'u-1', senderName: 'Alex Rivera', senderAvatar: 'https://picsum.photos/seed/alex/100/100', content: 'Connection established with Data Connect.', timestamp: new Date().toISOString(), type: 'text' }
       ];
       return { 
-        data: mockMsgs, 
+        data: { [channelId]: mockMsgs }, 
         isLoading: false 
       };
     },
@@ -148,5 +145,6 @@ export function useAuth() {
   const { auth } = getFirebase();
   return {
     signOut: () => auth && signOut(auth),
+    auth,
   };
 }
