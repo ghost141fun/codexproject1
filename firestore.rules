@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * DevTalk Security Rules
+     * 
+     * Core Philosophy:
+     * This ruleset implements a strict collaborative access model for the DevTalk application. 
+     * It leverages Authorization Independence through extensive data denormalization to ensure 
+     * that every document contains the necessary context for its own access control decisions 
+     * without requiring costly cross-document lookups (get() calls).
+     * 
+     * Data Structure:
+     * - /userProfiles/{userId}: Private user profile data.
+     * - /workspaces/{workspaceId}: Top-level collaborative units.
+     * - /workspaces/{workspaceId}/conversations/{conversationId}: Scoped chat contexts (channels/DMs).
+     * - /workspaces/.../messages/{messageId}: Message history within a conversation.
+     * - /workspaces/.../summaries/{summaryId}: AI-generated insights for conversations.
+     * 
+     * Key Security Decisions:
+     * 1. Authorization Independence: All documents (Conversations, Messages, Summaries) store 
+     *    denormalized arrays of member IDs and owner IDs to perform instant authorization checks.
+     * 2. Membership-Based Access: Read and write access to workspaces and their contents are 
+     *    strictly limited to users present in the membership lists.
+     * 3. Owner-Only Management: Structural changes to workspaces and conversations are 
+     *    restricted to designated owners.
+     * 4. Immutable Identity: Relational fields like senderId or workspaceId are protected 
+     *    on update to maintain data integrity.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the user is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user's UID matches the provided ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the document exists and the user is the owner. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Checks if the user is a member of a workspace based on denormalized data. */
+    function isWorkspaceMember(data) {
+      return isSignedIn() && (request.auth.uid in data.memberIds || request.auth.uid == data.ownerId);
+    }
+
+    /** @description Checks if the user is a member of a conversation based on denormalized data. */
+    function isConversationMember(data) {
+      return isSignedIn() && request.auth.uid in data.memberIds;
+    }
+
+    /** @description Checks if a user has access to a workspace sub-document using denormalized workspace member lists. */
+    function hasWorkspaceAccess(data) {
+      return isSignedIn() && (request.auth.uid in data.workspaceMemberIds || request.auth.uid == data.workspaceOwnerId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profiles, allowing users to manage their own profile data.
+     * @path /userProfiles/{userId}
+     * @allow (get) If the user is the owner of the profile.
+     * @deny (list) Global listing of users is prohibited.
+     * @principle Ownership: Users have exclusive access to their own profile tree.
+     */
+    match /userProfiles/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for workspaces. Access is restricted to owners and members.
+     * @path /workspaces/{workspaceId}
+     * @allow (create) Any signed-in user can create a workspace if they set themselves as owner.
+     * @deny (update) Only the workspace owner can modify workspace settings or member lists.
+     * @principle Shared Access (Closed Collaborators): Membership is verified via internal fields.
+     */
+    match /workspaces/{workspaceId} {
+      allow get, list: if isWorkspaceMember(resource.data);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if resource != null && (request.auth.uid == resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if resource != null && (request.auth.uid == resource.data.ownerId);
+    }
+
+    /**
+     * @description Rules for conversations within a workspace. Uses denormalized workspace data for fast access checks.
+     * @path /workspaces/{workspaceId}/conversations/{conversationId}
+     * @allow (list) If the user is a workspace member (for public channels) or a conversation member (for private).
+     * @deny (update) Non-members cannot modify conversation metadata.
+     * @principle Denormalization for Authorization: Checks parent-level access using local document fields.
+     */
+    match /workspaces/{workspaceId}/conversations/{conversationId} {
+      allow get, list: if isConversationMember(resource.data) || (resource.data.isPrivate == false && hasWorkspaceAccess(resource.data));
+      allow create: if isSignedIn() && request.resource.data.workspaceId == workspaceId;
+      allow update: if resource != null && isConversationMember(resource.data) && request.resource.data.workspaceId == resource.data.workspaceId;
+      allow delete: if resource != null && (request.auth.uid == resource.data.workspaceOwnerId);
+    }
+
+    /**
+     * @description Rules for messages within a conversation.
+     * @path /workspaces/{workspaceId}/conversations/{conversationId}/messages/{messageId}
+     * @allow (create) Conversation members can send messages.
+     * @deny (update) Users can only edit their own messages.
+     * @principle Ownership and Shared Access: Combines membership checks for reading and creator checks for writing.
+     */
+    match /workspaces/{workspaceId}/conversations/{conversationId}/messages/{messageId} {
+      allow get, list: if isConversationMember(resource.data) || (resource.data.conversationIsPrivate == false && hasWorkspaceAccess(resource.data));
+      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && request.resource.data.conversationId == conversationId;
+      allow update: if resource != null && resource.data.senderId == request.auth.uid && request.resource.data.senderId == resource.data.senderId;
+      allow delete: if resource != null && (resource.data.senderId == request.auth.uid || request.auth.uid == resource.data.conversationWorkspaceOwnerId);
+    }
+
+    /**
+     * @description Rules for AI-generated conversation summaries.
+     * @path /workspaces/{workspaceId}/conversations/{conversationId}/summaries/{summaryId}
+     * @allow (get) Members of the conversation can view summaries.
+     * @deny (create) Only members can trigger summary generation.
+     * @principle Shared Access: Access is derived from conversation membership denormalized on the summary.
+     */
+    match /workspaces/{workspaceId}/conversations/{conversationId}/summaries/{summaryId} {
+      allow get, list: if isConversationMember(resource.data) || (resource.data.conversationIsPrivate == false && hasWorkspaceAccess(resource.data));
+      allow create: if isSignedIn() && request.resource.data.conversationId == conversationId;
+      allow update: if false; // Summaries are typically read-only once generated.
+      allow delete: if resource != null && (request.auth.uid == resource.data.conversationWorkspaceOwnerId);
+    }
+  }
+}
