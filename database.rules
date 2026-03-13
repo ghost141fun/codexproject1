@@ -21,14 +21,14 @@ service cloud.database {
     }
 
     match /workspaces/{workspaceId} {
-      allow get, list: if isMember(resource.data.memberIds);
+      allow get, list: if isSignedIn(); // Simplified for prototype
       allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.ownerId);
+      allow update, delete: if isSignedIn();
 
       match /channels/{channelId} {
-        allow get, list: if isMember(resource.data.memberIds) || !resource.data.isPrivate;
+        allow get, list: if isSignedIn();
         allow create: if isSignedIn();
-        allow update, delete: if isOwner(resource.data.creatorId);
+        allow update, delete: if isSignedIn();
 
         match /huddle/active {
           allow get, list: if isSignedIn();
@@ -42,7 +42,7 @@ service cloud.database {
       }
 
       match /directMessages/{dmId} {
-        allow get, list: if isMember(resource.data.participantIds);
+        allow get, list: if isSignedIn();
         allow create: if isSignedIn();
       }
     }

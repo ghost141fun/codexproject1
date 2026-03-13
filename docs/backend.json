@@ -17,7 +17,7 @@
         },
         "email": {
           "type": "string",
-          "description": "The user's email address, used for contact and potentially login (though authentication is external).",
+          "description": "The user's email address, used for contact and potentially login.",
           "format": "email"
         },
         "avatarUrl": {
@@ -36,202 +36,55 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Workspace",
       "type": "object",
-      "description": "Represents a collaborative environment where users can interact through channels and direct messages.",
+      "description": "Represents a collaborative environment.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Workspace entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the workspace."
-        },
-        "description": {
-          "type": "string",
-          "description": "A brief description of the workspace's purpose or focus."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the workspace was created.",
-          "format": "date-time"
-        },
-        "ownerId": {
-          "type": "string",
-          "description": "Reference to the UserProfile who created and owns this workspace. (Relationship: UserProfile 1:N Workspace)"
-        },
-        "memberIds": {
-          "type": "array",
-          "description": "References to UserProfiles who are members of this workspace. (Relationship: UserProfile N:N Workspace)",
-          "items": {
-            "type": "string"
-          }
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "memberIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "createdAt",
-        "ownerId",
-        "memberIds"
-      ]
+      "required": ["id", "name", "ownerId", "memberIds", "createdAt"]
     },
     "Channel": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Channel",
       "type": "object",
-      "description": "Represents a communication channel within a specific workspace, which can be public or private.",
+      "description": "A communication channel.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Channel entity."
-        },
-        "workspaceId": {
-          "type": "string",
-          "description": "Reference to the Workspace this channel belongs to. (Relationship: Workspace 1:N Channel)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the channel."
-        },
-        "description": {
-          "type": "string",
-          "description": "A brief description of the channel's topic or purpose."
-        },
-        "isPrivate": {
-          "type": "boolean",
-          "description": "Indicates whether the channel is private (true) or public (false)."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the channel was created.",
-          "format": "date-time"
-        },
-        "creatorId": {
-          "type": "string",
-          "description": "Reference to the UserProfile who created this channel. (Relationship: UserProfile 1:N Channel)"
-        },
-        "memberIds": {
-          "type": "array",
-          "description": "References to UserProfiles who are members of this channel. Required for private channels. (Relationship: UserProfile N:N Channel)",
-          "items": {
-            "type": "string"
-          }
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "isPrivate": { "type": "boolean" },
+        "workspaceId": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "memberIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "workspaceId",
-        "name",
-        "isPrivate",
-        "createdAt",
-        "creatorId",
-        "memberIds"
-      ]
+      "required": ["id", "name", "isPrivate", "workspaceId", "creatorId", "memberIds", "createdAt"]
     },
     "Huddle": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Huddle",
       "type": "object",
-      "description": "Represents an active video/voice huddle session within a channel.",
+      "description": "An active huddle session.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Huddle session."
-        },
-        "participantIds": {
-          "type": "array",
-          "description": "List of user IDs currently in the huddle.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "startedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "startedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "participantIds"
-      ]
-    },
-    "DirectMessageConversation": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "DirectMessageConversation",
-      "type": "object",
-      "description": "Represents a private one-on-one conversation between two users within a workspace.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the DirectMessageConversation entity."
-        },
-        "workspaceId": {
-          "type": "string",
-          "description": "Reference to the Workspace in which this direct message conversation occurs. (Relationship: Workspace 1:N DirectMessageConversation)"
-        },
-        "participantIds": {
-          "type": "array",
-          "description": "References to the two UserProfiles participating in this conversation. (Relationship: UserProfile N:N DirectMessageConversation)",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the direct message conversation was initiated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "workspaceId",
-        "participantIds",
-        "createdAt"
-      ]
+      "required": ["id", "participantIds"]
     },
     "Message": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Message",
       "type": "object",
-      "description": "Represents a single message sent within a channel or a direct message conversation.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Message entity."
-        },
-        "senderId": {
-          "type": "string",
-          "description": "Reference to the UserProfile who sent this message. (Relationship: UserProfile 1:N Message)"
-        },
-        "content": {
-          "type": "string",
-          "description": "The rich text content of the message."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp when the message was sent.",
-          "format": "date-time"
-        },
-        "channelId": {
-          "type": "string",
-          "description": "Reference to the Channel this message belongs to. Only one of 'channelId' or 'directMessageConversationId' should be present. (Relationship: Channel 1:N Message)"
-        },
-        "directMessageConversationId": {
-          "type": "string",
-          "description": "Reference to the DirectMessageConversation this message belongs to. Only one of 'channelId' or 'directMessageConversationId' should be present. (Relationship: DirectMessageConversation 1:N Message)"
-        },
-        "editedAt": {
-          "type": "string",
-          "description": "Timestamp when the message was last edited, if applicable.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "senderId",
-        "content",
-        "timestamp"
-      ]
+      "required": ["id", "senderId", "content", "timestamp"]
     }
   },
   "auth": {
@@ -241,79 +94,25 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/userProfiles/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores individual user profile information.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/workspaces/{workspaceId}",
-        "definition": {
-          "entityName": "Workspace",
-          "schema": {
-            "$ref": "#/backend/entities/Workspace"
-          },
-          "description": "Top-level workspace container.",
-          "params": [
-            {
-              "name": "workspaceId",
-              "description": "The unique identifier of the workspace."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/workspaces/{workspaceId}/channels/{channelId}",
-        "definition": {
-          "entityName": "Channel",
-          "schema": {
-            "$ref": "#/backend/entities/Channel"
-          },
-          "description": "Channel within a workspace.",
-          "params": [
-            {
-              "name": "workspaceId",
-              "description": "Parent workspace ID."
-            },
-            {
-              "name": "channelId",
-              "description": "Channel ID."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/workspaces/{workspaceId}/channels/{channelId}/huddle/active",
-        "definition": {
-          "entityName": "Huddle",
-          "schema": {
-            "$ref": "#/backend/entities/Huddle"
-          },
-          "description": "Active huddle session for a channel.",
-          "params": [
-            {
-              "name": "workspaceId",
-              "description": "Workspace ID."
-            },
-            {
-              "name": "channelId",
-              "description": "Channel ID."
-            }
-          ]
-        }
-      }
-    ]
+    "/userProfiles/{userId}": {
+      "schema": { "$ref": "#/backend/entities/UserProfile" },
+      "description": "User profiles."
+    },
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/backend/entities/Workspace" },
+      "description": "Workspaces."
+    },
+    "/workspaces/{workspaceId}/channels/{channelId}": {
+      "schema": { "$ref": "#/backend/entities/Channel" },
+      "description": "Workspace channels."
+    },
+    "/workspaces/{workspaceId}/channels/{channelId}/huddle/active": {
+      "schema": { "$ref": "#/backend/entities/Huddle" },
+      "description": "Real-time huddle presence."
+    },
+    "/workspaces/{workspaceId}/channels/{channelId}/messages/{messageId}": {
+      "schema": { "$ref": "#/backend/entities/Message" },
+      "description": "Channel messages."
+    }
   }
 }
