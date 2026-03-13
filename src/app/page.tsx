@@ -1,627 +1,418 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SideRail } from "@/components/layout/side-rail";
-import { WorkspaceSidebar } from "@/components/layout/workspace-sidebar";
-import { DmSidebar } from "@/components/layout/dm-sidebar";
-import { FilesSidebar } from "@/components/layout/files-sidebar";
-import { ChatHeader } from "@/components/chat/chat-header";
-import { MessageList } from "@/components/chat/message-list";
-import { MessageInput } from "@/components/chat/message-input";
-import { HuddleMeeting } from "@/components/chat/huddle-meeting";
-import { GlobalSearch } from "@/components/chat/global-search";
-import { LoginForm } from "@/components/auth/login-form";
-import { useUser, client } from '@/database';
-import { 
-  Loader2, 
-  MessageSquare, 
-  Sparkles, 
-  FileText, 
-  Upload, 
-  Trash2,
-  Image as ImageIcon,
-  Code,
-  Bell,
-  Radio,
-  Clock,
-  Search,
-  Users,
-  Hash,
-  Lock
-} from 'lucide-react';
-import { Toaster } from "@/components/ui/toaster";
-import { Message, Channel, DirectMessage, FileAsset } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format } from 'date-fns';
-import { useToast } from "@/hooks/use-toast";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 
-const WORKSPACE_ID = 'w-1'; // Default workspace for prototype
+const NAV_LINKS = ['Features', 'Solutions', 'Enterprise', 'Pricing'];
 
-export default function DevTalkApp() {
-  const { user, isUserLoading } = useUser();
-  const { toast } = useToast();
-  
-  // Local State
-  const [activeId, setActiveId] = useState<string>('general');
-  const [activeType, setActiveType] = useState<'channel' | 'dm'>('channel');
-  const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles'>('home');
-  const [activeFileCategory, setActiveFileCategory] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'messages' | 'files' | 'pins'>('messages');
-  const [isHuddleActive, setIsHuddleActive] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isHuddleSelectOpen, setIsHuddleSelectOpen] = useState(false);
+const FEATURES = [
+  {
+    icon: '⌘',
+    title: 'Smart Channels',
+    desc: 'Organise conversations by project, team, or topic. Keep every discussion focused and searchable.',
+  },
+  {
+    icon: '◈',
+    title: 'AI Smart Reply',
+    desc: 'Gemini-powered suggestions surface the right response in one click. Stay in flow.',
+  },
+  {
+    icon: '⬡',
+    title: 'Huddle Meetings',
+    desc: 'Jump into lightweight audio/video calls directly from any channel, no scheduling needed.',
+  },
+  {
+    icon: '◎',
+    title: 'Code Snippets',
+    desc: 'First-class syntax highlighting for 40+ languages. Review code without leaving the chat.',
+  },
+  {
+    icon: '⟡',
+    title: 'Global Search',
+    desc: 'Find any message, file, or thread across your entire workspace in milliseconds.',
+  },
+  {
+    icon: '⬢',
+    title: 'Integrations',
+    desc: 'Connect GitHub, Jira, Figma, and 100+ tools. Everything in one command centre.',
+  },
+];
 
-  // File Upload Ref
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const STATS = [
+  { value: '10M+', label: 'developers trust DevTalk' },
+  { value: '99.9%', label: 'uptime SLA' },
+  { value: '< 50ms', label: 'message delivery' },
+  { value: '256-bit', label: 'AES encryption' },
+];
 
-  // Data Connect Queries
-  const { data: channels = [], isLoading: isChannelsLoading } = client.channel.useQuery({});
-  const { data: directMessages = [], isLoading: isDmsLoading } = client.directMessage.useQuery({});
-  const { data: messages = {}, isLoading: isMessagesLoading } = client.message.useQuery({ variables: { where: { channelId: activeId } } });
-  const { data: files = [], isLoading: isFilesLoading } = client.fileAsset.useQuery({});
+const LOGOS = ['GitHub', 'Vercel', 'Stripe', 'Linear', 'Supabase', 'Figma', 'Notion', 'AWS'];
 
-  // Sync user profile
+export default function LandingPage() {
+  const [scrolled, setScrolled] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
-    if (user) {
-      client.userProfile.upsert({
-        variables: {
-          id: user.uid,
-          displayName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
-          email: user.email || 'anonymous@devtalk.app',
-          avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-        }
-      });
-    }
-  }, [user]);
-
-  // Keyboard shortcut for search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setIsSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Reset tab when changing channel/dm
+  // Animated hero background
   useEffect(() => {
-    setActiveTab('messages');
-  }, [activeId]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    let id: number;
 
-  const activeItem = useMemo(() => {
-    if (activeType === 'channel') return channels.find(c => c.id === activeId);
-    if (activeType === 'dm') return directMessages.find(d => d.id === activeId);
-    return null;
-  }, [channels, directMessages, activeId, activeType]);
+    const resize = () => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
 
-  const currentMessages = useMemo(() => {
-    return messages[activeId] || [];
-  }, [messages, activeId]);
+    const dots: { x: number; y: number; vx: number; vy: number }[] = Array.from({ length: 60 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+    }));
 
-  const filteredFiles = useMemo(() => {
-    if (activeFileCategory === 'all') return files;
-    if (activeFileCategory === 'recent') return [...files].sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()).slice(0, 5);
-    return files.filter(f => f.type === activeFileCategory);
-  }, [files, activeFileCategory]);
+    let t = 0;
+    const draw = () => {
+      t++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const handleSendMessage = (content: string) => {
-    if (!user || !activeId) return;
+      // Orbs
+      [
+        { x: canvas.width * 0.2, y: canvas.height * 0.4, r: 350, h: 172 },
+        { x: canvas.width * 0.75, y: canvas.height * 0.6, r: 280, h: 190 },
+        { x: canvas.width * 0.5, y: canvas.height * 0.1, r: 200, h: 155 },
+      ].forEach((o, i) => {
+        const ox = o.x + Math.sin(t * 0.0003 + i) * 80;
+        const oy = o.y + Math.cos(t * 0.0004 + i) * 50;
+        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, o.r);
+        g.addColorStop(0, `hsla(${o.h},80%,45%,0.15)`);
+        g.addColorStop(1, `hsla(${o.h},60%,25%,0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(ox, oy, o.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
-    client.message.create({
-      variables: {
-        channelId: activeId,
-        senderId: user.uid,
-        senderName: user.displayName || `Dev ${user.uid.slice(0, 4)}`,
-        senderAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-        content,
-        type: 'text'
+      // Grid
+      ctx.strokeStyle = 'rgba(20,180,160,0.04)';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x < canvas.width; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
       }
-    });
-  };
-
-  const handleCreateChannel = (name: string, isPrivate: boolean) => {
-    const id = name.toLowerCase().replace(/\s+/g, '-');
-    client.channel.create({
-      variables: {
-        id,
-        name,
-        description: 'A brand new channel',
-        isPrivate,
-        type: 'channel'
-      },
-      onSuccess: () => {
-        setActiveId(id);
-        setActiveType('channel');
-        setActiveView('home');
+      for (let y = 0; y < canvas.height; y += 60) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
-    });
-  };
 
-  const handleLeaveChannel = (id: string) => {
-    client.channel.delete({ variables: { id } });
-    if (activeId === id) {
-      const remainingChannels = channels.filter(c => c.id !== id);
-      if (remainingChannels.length > 0) {
-        setActiveId(remainingChannels[0].id);
-        setActiveType('channel');
-        setActiveView('home');
-      } else {
-        setActiveId('');
-        setActiveView('home');
+      // Dots + connections
+      dots.forEach(d => {
+        d.x = (d.x + d.vx + canvas.width) % canvas.width;
+        d.y = (d.y + d.vy + canvas.height) % canvas.height;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,210,190,0.35)';
+        ctx.fill();
+      });
+
+      for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+          const dx = dots[i].x - dots[j].x;
+          const dy = dots[i].y - dots[j].y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 90) {
+            ctx.strokeStyle = `rgba(0,210,190,${0.06 * (1 - d / 90)})`;
+            ctx.lineWidth = 0.4;
+            ctx.beginPath();
+            ctx.moveTo(dots[i].x, dots[i].y);
+            ctx.lineTo(dots[j].x, dots[j].y);
+            ctx.stroke();
+          }
+        }
       }
-    }
-  };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    let type: 'image' | 'document' | 'code' | 'other' = 'other';
-
-    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
-    const codeExts = ['c', 'py', 'js', 'jsx', 'ts', 'tsx', 'node', 'json', 'cpp'];
-    const docExts = ['pdf', 'csv', 'txt', 'md'];
-
-    if (imageExts.includes(extension || '')) {
-      type = 'image';
-    } else if (codeExts.includes(extension || '')) {
-      type = 'code';
-    } else if (docExts.includes(extension || '')) {
-      type = 'document';
-    }
-
-    client.fileAsset.create({
-      variables: {
-        name: file.name,
-        size: file.size > 1024 * 1024 
-          ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' 
-          : (file.size / 1024).toFixed(2) + ' KB',
-        type,
-        ownerName: user.displayName || 'Alex Rivera',
-        ownerAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-        url: '#'
-      },
-      onSuccess: () => {
-        toast({
-          title: "File Uploaded",
-          description: `${file.name} successfully added to workspace.`,
-        });
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    });
-  };
-
-  const handleDeleteFile = (id: string) => {
-    client.fileAsset.delete({
-      variables: { id },
-      onSuccess: () => {
-        toast({
-          title: "File Deleted",
-          description: "The file has been removed from your workspace.",
-        });
-      }
-    });
-  };
-
-  const handleSelect = (id: string, type: 'channel' | 'dm') => {
-    setActiveId(id);
-    setActiveType(type);
-    if (type === 'dm') setActiveView('dms');
-    else setActiveView('home');
-  };
-
-  const handleViewChange = (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles') => {
-    setActiveView(view);
-    if (view === 'dms' && activeType !== 'dm' && directMessages.length > 0) {
-      setActiveId(directMessages[0].id);
-      setActiveType('dm');
-    } else if (view === 'home' && activeType !== 'channel' && channels.length > 0) {
-      setActiveId(channels[0].id);
-      setActiveType('channel');
-    }
-  };
-
-  if (isUserLoading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#0a0a0c]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-white/40 animate-pulse font-black uppercase tracking-[0.3em] text-[10px]">Verifying Protocol...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <>
-        <LoginForm />
-        <Toaster />
-      </>
-    );
-  }
-
-  if (isChannelsLoading || isDmsLoading || isMessagesLoading || isFilesLoading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-muted-foreground animate-pulse font-medium">Connecting to DevTalk...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const renderSidebar = () => {
-    switch (activeView) {
-      case 'dms':
-        return <DmSidebar activeId={activeId} onSelect={handleSelect} directMessages={directMessages} />;
-      case 'files':
-        return <FilesSidebar activeCategory={activeFileCategory} onCategorySelect={setActiveFileCategory} fileCount={files.length} />;
-      case 'activity':
-        return (
-          <div className="w-64 h-full flex bg-[#19171d] flex-col overflow-hidden border-r border-white/5">
-            <div className="p-4 border-b border-white/5">
-              <h2 className="text-xl font-bold mb-4">Activity</h2>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input placeholder="Filter activity" className="w-full bg-white/5 border-none rounded-md pl-8 h-9 text-sm focus:ring-1 focus:ring-white/20 outline-none" />
-              </div>
-            </div>
-            <ScrollArea className="flex-1 p-3">
-              <div className="space-y-1">
-                {['Mentions', 'Reactions', 'App Updates', 'Workspace'].map((item) => (
-                  <button key={item} className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors">
-                    {item === 'Mentions' ? <Users className="w-4 h-4" /> : item === 'Reactions' ? <Sparkles className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                    <span>{item}</span>
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        );
-      case 'huddles':
-        return (
-          <div className="w-64 h-full flex bg-[#19171d] flex-col overflow-hidden border-r border-white/5">
-            <div className="p-4 border-b border-white/5">
-              <h2 className="text-xl font-bold mb-4">Huddles</h2>
-              <Button 
-                onClick={() => setIsHuddleSelectOpen(true)}
-                className="w-full gap-2 h-9 bg-primary/20 text-primary hover:bg-primary/30 border border-primary/20"
-              >
-                <Radio className="w-4 h-4" />
-                Start Huddle
-              </Button>
-            </div>
-            <ScrollArea className="flex-1 p-3">
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Now</p>
-                  {channels.slice(0, 5).map((c) => (
-                    <button 
-                      key={c.id} 
-                      onClick={() => {
-                        handleSelect(c.id, 'channel');
-                        setIsHuddleActive(true);
-                      }}
-                      className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors group text-left"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="truncate flex-1">#{c.name}</span>
-                      <div className="ml-auto opacity-0 group-hover:opacity-100 bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded">Join</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </ScrollArea>
-          </div>
-        );
-      default:
-        return (
-          <WorkspaceSidebar 
-            activeId={activeId} 
-            onSelect={handleSelect} 
-            channels={channels} 
-            directMessages={directMessages} 
-            onCreateChannel={handleCreateChannel}
-            onViewChange={handleViewChange}
-          />
-        );
-    }
-  };
-
-  const renderContent = () => {
-    if (activeView === 'files') {
-      return (
-        <div className="flex-1 flex flex-col min-h-0">
-          <header className="h-14 flex items-center justify-between px-6 border-b border-white/5 bg-[#1a1d21] shrink-0">
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              <h2 className="font-bold text-lg">File Management</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-              <Button className="gap-2 h-9" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-4 h-4" />
-                Upload File
-              </Button>
-            </div>
-          </header>
-          <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Files</p>
-                <p className="text-4xl font-black text-white">{files.length}</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Storage Used</p>
-                <p className="text-4xl font-black text-white">{Math.round(files.length * 1.2)} MB</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Workspace</p>
-                <p className="text-4xl font-black text-white">Dev HQ</p>
-              </div>
-            </div>
-            <div className="bg-[#19171d] border border-white/10 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white/5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-b border-white/5">
-                    <th className="px-6 py-4">Name</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Size</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filteredFiles.map((file) => (
-                    <tr key={file.id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center">
-                            {file.type === 'image' ? <ImageIcon className="w-4 h-4 text-blue-400" /> : file.type === 'code' ? <Code className="w-4 h-4 text-green-400" /> : <FileText className="w-4 h-4 text-orange-400" />}
-                          </div>
-                          <span className="font-medium text-sm">{file.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-muted-foreground capitalize">{file.type}</td>
-                      <td className="px-6 py-4 text-xs text-muted-foreground">{file.size}</td>
-                      <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeView === 'activity') {
-      return (
-        <div className="flex-1 flex flex-col min-h-0 bg-[#1a1d21]">
-          <header className="h-14 flex items-center px-6 border-b border-white/5 shrink-0">
-            <h2 className="font-bold text-lg">Activity Feed</h2>
-          </header>
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-              <Bell className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <div className="max-w-xs space-y-2">
-              <h3 className="font-bold text-white">All caught up!</h3>
-              <p className="text-sm text-muted-foreground">When you have mentions or reactions, they'll show up here.</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeView === 'huddles') {
-      return (
-        <div className="flex-1 flex flex-col min-h-0 bg-[#1a1d21]">
-          <header className="h-14 flex items-center px-6 border-b border-white/5 shrink-0">
-            <h2 className="font-bold text-lg">Huddle Hub</h2>
-          </header>
-          <div className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
-             <div className="bg-gradient-to-br from-primary/20 to-transparent border border-primary/20 rounded-2xl p-8 space-y-4">
-               <h3 className="text-2xl font-black">Jump into a huddle</h3>
-               <p className="text-muted-foreground max-w-md">Connect with your team instantly through voice and video. No scheduling required.</p>
-               <Button className="gap-2" onClick={() => setIsHuddleSelectOpen(true)}>
-                 <Radio className="w-4 h-4" />
-                 Start Workspace Huddle
-               </Button>
-             </div>
-             
-             <div className="space-y-4">
-               <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Recent Activity</h4>
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                 {channels.slice(0, 3).map((c) => (
-                    <div 
-                      key={c.id} 
-                      onClick={() => {
-                        handleSelect(c.id, 'channel');
-                        setIsHuddleActive(true);
-                      }}
-                      className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center">
-                          <Radio className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="flex -space-x-2">
-                           {[1, 2].map(i => (
-                             <Avatar key={i} className="w-6 h-6 border-2 border-[#1a1d21]">
-                               <AvatarImage src={`https://picsum.photos/seed/${i+40}/100/100`} />
-                             </Avatar>
-                           ))}
-                        </div>
-                      </div>
-                      <h5 className="font-bold text-sm mb-1">#{c.name}</h5>
-                      <p className="text-xs text-muted-foreground mb-4">Last active 2h ago</p>
-                      <Button variant="outline" className="w-full text-xs h-8 group-hover:bg-primary group-hover:text-white group-hover:border-primary">Join Huddle</Button>
-                    </div>
-                 ))}
-               </div>
-             </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <ChatHeader 
-          activeItem={activeItem} 
-          messages={currentMessages} 
-          isHuddleActive={isHuddleActive}
-          onToggleHuddle={() => setIsHuddleActive(!isHuddleActive)}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          activeView={activeView}
-          onOpenSearch={() => setIsSearchOpen(true)}
-          onLeaveChannel={handleLeaveChannel}
-        />
-        {isHuddleActive && activeType === 'channel' && (
-          <HuddleMeeting 
-            workspaceId={WORKSPACE_ID}
-            channelId={activeId}
-            onLeave={() => setIsHuddleActive(false)} 
-            channelName={activeItem?.name} 
-          />
-        )}
-        <div className="flex-1 flex flex-col min-h-0">
-          {activeTab === 'files' ? (
-            <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold">Files shared in {activeType === 'channel' ? '#' + (activeItem?.name || 'channel') : activeItem?.name}</h3>
-                <div className="bg-[#19171d] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-white/5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-b border-white/5">
-                        <th className="px-6 py-4">Name</th>
-                        <th className="px-6 py-4">Uploaded By</th>
-                        <th className="px-6 py-4 text-right">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {files.length > 0 ? files.slice(0, 5).map((file) => (
-                        <tr key={file.id} className="hover:bg-white/[0.02] transition-colors group">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center">
-                                {file.type === 'image' ? <ImageIcon className="w-4 h-4 text-blue-400" /> : file.type === 'code' ? <Code className="w-4 h-4 text-green-400" /> : <FileText className="w-4 h-4 text-orange-400" />}
-                              </div>
-                              <span className="font-medium text-sm truncate max-w-[200px]">{file.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-5 h-5">
-                                <AvatarImage src={file.ownerAvatar} />
-                              </Avatar>
-                              <span className="text-xs text-muted-foreground">{file.ownerName}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="text-xs text-muted-foreground">{format(new Date(file.uploadedAt), 'MMM d, yyyy')}</span>
-                          </td>
-                        </tr>
-                      )) : (
-                        <tr><td colSpan={3} className="px-6 py-12 text-center text-muted-foreground">No files shared yet.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <MessageList messages={currentMessages} activeName={activeItem?.name} />
-          )}
-          {activeTab === 'messages' && (
-            <div className="w-full max-w-[1000px] mx-auto pb-4">
-              <MessageInput onSendMessage={handleSendMessage} conversationHistory={currentMessages} placeholder={`Message ${activeType === 'channel' ? '#' + (activeItem?.name || 'channel') : activeItem?.name}`} />
-            </div>
-          )}
-        </div>
-      </>
-    );
-  };
+      id = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', resize); };
+  }, []);
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden relative">
-      <SideRail activeView={activeView} onViewChange={handleViewChange} />
-      {renderSidebar()}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#1a1d21] relative">
-        {renderContent()}
-      </main>
-      <GlobalSearch 
-        open={isSearchOpen} 
-        onOpenChange={setIsSearchOpen} 
-        messages={messages} 
-        files={files}
-        onSelectResult={(id, type) => {
-          handleSelect(id, type as any);
-        }}
-      />
-      
-      <Dialog open={isHuddleSelectOpen} onOpenChange={setIsHuddleSelectOpen}>
-        <DialogContent className="bg-[#1a1d21] border-white/10 text-white sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black flex items-center gap-2">
-              <Radio className="w-5 h-5 text-primary" />
-              Start a Huddle
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Select a channel to start a voice and video conversation with your team.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <ScrollArea className="h-[300px] pr-4 scrollbar-hide">
-              <div className="space-y-2">
-                {channels.map((channel) => (
-                  <button
-                    key={channel.id}
-                    onClick={() => {
-                      handleSelect(channel.id, 'channel');
-                      setIsHuddleActive(true);
-                      setIsHuddleSelectOpen(false);
-                    }}
-                    className="flex items-center justify-between w-full p-3 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/10"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                         {channel.isPrivate ? <Lock className="w-5 h-5 text-muted-foreground" /> : <Hash className="w-5 h-5 text-muted-foreground" />}
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-sm">#{channel.name}</p>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1">{channel.description}</p>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100 h-8 text-primary font-bold uppercase tracking-widest text-[10px]">Start</Button>
-                  </button>
+    <div style={{ background: '#020d0f', minHeight: '100vh', fontFamily: "'Inter', 'Segoe UI', sans-serif", color: '#e0f7f4', overflowX: 'hidden' }}>
+
+      {/* ── NAV ── */}
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 40px', height: 64,
+        background: scrolled ? 'rgba(2,13,15,0.92)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(0,210,180,0.1)' : '1px solid transparent',
+        transition: 'all 0.3s',
+      }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 30, height: 30, border: '1px solid rgba(0,210,180,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <span style={{ color: '#00d4b4', fontSize: 12, fontFamily: 'monospace' }}>{'>'}_</span>
+            <div style={{ position: 'absolute', top: -1, right: -1, width: 5, height: 5, background: '#00d4b4' }} />
+          </div>
+          <span style={{ color: '#e0f7f4', fontSize: 16, letterSpacing: 4, fontWeight: 600, fontFamily: 'monospace' }}>DEVTALK</span>
+        </div>
+
+        {/* Desktop nav */}
+        <div className="hidden md:flex" style={{ alignItems: 'center', gap: 36 }}>
+          {NAV_LINKS.map(l => (
+            <a key={l} href="#" style={{ color: 'rgba(224,247,244,0.6)', fontSize: 14, textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.target as HTMLElement).style.color = '#00d4b4'}
+              onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(224,247,244,0.6)'}
+            >{l}</a>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Link href="/login" style={{ color: 'rgba(224,247,244,0.7)', fontSize: 14, textDecoration: 'none' }}>Sign in</Link>
+          <Link href="/login" style={{
+            padding: '9px 20px', background: 'rgba(0,210,180,0.12)',
+            border: '1px solid rgba(0,210,180,0.5)', color: '#00d4b4',
+            fontSize: 13, textDecoration: 'none', letterSpacing: 1,
+            transition: 'all 0.2s', fontFamily: 'monospace',
+          }}
+            onMouseEnter={e => { (e.target as HTMLElement).style.background = 'rgba(0,210,180,0.22)'; }}
+            onMouseLeave={e => { (e.target as HTMLElement).style.background = 'rgba(0,210,180,0.12)'; }}
+          >Get started →</Link>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', maxWidth: 800, padding: '0 24px' }}>
+          {/* Badge */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', border: '1px solid rgba(0,210,180,0.3)', marginBottom: 36, background: 'rgba(0,210,180,0.05)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00d4b4', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: 12, letterSpacing: 2, color: 'rgba(0,210,180,0.8)', fontFamily: 'monospace' }}>NOW WITH AI SMART REPLY</span>
+          </div>
+
+          <h1 style={{ fontSize: 'clamp(40px, 7vw, 76px)', fontWeight: 700, lineHeight: 1.05, margin: '0 0 24px', letterSpacing: -2 }}>
+            Where engineering<br />
+            <span style={{ color: '#00d4b4', position: 'relative' }}>
+              teams ship faster
+              <svg style={{ position: 'absolute', bottom: -4, left: 0, width: '100%' }} viewBox="0 0 300 8" preserveAspectRatio="none">
+                <path d="M0 6 Q75 1 150 5 Q225 9 300 4" stroke="#00d4b4" strokeWidth="2" fill="none" opacity="0.5" />
+              </svg>
+            </span>
+          </h1>
+
+          <p style={{ fontSize: 18, color: 'rgba(224,247,244,0.55)', lineHeight: 1.7, marginBottom: 44, maxWidth: 560, margin: '0 auto 44px' }}>
+            Real-time messaging built for developers. AI summaries, code review threads, and deep integrations with your entire stack.
+          </p>
+
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/login" style={{
+              padding: '14px 32px', background: '#00d4b4',
+              color: '#020d0f', fontSize: 15, fontWeight: 700,
+              textDecoration: 'none', letterSpacing: 0.5,
+              transition: 'all 0.2s', display: 'inline-block',
+            }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.background = '#00f0cc'; }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.background = '#00d4b4'; }}
+            >Start for free</Link>
+            <a href="#features" style={{
+              padding: '14px 32px', background: 'transparent',
+              border: '1px solid rgba(224,247,244,0.2)', color: 'rgba(224,247,244,0.8)',
+              fontSize: 15, textDecoration: 'none', transition: 'all 0.2s',
+            }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = 'rgba(224,247,244,0.5)'; }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'rgba(224,247,244,0.2)'; }}
+            >▶ Watch demo</a>
+          </div>
+
+          {/* Social proof */}
+          <p style={{ marginTop: 48, fontSize: 13, color: 'rgba(224,247,244,0.3)', letterSpacing: 1 }}>
+            TRUSTED BY ENGINEERING TEAMS AT
+          </p>
+          <div style={{ display: 'flex', gap: 32, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+            {LOGOS.map(l => (
+              <span key={l} style={{ fontSize: 13, color: 'rgba(224,247,244,0.2)', fontWeight: 600, letterSpacing: 1 }}>{l}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, letterSpacing: 2, color: 'rgba(0,210,180,0.3)', fontFamily: 'monospace' }}>SCROLL</span>
+          <div style={{ width: 1, height: 40, background: 'linear-gradient(to bottom, rgba(0,210,180,0.3), transparent)' }} />
+        </div>
+      </section>
+
+      {/* ── STATS ── */}
+      <section style={{ padding: '60px 40px', borderTop: '1px solid rgba(0,210,180,0.08)', borderBottom: '1px solid rgba(0,210,180,0.08)' }}>
+        <div className="stats-grid" style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 40 }}>
+          {STATS.map(s => (
+            <div key={s.value} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: '#00d4b4', letterSpacing: -1, fontFamily: 'monospace' }}>{s.value}</div>
+              <div style={{ fontSize: 13, color: 'rgba(224,247,244,0.4)', marginTop: 6 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FEATURES ── */}
+      <section id="features" style={{ padding: '100px 40px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 72 }}>
+            <p style={{ color: 'rgba(0,210,180,0.6)', fontSize: 11, letterSpacing: 4, fontFamily: 'monospace', marginBottom: 16 }}>// features</p>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 700, margin: 0, letterSpacing: -1 }}>
+              Everything your team needs.<br />
+              <span style={{ color: 'rgba(224,247,244,0.4)', fontWeight: 400 }}>Nothing it doesn't.</span>
+            </h2>
+          </div>
+
+          <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+            {FEATURES.map((f, i) => (
+              <div key={f.title}
+                onMouseEnter={() => setActiveFeature(i)}
+                style={{
+                  padding: '36px 32px',
+                  background: activeFeature === i ? 'rgba(0,210,180,0.06)' : 'rgba(255,255,255,0.02)',
+                  border: activeFeature === i ? '1px solid rgba(0,210,180,0.2)' : '1px solid rgba(255,255,255,0.04)',
+                  transition: 'all 0.3s', cursor: 'default',
+                }}>
+                <div style={{ fontSize: 28, marginBottom: 16, color: '#00d4b4' }}>{f.icon}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 10px', color: '#e0f7f4' }}>{f.title}</h3>
+                <p style={{ fontSize: 14, color: 'rgba(224,247,244,0.45)', lineHeight: 1.7, margin: 0 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── APP PREVIEW MOCKUP ── */}
+      <section style={{ padding: '60px 40px 100px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          {/* Mock chat UI */}
+          <div style={{
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,210,180,0.12)',
+            borderRadius: 2, overflow: 'hidden',
+          }}>
+            {/* Window chrome */}
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,210,180,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f57' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#28c940' }} />
+              <span style={{ marginLeft: 16, fontSize: 12, color: 'rgba(224,247,244,0.3)', fontFamily: 'monospace' }}># engineering — DevTalk Workspace</span>
+            </div>
+            <div className="chat-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr' }}>
+              {/* Sidebar */}
+              <div className="hidden md:block" style={{ borderRight: '1px solid rgba(0,210,180,0.08)', padding: '20px 0' }}>
+                <div style={{ padding: '4px 20px', fontSize: 11, letterSpacing: 2, color: 'rgba(0,210,180,0.4)', marginBottom: 8 }}>CHANNELS</div>
+                {['# general', '# engineering', '# deployments', '# code-review', '# incidents'].map((c, i) => (
+                  <div key={c} style={{
+                    padding: '6px 20px', fontSize: 13, cursor: 'pointer',
+                    color: i === 1 ? '#00d4b4' : 'rgba(224,247,244,0.4)',
+                    background: i === 1 ? 'rgba(0,210,180,0.08)' : 'transparent',
+                    borderLeft: i === 1 ? '2px solid #00d4b4' : '2px solid transparent',
+                  }}>{c}</div>
                 ))}
               </div>
-            </ScrollArea>
+              {/* Messages */}
+              <div style={{ padding: 24 }}>
+                {[
+                  { user: 'AK', name: 'Arjun K', msg: 'PR #423 is ready for review — refactored the auth middleware', time: '10:42 AM', color: '#7c6fcd' },
+                  { user: 'SR', name: 'Sneha R', msg: 'On it! Left some comments on the token refresh logic', time: '10:44 AM', color: '#00d4b4' },
+                  { user: 'AI', name: 'DevTalk AI', msg: '✦ Summary: Auth middleware refactor adds token rotation support. 2 files changed, 48 insertions. Review requested on error handling path.', time: '10:44 AM', color: '#f59e0b', ai: true },
+                ].map(m => (
+                  <div key={m.user} style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#020d0f', flexShrink: 0 }}>{m.user}</div>
+                    <div>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: m.color }}>{m.name}</span>
+                        <span style={{ fontSize: 11, color: 'rgba(224,247,244,0.25)' }}>{m.time}</span>
+                      </div>
+                      <div style={{
+                        fontSize: 13, color: m.ai ? 'rgba(224,247,244,0.6)' : 'rgba(224,247,244,0.75)',
+                        lineHeight: 1.6,
+                        background: m.ai ? 'rgba(245,158,11,0.06)' : 'transparent',
+                        padding: m.ai ? '8px 12px' : 0,
+                        border: m.ai ? '1px solid rgba(245,158,11,0.15)' : 'none',
+                        borderRadius: m.ai ? 2 : 0,
+                      }}>{m.msg}</div>
+                    </div>
+                  </div>
+                ))}
+                {/* Input bar */}
+                <div style={{ marginTop: 16, padding: '10px 16px', border: '1px solid rgba(0,210,180,0.15)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 12, color: 'rgba(0,210,180,0.4)', fontFamily: 'monospace' }}>{'>'}</span>
+                  <span style={{ fontSize: 13, color: 'rgba(224,247,244,0.25)' }}>Message #engineering</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-      <Toaster />
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section style={{ padding: '100px 40px', borderTop: '1px solid rgba(0,210,180,0.08)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,210,180,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <p style={{ color: 'rgba(0,210,180,0.6)', fontSize: 11, letterSpacing: 4, fontFamily: 'monospace', marginBottom: 24 }}>// ready to deploy?</p>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 56px)', fontWeight: 700, margin: '0 0 20px', letterSpacing: -1 }}>
+            Your team's command centre<br />awaits.
+          </h2>
+          <p style={{ color: 'rgba(224,247,244,0.4)', fontSize: 17, marginBottom: 44, maxWidth: 480, margin: '0 auto 44px' }}>
+            Free for teams up to 10. No credit card required. Production-ready in minutes.
+          </p>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+            <Link href="/login" style={{
+              padding: '16px 40px', background: '#00d4b4',
+              color: '#020d0f', fontSize: 15, fontWeight: 700,
+              textDecoration: 'none', transition: 'background 0.2s',
+            }}>Get started free</Link>
+            <a href="#" style={{
+              padding: '16px 32px', border: '1px solid rgba(224,247,244,0.15)',
+              color: 'rgba(224,247,244,0.6)', fontSize: 15,
+              textDecoration: 'none', transition: 'all 0.2s',
+            }}>Talk to sales</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer style={{ padding: '40px', borderTop: '1px solid rgba(0,210,180,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, letterSpacing: 3, fontFamily: 'monospace', color: 'rgba(0,210,180,0.3)' }}>DEVTALK © 2025</span>
+        <div style={{ display: 'flex', gap: 28 }}>
+          {['Privacy', 'Terms', 'Security', 'Status'].map(l => (
+            <a key={l} href="#" style={{ fontSize: 13, color: 'rgba(224,247,244,0.25)', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.target as HTMLElement).style.color = 'rgba(0,210,180,0.7)'}
+              onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(224,247,244,0.25)'}
+            >{l}</a>
+          ))}
+        </div>
+        <span style={{ fontSize: 11, color: 'rgba(224,247,244,0.15)', letterSpacing: 2 }}>✦ POWERED BY DATA CONNECT</span>
+      </footer>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        @media (max-width: 768px) {
+          .stats-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .features-grid { grid-template-columns: 1fr !important; }
+          .chat-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
