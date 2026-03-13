@@ -3,36 +3,34 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, signOut, onAuthStateChanged, Auth, type User } from 'firebase/auth';
 import { useState, useEffect } from 'react';
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-let firebaseApp: FirebaseApp | undefined;
-let firebaseAuth: Auth | undefined;
+import { firebaseConfig } from '@/firebase/config';
 
 /**
- * SSR-safe Firebase initialization.
+ * SSR-safe Firebase initialization helper.
+ * This ensures we don't attempt to access Firebase services on the server
+ * or before the app is fully registered.
  */
 function getFirebase() {
   if (typeof window === 'undefined') {
     return { app: null, auth: null };
   }
   
-  if (!firebaseApp) {
-    firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  let app: FirebaseApp;
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
   }
   
-  if (!firebaseAuth && firebaseApp) {
-    firebaseAuth = getAuth(firebaseApp);
+  let auth: Auth;
+  try {
+    auth = getAuth(app);
+  } catch (e) {
+    // Fallback/Retry if registration is pending
+    auth = getAuth(app);
   }
   
-  return { app: firebaseApp, auth: firebaseAuth };
+  return { app, auth };
 }
 
 export function initializeDatabase() {
@@ -41,6 +39,8 @@ export function initializeDatabase() {
 
 /**
  * Data Connect Client Shim
+ * Provides a mock-like interface for the application to interact with
+ * as if it were a real Data Connect generated SDK.
  */
 export const client = {
   user: {
@@ -126,7 +126,7 @@ export function useUser(): { user: User | null; isUserLoading: boolean } {
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const { auth } = getFirebase();
+    const { auth } = initializeDatabase();
     if (!auth) {
       setIsUserLoading(false);
       return;
@@ -142,7 +142,7 @@ export function useUser(): { user: User | null; isUserLoading: boolean } {
 }
 
 export function useAuth() {
-  const { auth } = getFirebase();
+  const { auth } = initializeDatabase();
   return {
     signOut: () => auth && signOut(auth),
     auth,
