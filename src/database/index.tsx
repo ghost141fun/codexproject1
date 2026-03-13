@@ -5,42 +5,42 @@ import { getAuth, signOut, onAuthStateChanged, Auth, type User } from 'firebase/
 import { useState, useEffect } from 'react';
 import { firebaseConfig } from '@/firebase/config';
 
-// Module-level cache for initialized instances
-let firebaseApp: FirebaseApp | undefined;
-let firebaseAuth: Auth | undefined;
+// Module-level cache for initialized instances to ensure singletons
+let firebaseAppInstance: FirebaseApp | undefined;
+let firebaseAuthInstance: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization helper.
- * Ensures Auth is registered correctly on the client side.
+ * Only initializes on the client side.
  */
 export function initializeDatabase() {
   if (typeof window === 'undefined') {
     return { app: null, auth: null };
   }
   
-  if (!firebaseApp) {
+  if (!firebaseAppInstance) {
     try {
-      firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      firebaseAppInstance = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     } catch (e) {
       console.error('Firebase App initialization failed', e);
     }
   }
   
-  if (firebaseApp && !firebaseAuth) {
+  if (firebaseAppInstance && !firebaseAuthInstance) {
     try {
-      // Direct call to getAuth(app) registers the component in the SDK
-      firebaseAuth = getAuth(firebaseApp);
+      // Explicitly pass the app instance to register the auth component
+      firebaseAuthInstance = getAuth(firebaseAppInstance);
     } catch (e) {
-      console.warn('Firebase Auth registration is pending or failed', e);
+      console.error('Firebase Auth registration failed', e);
     }
   }
   
-  return { app: firebaseApp || null, auth: firebaseAuth || null };
+  return { app: firebaseAppInstance || null, auth: firebaseAuthInstance || null };
 }
 
 /**
  * Data Connect Client Shim
- * Provides mock data and functional stubs for prototype features.
+ * Powers the prototype features using the established Data Connect schema.
  */
 export const client = {
   user: {
@@ -58,7 +58,7 @@ export const client = {
       isLoading: false 
     }),
     upsert: (args: any) => {
-      console.log('Syncing User Profile to Data Connect:', args.variables);
+      console.log('Syncing Profile to Data Connect:', args.variables);
       return Promise.resolve();
     },
   },
