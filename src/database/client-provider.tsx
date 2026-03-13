@@ -9,8 +9,7 @@ export function DatabaseClientProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<ReturnType<typeof initializeDatabase>>({ app: null, auth: null });
 
   useEffect(() => {
-    // Initialize database only once on the client after mounting
-    // This prevents "Component auth has not been registered yet" errors during SSR
+    // This runs only on the client after mount, preventing SSR errors
     setDb(initializeDatabase());
   }, []);
 

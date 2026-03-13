@@ -20,17 +20,20 @@ export function initializeDatabase() {
   }
   
   if (!firebaseApp) {
-    firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    try {
+      firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    } catch (e) {
+      console.error('Firebase App initialization failed', e);
+    }
   }
   
-  if (!firebaseAuth && firebaseApp) {
+  if (firebaseApp && !firebaseAuth) {
     try {
       // Calling getAuth registers the auth component if it's the first time
       firebaseAuth = getAuth(firebaseApp);
     } catch (e) {
-      // Fallback for HMR or race conditions during component registration
-      console.warn('Firebase Auth registration pending, using default instance.');
-      firebaseAuth = getAuth();
+      // Fallback removed to prevent "No Firebase App" error reported in logs
+      console.warn('Firebase Auth registration issue:', e);
     }
   }
   
