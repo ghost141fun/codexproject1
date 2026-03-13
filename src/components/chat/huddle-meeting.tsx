@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff, Settings,
   Users, UserPlus, MessageSquare, Maximize2, MoreVertical,
-  X, Send, Copy, Check, Loader2
+  X, Send, Copy, Check, Loader2, Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useUser, client } from '@/database';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from '@/components/ui/separator';
 
 interface HuddleMeetingProps {
   workspaceId: string;
@@ -41,6 +47,9 @@ export const HuddleMeeting: React.FC<HuddleMeetingProps> = ({
   const { data: presenceList = [], isLoading: isPresenceLoading } = client.huddlePresence.useQuery({ 
     variables: { channelId } 
   });
+
+  // Fetch all members for invitation
+  const { data: allUsers = [], isLoading: isUsersLoading } = client.user.useQuery({});
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -88,14 +97,29 @@ export const HuddleMeeting: React.FC<HuddleMeetingProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const participants = presenceList.map((p: any) => ({
-    id: p.userId,
-    displayName: p.userId === user?.uid ? 'You (Me)' : `Dev ${p.userId.slice(0, 4)}`,
-    avatarUrl: `https://picsum.photos/seed/${p.userId}/100/100`
-  }));
+  const participants = useMemo(() => {
+    return presenceList.map((p: any) => ({
+      id: p.userId,
+      displayName: p.userId === user?.uid ? 'You (Me)' : `Dev ${p.userId.slice(0, 4)}`,
+      avatarUrl: `https://picsum.photos/seed/${p.userId}/100/100`
+    }));
+  }, [presenceList, user]);
+
+  const invitees = useMemo(() => {
+    return allUsers.filter((u: any) => 
+      u.id !== user?.uid && !participants.some(p => p.id === u.id)
+    );
+  }, [allUsers, participants, user]);
+
+  const handleInviteUser = (targetUser: any) => {
+    toast({
+      title: "Invitation Sent",
+      description: `Pinging ${targetUser.displayName} to join the huddle.`,
+    });
+  };
 
   return (
-    <div className="absolute inset-0 z-40 bg-[#070608] flex flex-col p-4 animate-in fade-in duration-500 overflow-hidden">
+    <div className="absolute inset-0 z-40 bg-[#070608] flex flex-col p-4 animate-in fade-in duration-500 overflow-hidden text-white">
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 bg-black">
         <div className="absolute top-[-10%] left-[-10%] w-[800px] h-[800px] bg-primary/20 rounded-full blur-[160px] animate-blob-extreme opacity-40" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-blue-500/10 rounded-full blur-[140px] animate-blob-extreme animation-delay-4000 opacity-30" />
@@ -103,7 +127,7 @@ export const HuddleMeeting: React.FC<HuddleMeetingProps> = ({
 
       <div className="relative z-10 flex flex-col h-full">
         <div className="flex items-center justify-between mb-6 px-2 shrink-0">
-          <div className="flex flex-col">
+          <div className="flex flex-col text-left">
             <h2 className="text-xl font-black text-white flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
               #{channelName || 'general'} Huddle
@@ -115,10 +139,72 @@ export const HuddleMeeting: React.FC<HuddleMeetingProps> = ({
           </div>
           
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={copyInviteLink} className="bg-white/5 border-white/10 hover:bg-white/10 text-white font-bold text-xs gap-2 h-9 px-4">
-              <UserPlus className="w-4 h-4" />
-              {copied ? "Copied!" : "Invite"}
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-white/5 border-white/10 hover:bg-white/10 text-white font-bold text-xs gap-2 h-9 px-4 rounded-xl">
+                  <UserPlus className="w-4 h-4" />
+                  Invite
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 bg-[#1a1d21] border-white/10 p-0 shadow-2xl text-white">
+                <div className="p-4 bg-black/20">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/60 mb-1">Invite to huddle</h3>
+                  <p className="text-[10px] text-muted-foreground">Share the link or ping workspace members</p>
+                </div>
+                
+                <div className="p-4 space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Huddle Link</p>
+                    <div className="flex gap-2">
+                      <Input 
+                        readOnly 
+                        value={`${window.location.origin}/h/${channelId}`} 
+                        className="h-8 text-[10px] bg-black/40 border-white/10 text-white/60 font-mono"
+                      />
+                      <Button size="icon" variant="ghost" onClick={copyInviteLink} className="h-8 w-8 text-primary hover:bg-primary/10">
+                        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-white/5" />
+
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Workspace Members</p>
+                    <ScrollArea className="h-48 pr-2">
+                      {invitees.length > 0 ? (
+                        <div className="space-y-2">
+                          {invitees.map((invitee: any) => (
+                            <div key={invitee.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 group transition-colors">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="w-7 h-7">
+                                  <AvatarImage src={invitee.profilePictureUrl} />
+                                  <AvatarFallback className="text-[10px]">{invitee.displayName[0]}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-xs font-bold truncate max-w-[100px]">{invitee.displayName}</span>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => handleInviteUser(invitee)}
+                                className="h-7 px-3 text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100"
+                              >
+                                Ping
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                          <Users className="w-8 h-8 text-white/10 mb-2" />
+                          <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">No member</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -186,7 +272,7 @@ export const HuddleMeeting: React.FC<HuddleMeetingProps> = ({
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 p-4 text-left">
                 <div className="space-y-4">
                   <p className="text-[10px] text-center text-muted-foreground font-bold uppercase tracking-widest py-4 border-b border-white/5">Huddle Started</p>
                   <div className="flex flex-col gap-1">
