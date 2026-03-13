@@ -1,7 +1,8 @@
+
 type User @table {
   username: String!
   email: String!
-  createdAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp!
   displayName: String
   profilePictureUrl: String
 }
@@ -9,7 +10,7 @@ type User @table {
 type Channel @table {
   name: String!
   isPrivate: Boolean!
-  createdAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp!
   description: String
   owner: User!
 }
@@ -17,42 +18,27 @@ type Channel @table {
 type ChannelMembership @table(key: ["user", "channel"]) {
   user: User!
   channel: Channel!
-  joinedAt: Timestamp! @default(expr: "request.time")
+  joinedAt: Timestamp!
 }
 
 type Message @table {
   content: String!
-  createdAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp!
   editedAt: Timestamp
   author: User!
   channel: Channel
 }
 
 type DirectMessageConversation @table {
-  createdAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp!
   user1: User!
   user2: User!
 }
 
 type DirectMessage @table {
   content: String!
-  createdAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp!
   editedAt: Timestamp
   sender: User!
   conversation: DirectMessageConversation!
-}
-
-type FileAsset @table {
-  name: String!
-  size: String!
-  type: String!
-  url: String!
-  uploadedAt: Timestamp! @default(expr: "request.time")
-  owner: User!
-}
-
-type HuddlePresence @table(key: ["user", "channel"]) {
-  user: User!
-  channel: Channel!
-  joinedAt: Timestamp! @default(expr: "request.time")
 }
