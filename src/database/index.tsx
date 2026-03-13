@@ -11,6 +11,7 @@ let firebaseAuth: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization helper.
+ * Ensures Auth is registered exactly once on the client side.
  */
 export function initializeDatabase() {
   if (typeof window === 'undefined') {
@@ -27,7 +28,7 @@ export function initializeDatabase() {
   
   if (firebaseApp && !firebaseAuth) {
     try {
-      // In Next.js 15, we ensure the auth component is registered properly
+      // Direct call to getAuth(app) registers the component in the SDK
       firebaseAuth = getAuth(firebaseApp);
     } catch (e) {
       console.warn('Firebase Auth registration is pending or failed', e);
@@ -39,6 +40,7 @@ export function initializeDatabase() {
 
 /**
  * Data Connect Client Shim
+ * Provides mock data and functional stubs for prototype features.
  */
 export const client = {
   user: {
@@ -96,7 +98,12 @@ export const client = {
     create: (args: any) => Promise.resolve(),
   },
   directMessage: {
-    useQuery: () => ({ data: [], isLoading: false }),
+    useQuery: () => ({ 
+      data: [
+        { id: 'dm-1', userId: 'u-2', name: 'Sarah Chen', avatar: 'https://picsum.photos/seed/sarah/100/100', type: 'dm' }
+      ], 
+      isLoading: false 
+    }),
   },
   fileAsset: {
     useQuery: () => ({ 

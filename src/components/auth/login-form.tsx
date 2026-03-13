@@ -127,7 +127,7 @@ export function LoginForm() {
         toast({ title: "Welcome Back", description: "Signing you into the workspace..." });
       } catch (loginError: any) {
         // Auto-register for prototype convenience if user doesn't exist
-        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential') {
+        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential' || loginError.code === 'auth/invalid-email') {
           await createUserWithEmailAndPassword(auth, email, password);
           toast({ title: "Account Created", description: "Welcome to the DevTalk community!" });
         } else {

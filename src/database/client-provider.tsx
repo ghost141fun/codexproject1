@@ -9,7 +9,7 @@ export function DatabaseClientProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<ReturnType<typeof initializeDatabase>>({ app: null, auth: null });
 
   useEffect(() => {
-    // This runs only on the client after mount, preventing SSR errors
+    // This runs only on the client after mount, preventing SSR errors and ensuring SDK registration
     setDb(initializeDatabase());
   }, []);
 
