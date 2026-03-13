@@ -5,42 +5,42 @@ import { getAuth, signOut, onAuthStateChanged, Auth, type User } from 'firebase/
 import { useState, useEffect } from 'react';
 import { firebaseConfig } from '@/firebase/config';
 
+// Global instances to ensure singleton behavior on the client side
+let firebaseApp: FirebaseApp | undefined;
+let firebaseAuth: Auth | undefined;
+
 /**
  * SSR-safe Firebase initialization helper.
  * This ensures we don't attempt to access Firebase services on the server
  * or before the app is fully registered.
  */
-function getFirebase() {
+export function initializeDatabase() {
   if (typeof window === 'undefined') {
     return { app: null, auth: null };
   }
   
-  let app: FirebaseApp;
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApp();
+  if (!firebaseApp) {
+    firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   }
   
-  let auth: Auth;
-  try {
-    auth = getAuth(app);
-  } catch (e) {
-    // Fallback/Retry if registration is pending
-    auth = getAuth(app);
+  if (!firebaseAuth && firebaseApp) {
+    try {
+      // Calling getAuth registers the auth component if it's the first time
+      firebaseAuth = getAuth(firebaseApp);
+    } catch (e) {
+      // Fallback for HMR or race conditions during component registration
+      console.warn('Firebase Auth registration pending, using default instance.');
+      firebaseAuth = getAuth();
+    }
   }
   
-  return { app, auth };
-}
-
-export function initializeDatabase() {
-  return getFirebase();
+  return { app: firebaseApp, auth: firebaseAuth };
 }
 
 /**
  * Data Connect Client Shim
- * Provides a mock-like interface for the application to interact with
- * as if it were a real Data Connect generated SDK.
+ * Provides a mock interface for the application to interact with
+ * the Data Connect schema provided: User, Channel, Message, etc.
  */
 export const client = {
   user: {
