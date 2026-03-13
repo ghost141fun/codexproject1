@@ -11,7 +11,7 @@ let firebaseAuth: Auth | undefined;
 
 /**
  * SSR-safe Firebase initialization helper.
- * Ensures Auth is registered exactly once on the client side.
+ * Ensures Auth is registered correctly on the client side.
  */
 export function initializeDatabase() {
   if (typeof window === 'undefined') {

@@ -114,7 +114,7 @@ export function LoginForm() {
       toast({ 
         variant: "destructive", 
         title: "Auth Error", 
-        description: "Firebase Authentication is not yet initialized. Please wait a moment." 
+        description: "Authentication is not yet initialized. Please wait a moment." 
       });
       return;
     }
