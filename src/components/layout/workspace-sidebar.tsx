@@ -195,7 +195,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               </Button>
             </div>
             
-            {directMessages.map((dm: DirectMessage) => (
+            {(directMessages ?? []).map((dm: DirectMessage) => (
               <button
                 key={dm.id}
                 onClick={() => onSelect(dm.id, 'dm')}
