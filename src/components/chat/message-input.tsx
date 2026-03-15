@@ -8,7 +8,6 @@ import {
   Link2, List, ListOrdered, AlignLeft, Code, Quote,
   AtSign, Video, Mic, Monitor, Terminal as TerminalIcon, X, Terminal
 } from "lucide-react";
-import { smartReply } from "@/ai/flows/smart-reply";
 import { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -17,6 +16,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useAuth } from '@/database';
+import { type User } from '@supabase/supabase-js';
+
 
 const MockTerminal = ({ onClose }: { onClose: () => void }) => {
   const [history, setHistory] = useState<string[]>([
@@ -219,47 +221,36 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
 };
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => void;
-  conversationHistory: Message[];
+  channelId: string;
+  user: User;
   placeholder?: string;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({ 
-  onSendMessage, 
-  conversationHistory,
+  channelId,
+  user,
   placeholder = "Message #general" 
 }) => {
   const [content, setContent] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { supabase } = useAuth();
 
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (content.length > 5) {
-        try {
-          const history = conversationHistory.slice(-5).map(m => ({
-            sender: m.senderName,
-            content: m.content
-          }));
-          const result = await smartReply({ conversationHistory: history, currentUserInput: content });
-          setSuggestions(result.suggestions);
-        } catch (e) {
-          console.error("Smart reply error", e);
-        }
+  const handleSend = async () => {
+    if (content.trim() && supabase && user) {
+      const newMessage = {
+        channel_id: channelId,
+        user_id: user.id,
+        content: content.trim(),
+      };
+
+      const { error } = await supabase.from('messages').insert([newMessage]);
+
+      if (error) {
+        console.error('Error sending message:', error.message);
       } else {
-        setSuggestions([]);
+        setContent('');
       }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [content, conversationHistory]);
-
-  const handleSend = () => {
-    if (content.trim()) {
-      onSendMessage(content);
-      setContent('');
-      setSuggestions([]);
     }
   };
 
@@ -274,24 +265,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div className="p-4 bg-background space-y-3">
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300 mb-2">
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                onSendMessage(s);
-                setSuggestions([]);
-                setContent('');
-              }}
-              className="text-xs px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="bg-[#1a1d21] border border-white/10 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-white/20 transition-shadow">
         <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-white/5">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" onClick={() => applyFormatting('**', '**')}>

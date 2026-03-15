@@ -1,10 +1,7 @@
-'use client';
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/database';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -14,7 +11,7 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('password123'); // Simple password for the prototype
   const [isLoading, setIsLoading] = useState(false);
-  const { auth } = useAuth();
+  const { supabase } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,7 +107,7 @@ export function LoginForm() {
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) {
+    if (!supabase) {
       toast({ 
         variant: "destructive", 
         title: "Auth Error", 
@@ -121,19 +118,21 @@ export function LoginForm() {
 
     setIsLoading(true);
     try {
-      try {
-        // Attempt sign in
-        await signInWithEmailAndPassword(auth, email, password);
-        toast({ title: "Welcome Back", description: "Signing you into the workspace..." });
-      } catch (loginError: any) {
-        // Auto-register for prototype convenience if user doesn't exist
-        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential' || loginError.code === 'auth/invalid-email') {
-          await createUserWithEmailAndPassword(auth, email, password);
-          toast({ title: "Account Created", description: "Welcome to the DevTalk community!" });
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (signInError) {
+            if (signInError.message === 'Invalid login credentials') {
+                const { error: signUpError } = await supabase.auth.signUp({ email, password });
+                if (signUpError) {
+                    throw signUpError;
+                }
+                toast({ title: "Account Created", description: "Welcome to the DevTalk community!" });
+            } else {
+                throw signInError;
+            }
         } else {
-          throw loginError;
+            toast({ title: "Welcome Back", description: "Signing you into the workspace..." });
         }
-      }
       
       // Navigate explicitly to ensure the user moves to the workspace
       router.push('/workspace');

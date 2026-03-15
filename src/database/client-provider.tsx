@@ -6,7 +6,7 @@ import { initializeDatabase } from '@/database';
 const DatabaseContext = createContext<ReturnType<typeof initializeDatabase> | null>(null);
 
 export function DatabaseClientProvider({ children }: { children: ReactNode }) {
-  const [db, setDb] = useState<ReturnType<typeof initializeDatabase>>({ app: null, auth: null });
+  const [db, setDb] = useState<ReturnType<typeof initializeDatabase>>({ supabase: null });
 
   useEffect(() => {
     // This runs only on the client after mount, preventing SSR errors and ensuring SDK registration

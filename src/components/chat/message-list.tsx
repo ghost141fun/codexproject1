@@ -8,15 +8,21 @@ import { format } from "date-fns";
 import { RichTextRenderer } from "./rich-text-renderer";
 import { Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from '@/database';
+import { type User } from '@supabase/supabase-js';
+
 
 interface MessageListProps {
-  messages: Message[];
-  activeName?: string;
+  channelId: string;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, activeName = "general" }) => {
+export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const { supabase } = useAuth();
+  const [messages, setMessages] = useState<any[]>([]);
+  const [users, setUsers] = useState<Record<string, any>>({});
+
 
   useEffect(() => {
     setMounted(true);
@@ -27,6 +33,66 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, activeName =
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!supabase) return;
+
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('channel_id', channelId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+      } else {
+        setMessages(data || []);
+      }
+    };
+
+    fetchMessages();
+
+    const subscription = supabase
+      .channel(`messages:channel_id=eq.${channelId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          setMessages((prevMessages) => [...prevMessages, payload.new]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, channelId]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!supabase || messages.length === 0) return;
+
+      const userIds = [...new Set(messages.map((m) => m.user_id))];
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (error) {
+        console.error('Error fetching users:', error);
+      } else {
+        const usersById = (data || []).reduce((acc, user) => {
+          acc[user.id] = user;
+          return acc;
+        }, {} as Record<string, any>);
+        setUsers(usersById);
+      }
+    };
+
+    fetchUsers();
+  }, [supabase, messages]);
+
 
   const formatMessageTime = (timestamp: string) => {
     if (!mounted) return "";
@@ -47,9 +113,9 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, activeName =
         <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center">
           <Hash className="w-10 h-10 text-muted-foreground" />
         </div>
-        <h1 className="text-3xl font-black">Welcome to #{activeName}!</h1>
+        <h1 className="text-3xl font-black">Welcome to #general!</h1>
         <p className="text-muted-foreground">
-          This is the start of the <span className="font-bold text-white">#{activeName}</span> channel.
+          This is the start of the <span className="font-bold text-white">#general</span> channel.
         </p>
       </div>
 
@@ -64,7 +130,8 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, activeName =
 
       <div className="space-y-1">
         {messages.map((message, index) => {
-          const isSameUserAsLast = index > 0 && messages[index - 1].senderId === message.senderId;
+          const user = users[message.user_id];
+          const isSameUserAsLast = index > 0 && messages[index - 1].user_id === message.user_id;
           const showFullMessage = !isSameUserAsLast;
 
           return (
@@ -78,13 +145,13 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, activeName =
               <div className="w-10 shrink-0">
                 {showFullMessage ? (
                   <Avatar className="w-10 h-10 rounded cursor-pointer hover:opacity-80 transition-opacity">
-                    <AvatarImage src={message.senderAvatar} />
-                    <AvatarFallback className="rounded">{message.senderName[0]}</AvatarFallback>
+                    <AvatarImage src={user?.avatar_url} />
+                    <AvatarFallback className="rounded">{user?.full_name?.[0]}</AvatarFallback>
                   </Avatar>
                 ) : (
                   <div className="w-full flex justify-center opacity-0 group-hover:opacity-100">
                      <span className="text-[10px] text-muted-foreground/60 mt-1">
-                       {formatMessageTime(message.timestamp).split(' ')[0]}
+                       {formatMessageTime(message.created_at).split(' ')[0]}
                      </span>
                   </div>
                 )}
@@ -93,9 +160,9 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, activeName =
               <div className="flex-1 flex flex-col min-w-0">
                 {showFullMessage && (
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold text-sm hover:underline cursor-pointer">{message.senderName}</span>
+                    <span className="font-bold text-sm hover:underline cursor-pointer">{user?.full_name}</span>
                     <span className="text-[11px] text-muted-foreground/60">
-                      {formatMessageTime(message.timestamp)}
+                      {formatMessageTime(message.created_at)}
                     </span>
                   </div>
                 )}
