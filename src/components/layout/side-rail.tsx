@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -6,7 +5,7 @@ import { Home, MessageSquare, Bell, FileText, Radio, Plus, LogOut } from 'lucide
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser, useAuth } from '@/database';
-import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 interface SideRailProps {
   activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles';
@@ -15,7 +14,8 @@ interface SideRailProps {
 
 export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) => {
   const { user } = useUser();
-  const auth = useAuth();
+  const { signOut } = useAuth();
+  const router = useRouter();
 
   const items = [
     { id: 'home', icon: Home, label: 'Home' },
@@ -25,19 +25,22 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) 
     { id: 'huddles', icon: Radio, label: 'Huddles' },
   ];
 
-  const handleSignOut = () => {
-    if (auth) signOut(auth);
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
   };
+
+  const displayName = user?.user_metadata?.display_name || user?.email || 'U';
 
   return (
     <div className="w-[70px] bg-[#121016] flex flex-col items-center py-4 gap-6 shrink-0 border-r border-white/5">
-      <div 
-        className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-bold text-lg text-white mb-2 shadow-lg shadow-primary/20 cursor-pointer hover:scale-105 transition-transform" 
+      <div
+        className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-bold text-lg text-white mb-2 shadow-lg shadow-primary/20 cursor-pointer hover:scale-105 transition-transform"
         onClick={() => onViewChange('home')}
       >
         DT
       </div>
-      
+
       <div className="flex flex-col gap-4">
         {items.map((item) => (
           <button
@@ -63,7 +66,7 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) 
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-4">
-        <button 
+        <button
           onClick={handleSignOut}
           className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-white/5 transition-colors"
           title="Sign Out"
@@ -74,9 +77,9 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) 
           <Plus className="w-6 h-6" />
         </button>
         <Avatar className="w-9 h-9 rounded-lg cursor-pointer border border-white/10 ring-primary/20 hover:ring-2 transition-all">
-          <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid || 'user'}/100/100`} />
+          <AvatarImage src={`https://picsum.photos/seed/${user?.id || 'user'}/100/100`} />
           <AvatarFallback className="rounded-lg bg-primary/20 text-primary">
-            {user?.displayName?.[0] || 'U'}
+            {displayName[0].toUpperCase()}
           </AvatarFallback>
         </Avatar>
       </div>
