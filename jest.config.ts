@@ -15,6 +15,7 @@ const config: Config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$/': '<rootDir>/src/$1',
+    'canvas': '<rootDir>/__mocks__/canvas.js'
   },
   transform: {
     '^.+\\.tsx?$': 'ts-jest',
