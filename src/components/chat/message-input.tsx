@@ -5,15 +5,11 @@ import {
   Send, Plus, Smile, Bold, Italic, Strikethrough,
   Link2, List, ListOrdered, Code, AtSign, Video,
   Mic, Monitor, Terminal as TerminalIcon, AlignLeft,
-  X, Image as ImageIcon, File,
+  X, Image as ImageIcon, File, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from '@/database';
 import { type User } from '@supabase/supabase-js';
 
@@ -34,7 +30,6 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
     const t = setTimeout(() => inputRef.current?.focus(), 150);
     return () => clearTimeout(t);
   }, []);
-
   React.useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [history, input]);
@@ -91,14 +86,12 @@ const MockTerminal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-/* ── Emoji list ────────────────────────────────────────────────────────────── */
 const EMOJI_LIST = [
   '😀', '😂', '😍', '🥰', '😎', '🤔', '😅', '🙏', '👍', '👎',
   '❤️', '🔥', '✅', '⚡', '🎉', '🚀', '💡', '🐛', '💻', '📦',
   '🔧', '📝', '🎯', '⭐', '🌟', '💯', '🤝', '👀', '🙌', '😴',
 ];
 
-/* ── MessageInput ──────────────────────────────────────────────────────────── */
 interface MessageInputProps {
   channelId: string;
   user: User;
@@ -114,26 +107,75 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);       // any file
-  const videoInputRef = useRef<HTMLInputElement>(null);      // video only
-  const audioInputRef = useRef<HTMLInputElement>(null);      // audio only
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const { supabase } = useAuth();
 
+  /* ── Upload a single file to Supabase Storage and return its public URL ── */
+  const uploadFile = async (file: File): Promise<{ url: string; name: string; type: string; size: number } | null> => {
+    if (!supabase) return null;
+    const path = `${user.id}/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from('Files').upload(path, file, { upsert: false });
+    if (error) { console.error('File upload error:', error.message); return null; }
+    const { data: { publicUrl } } = supabase.storage.from('Files').getPublicUrl(path);
+
+    // Also save to files table with channel_id so it shows in the Files tab
+    await supabase.from('files').insert({
+      name: file.name,
+      url: publicUrl,
+      size: file.size.toString(),
+      type: file.type,
+      owner_id: user.id,
+      channel_id: channelId,
+    });
+
+    return { url: publicUrl, name: file.name, type: file.type, size: file.size };
+  };
+
   /* ── Send ── */
   const handleSend = async () => {
-    if (!content.trim() && attachments.length === 0) return;
     if (!supabase || !user) return;
-    const { error } = await supabase.from('messages').insert([{
-      channel_id: channelId,
-      author_id: user.id,
-      content: content.trim(),
-    }]);
-    if (error) console.error('Error sending message:', error.message);
-    else { setContent(''); setAttachments([]); }
+    if (!content.trim() && attachments.length === 0) return;
+
+    setIsUploading(attachments.length > 0);
+
+    try {
+      // Upload attachments first and build file markdown
+      let fileMarkdown = '';
+      for (const file of attachments) {
+        const result = await uploadFile(file);
+        if (!result) continue;
+        if (result.type.startsWith('image/')) {
+          fileMarkdown += `\n![${result.name}](${result.url})`;
+        } else if (result.type.startsWith('video/')) {
+          fileMarkdown += `\n🎬 [${result.name}](${result.url})`;
+        } else if (result.type.startsWith('audio/')) {
+          fileMarkdown += `\n🎵 [${result.name}](${result.url})`;
+        } else {
+          fileMarkdown += `\n📎 [${result.name}](${result.url})`;
+        }
+      }
+
+      const finalContent = (content.trim() + fileMarkdown).trim();
+      if (!finalContent) return;
+
+      const { error } = await supabase.from('messages').insert([{
+        channel_id: channelId,
+        author_id: user.id,
+        content: finalContent,
+      }]);
+
+      if (error) console.error('Error sending message:', error.message);
+      else { setContent(''); setAttachments([]); }
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   /* ── Formatting ── */
@@ -144,10 +186,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     const end = el.selectionEnd || 0;
     const selected = content.substring(start, end);
     setContent(content.substring(0, start) + prefix + selected + suffix + content.substring(end));
-    setTimeout(() => {
-      el.focus();
-      el.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-    }, 0);
+    setTimeout(() => { el.focus(); el.setSelectionRange(start + prefix.length, start + prefix.length + selected.length); }, 0);
   }, [content]);
 
   const insertAtCursor = useCallback((text: string) => {
@@ -158,23 +197,19 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setTimeout(() => { el.focus(); el.setSelectionRange(start + text.length, start + text.length); }, 0);
   }, [content]);
 
-  /* ── Link ── */
   const handleInsertLink = () => {
     const text = linkText || linkUrl;
     insertAtCursor(`[${text}](${linkUrl})`);
     setLinkUrl(''); setLinkText(''); setIsLinkOpen(false);
   };
 
-  /* ── File handlers ── */
   const addFiles = (files: FileList | null) => {
     if (!files) return;
     setAttachments(prev => [...prev, ...Array.from(files)]);
   };
 
-  const removeAttachment = (index: number) =>
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+  const removeAttachment = (index: number) => setAttachments(prev => prev.filter((_, i) => i !== index));
 
-  /* ── Toolbar ── */
   const toolbar = [
     { icon: Bold, action: () => applyFormatting('**', '**'), label: 'Bold' },
     { icon: Italic, action: () => applyFormatting('*', '*'), label: 'Italic' },
@@ -196,7 +231,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <div className="px-5 pb-5 pt-2 bg-[#1a1d21]">
       <div className="rounded-lg border border-white/[0.12] bg-[#222529] overflow-hidden focus-within:border-white/20 transition-colors">
 
-        {/* Formatting toolbar */}
+        {/* Toolbar */}
         <div className="flex items-center px-2 pt-1.5 pb-1 border-b border-white/[0.07]">
           {toolbar.map((item, i) =>
             item === null ? (
@@ -244,7 +279,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {/* Bottom bar */}
         <div className="flex items-center justify-between px-2 pb-1.5">
           <div className="flex items-center gap-0">
-
             {/* Any file */}
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
             <button title="Attach file" onClick={() => fileInputRef.current?.click()}
@@ -280,37 +314,35 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               <AtSign className="w-4 h-4" />
             </button>
 
-            {/* Video file upload */}
-            <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden"
-              onChange={e => addFiles(e.target.files)} />
+            {/* Video file */}
+            <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
             <button title="Attach video" onClick={() => videoInputRef.current?.click()}
               className="h-8 w-8 flex items-center justify-center rounded text-[#b9babd] hover:text-white hover:bg-white/10 transition-colors">
               <Video className="w-4 h-4" />
             </button>
 
-            {/* Audio file upload */}
-            <input ref={audioInputRef} type="file" accept="audio/*" multiple className="hidden"
-              onChange={e => addFiles(e.target.files)} />
+            {/* Audio file */}
+            <input ref={audioInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
             <button title="Attach audio" onClick={() => audioInputRef.current?.click()}
               className="h-8 w-8 flex items-center justify-center rounded text-[#b9babd] hover:text-white hover:bg-white/10 transition-colors">
               <Mic className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Send button */}
+          {/* Send */}
           <div className="flex items-center">
-            <button onClick={handleSend} disabled={!hasContent}
+            <button onClick={handleSend} disabled={!hasContent || isUploading}
               className={cn(
                 "flex items-center gap-1.5 h-8 px-3 rounded-l-lg text-[13px] font-semibold transition-all",
-                hasContent ? "bg-[#007a5a] hover:bg-[#148567] text-white" : "bg-white/[0.06] text-[#5c5f63] cursor-not-allowed"
+                hasContent && !isUploading ? "bg-[#007a5a] hover:bg-[#148567] text-white" : "bg-white/[0.06] text-[#5c5f63] cursor-not-allowed"
               )}>
-              <Send className="w-3.5 h-3.5" />
-              Send
+              {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              {isUploading ? 'Uploading…' : 'Send'}
             </button>
-            <button disabled={!hasContent}
+            <button disabled={!hasContent || isUploading}
               className={cn(
                 "flex items-center justify-center h-8 w-7 rounded-r-lg border-l transition-all",
-                hasContent ? "bg-[#007a5a] hover:bg-[#148567] text-white border-[#005e44]" : "bg-white/[0.06] text-[#5c5f63] border-white/10 cursor-not-allowed"
+                hasContent && !isUploading ? "bg-[#007a5a] hover:bg-[#148567] text-white border-[#005e44]" : "bg-white/[0.06] text-[#5c5f63] border-white/10 cursor-not-allowed"
               )}>
               <svg className="w-3 h-3" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6H0z" /></svg>
             </button>
@@ -322,27 +354,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       {isLinkOpen && (
         <div className="mt-2 p-3 rounded-lg bg-[#222529] border border-white/10 space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-wider text-[#b9babd]">Insert Link</p>
-          <input autoFocus placeholder="Link text (optional)" value={linkText}
-            onChange={e => setLinkText(e.target.value)}
+          <input autoFocus placeholder="Link text (optional)" value={linkText} onChange={e => setLinkText(e.target.value)}
             className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-[13px] text-white placeholder:text-[#5c5f63] outline-none focus:border-white/20" />
-          <input placeholder="https://..." value={linkUrl}
-            onChange={e => setLinkUrl(e.target.value)}
+          <input placeholder="https://..." value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleInsertLink()}
             className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-[13px] text-white placeholder:text-[#5c5f63] outline-none focus:border-white/20" />
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setIsLinkOpen(false)}
-              className="px-3 py-1.5 rounded-lg text-[12px] text-[#b9babd] hover:text-white hover:bg-white/10 transition-colors">
-              Cancel
-            </button>
+            <button onClick={() => setIsLinkOpen(false)} className="px-3 py-1.5 rounded-lg text-[12px] text-[#b9babd] hover:text-white hover:bg-white/10 transition-colors">Cancel</button>
             <button onClick={handleInsertLink} disabled={!linkUrl}
-              className="px-3 py-1.5 rounded-lg text-[12px] bg-[#007a5a] hover:bg-[#148567] text-white font-semibold disabled:opacity-40 transition-colors">
-              Insert
-            </button>
+              className="px-3 py-1.5 rounded-lg text-[12px] bg-[#007a5a] hover:bg-[#148567] text-white font-semibold disabled:opacity-40 transition-colors">Insert</button>
           </div>
         </div>
       )}
 
-      {/* Terminal sheet */}
+      {/* Terminal */}
       <Sheet open={isTerminalOpen} onOpenChange={setIsTerminalOpen}>
         <SheetContent side="bottom" className="h-[50vh] p-0 bg-[#0c0c0c] border-white/10">
           <SheetHeader className="p-4 border-b border-white/10 bg-black flex flex-row items-center space-y-0">
