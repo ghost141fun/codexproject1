@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DevTalk</string>
+    <string name="title_activity_main">DevTalk</string>
+    <string name="package_name">devtalk.app.hq</string>
+    <string name="custom_url_scheme">devtalk.app.hq</string>
+</resources>

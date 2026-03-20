@@ -13,8 +13,12 @@ import {
   FolderOpen,
   CheckSquare,
   MessageSquare,
-  UserPlus
+  UserPlus,
+  Link as LinkIcon,
+  Copy,
+  Check
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Dialog, 
@@ -49,8 +53,22 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   onViewChange
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopyInviteLink = () => {
+    const link = `${window.location.origin}/join?id=hq-123`;
+    navigator.clipboard.writeText(link);
+    setInviteCopied(true);
+    toast({
+      title: "Link Copied",
+      description: "Invitation link has been copied to your clipboard.",
+    });
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
 
   const handleCreateChannel = () => {
     if (!newChannelName.trim()) return;
@@ -81,9 +99,12 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         <div className="p-3 space-y-6">
           {/* Main Actions */}
           <div className="space-y-0.5">
-            <button className="flex items-center gap-3 w-full px-3 py-2 mb-2 rounded-md text-sm text-primary hover:bg-primary/10 transition-all font-bold group border border-primary/10">
+            <button 
+              onClick={() => setIsInviteDialogOpen(true)}
+              className="flex items-center gap-3 w-full px-3 py-2 mb-2 rounded-md text-sm text-primary hover:bg-primary/10 transition-all font-bold group border border-primary/10"
+            >
               <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                <UserPlus className="w-3.5 h-3.5" />
+                <UserPlus className="w-3.5 h-3.5 text-primary" />
               </div>
               <span>Invite member</span>
             </button>
@@ -219,6 +240,77 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           </div>
         </div>
       </ScrollArea>
+
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="bg-[#1a1d21] border-white/10 text-white sm:max-w-[450px] p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="p-8 pb-4">
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <UserPlus className="w-5 h-5 text-primary" />
+              </div>
+              Invite to DevTalk HQ
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground/80 mt-2">
+              Share this link with your team members to invite them to this workspace.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="px-8 pb-8 space-y-6">
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Workspace Link</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1 group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                    <LinkIcon className="w-4 h-4" />
+                  </div>
+                  <Input 
+                    readOnly 
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join?id=hq-123`} 
+                    className="pl-10 bg-black/40 border-white/10 h-12 text-sm text-[#d1d2d3] rounded-xl focus-visible:ring-0 focus-visible:border-white/20 select-all cursor-default"
+                  />
+                </div>
+                <Button 
+                  onClick={handleCopyInviteLink}
+                  className={cn(
+                    "h-12 px-6 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all active:scale-95",
+                    inviteCopied ? "bg-green-600 hover:bg-green-700 text-white" : "bg-primary hover:bg-primary/90 text-white"
+                  )}
+                >
+                  {inviteCopied ? (
+                    <>
+                      <Check className="w-4 h-4 mr-2" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-2" /> Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-2">
+              <div className="text-xs font-bold text-white/90 flex items-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-primary" />
+                Security Tip
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                This link allows anyone with access to join your workspace. You can revoke it at any time in workspace settings.
+              </p>
+            </div>
+          </div>
+          
+          <div className="px-8 py-4 bg-white/5 border-t border-white/5 flex justify-end">
+            <Button 
+              variant="ghost" 
+              onClick={() => setIsInviteDialogOpen(false)}
+              className="font-bold text-[11px] uppercase tracking-widest h-10 px-6 hover:bg-white/5 text-white"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

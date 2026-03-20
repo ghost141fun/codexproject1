@@ -98,6 +98,19 @@ const mockMembers = [
   { id: '5', name: 'David Kim', role: 'Backend Lead', avatar: 'https://picsum.photos/seed/david/200/200', status: 'away' },
 ];
 
+const mockIntegrations = [
+  { id: 'github', name: 'GitHub', desc: 'Sync repository activity and pull requests.', icon: BookOpen, color: 'text-white' },
+  { id: 'trello', name: 'Trello', desc: 'Manage boards and cards from channels.', icon: TrelloIcon, color: 'text-blue-400' },
+  { id: 'gdrive', name: 'Google Drive', desc: 'Share and preview files instantly.', icon: FileText, color: 'text-green-500' },
+  { id: 'zoom', name: 'Zoom', desc: 'Start video meetings directly from chat.', icon: Video, color: 'text-blue-500' },
+  { id: 'jira', name: 'Jira', desc: 'Track issues and project progress.', icon: Activity, color: 'text-blue-600' },
+  { id: 'figma', name: 'Figma', desc: 'Preview and comment on designs.', icon: Palette, color: 'text-purple-500' },
+  { id: 'vercel', name: 'Vercel', desc: 'Monitor deployments and logs.', icon: Layers, color: 'text-white' },
+  { id: 'sentry', name: 'Sentry', desc: 'Real-time error tracking and alerts.', icon: AlertTriangle, color: 'text-red-500' },
+  { id: 'linear', name: 'Linear', desc: 'Issue tracking for high-performance teams.', icon: Workflow, color: 'text-blue-400' },
+  { id: 'notion', name: 'Notion', desc: 'Connect documents and workspace notes.', icon: BookOpen, color: 'text-white' },
+];
+
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   activeItem, 
   messages, 
@@ -418,6 +431,80 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         </div>
                       ))}
                     </ScrollArea>
+                  </div>
+                )}
+
+                {activeDialogTab === 'integrations' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-6">
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                        <div>
+                          <p className="text-sm font-bold text-white">Recommended for your team</p>
+                          <p className="text-[11px] text-muted-foreground">Boost productivity with these essential tools.</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <ScrollArea className="h-[300px] pr-4">
+                      <div className="grid gap-3">
+                        {mockIntegrations.map((app) => (
+                          <div key={app.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.07] transition-all group">
+                            <div className="flex items-center gap-4">
+                              <div className={cn("w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:scale-105 transition-transform", app.color)}>
+                                <app.icon className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-white mb-0.5">{app.name}</p>
+                                <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">{app.desc}</p>
+                              </div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/10 hover:text-primary"
+                            >
+                              Connect
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                    <div className="pt-4 flex justify-center">
+                      <Button variant="link" className="text-[11px] text-muted-foreground hover:text-white uppercase tracking-widest font-bold">
+                        Browse all integrations
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {activeDialogTab === 'about' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2 block">Channel Name</Label>
+                        <div className="flex items-center gap-2 text-white font-bold p-3 bg-white/5 rounded-xl border border-white/10">
+                          <Hash className="w-4 h-4 text-muted-foreground" />
+                          {activeItem?.name}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2 block">Topic</Label>
+                        <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-sm text-[#d1d2d3]">
+                          {activeItem?.topic || "This channel is for collaborative engineering and development discussions."}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2 block">Created By</Label>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Avatar className="w-6 h-6 rounded">
+                            <AvatarImage src="https://picsum.photos/seed/alex/100/100" />
+                            <AvatarFallback>A</AvatarFallback>
+                          </Avatar>
+                          <span>Alex Rivera on March 15, 2026</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

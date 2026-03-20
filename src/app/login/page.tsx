@@ -239,7 +239,7 @@ export default function LoginPage() {
 
               <div className="mt-8 text-[15px] text-white/60">
                 Already using DevTalk?{' '}
-                <Link href="/signin" className="text-[#00d4b4] font-bold hover:underline">
+                <Link href="/sign-in" className="text-[#00d4b4] font-bold hover:underline">
                   Sign in to an existing workspace
                 </Link>
               </div>

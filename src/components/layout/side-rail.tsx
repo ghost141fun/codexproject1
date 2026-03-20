@@ -1,15 +1,15 @@
 "use client";
 
 import React from 'react';
-import { Home, MessageSquare, Bell, FileText, Radio, Plus, LogOut } from 'lucide-react';
+import { Home, MessageSquare, Bell, FileText, Radio, Plus, LogOut, Blocks } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser, useAuth } from '@/database';
 import { useRouter } from 'next/navigation';
 
 interface SideRailProps {
-  activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles';
-  onViewChange: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles') => void;
+  activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations';
+  onViewChange: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations') => void;
 }
 
 export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) => {
@@ -23,6 +23,7 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) 
     { id: 'activity', icon: Bell, label: 'Activity' },
     { id: 'files', icon: FileText, label: 'Files' },
     { id: 'huddles', icon: Radio, label: 'Huddles' },
+    { id: 'integrations', icon: Blocks, label: 'Integrations' },
   ];
 
   const handleSignOut = async () => {
@@ -30,7 +31,15 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) 
     router.push('/');
   };
 
-  const displayName = user?.user_metadata?.display_name || user?.email || 'U';
+  const getDisplayName = () => {
+    const rawName = user?.user_metadata?.display_name || user?.email || 'U';
+    if (rawName.includes('@')) {
+      return rawName.split('@')[0];
+    }
+    return rawName;
+  };
+
+  const displayName = getDisplayName();
 
   return (
     <div className="w-[70px] bg-[#121016] flex flex-col items-center py-4 gap-6 shrink-0 border-r border-white/5">
