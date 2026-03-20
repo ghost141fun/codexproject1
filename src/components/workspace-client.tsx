@@ -14,7 +14,8 @@ import { createClient } from '@/lib/supabase/client';
 import {
   Radio, Bell, FileText, MessageSquare,
   Image as ImageIcon, Code, File, Loader2,
-  Download, Trash2, ExternalLink, Blocks
+  Download, Trash2, ExternalLink, Blocks,
+  Hash, Pin
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { IntegrationsPanel } from '@/components/integrations-panel';
@@ -382,16 +383,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       case 'activity':
         return null;
       case 'integrations':
-        return (
-          <div className="w-[260px] h-full flex flex-col bg-[#19171d] border-r border-white/[0.07] overflow-hidden shrink-0">
-            <div className="px-4 h-[49px] flex items-center border-b border-white/[0.07] shrink-0">
-              <h2 className="font-extrabold text-[18px] text-white">Integrations</h2>
-            </div>
-            <div className="p-4 text-[#b9babd] text-sm">
-              Manage your workspace apps and integrations.
-            </div>
-          </div>
-        );
+        return null;
       default:
         return (
           <WorkspaceSidebar
@@ -409,17 +401,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   const renderMain = () => {
     if (activeView === 'huddles' && !isHuddleActive) return <HuddleHub channels={channels} user={user} onStart={handleStartHuddle} />;
     if (activeView === 'activity') return <ActivityView />;
-    if (activeView === 'integrations') return (
-      <div className="flex-1 flex flex-col bg-[#1a1d21] overflow-y-auto">
-        <div className="px-8 py-6 border-b border-white/[0.07] shrink-0">
-          <h1 className="text-[20px] font-bold text-white flex items-center gap-2"><Blocks className="w-5 h-5 text-primary" /> Integrations</h1>
-        </div>
-        <div className="flex-1 flex items-center justify-center flex-col gap-3 text-[#b9babd]">
-          <Blocks className="w-10 h-10 opacity-20" />
-          <p className="text-sm">Integrations coming soon</p>
-        </div>
-      </div>
-    );
+    if (activeView === 'integrations') return <IntegrationsPanel />;
     if (activeView === 'files') return (
       <div className="flex-1 flex flex-col relative min-h-0">
         {isUploading && (
@@ -433,19 +415,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
         <FilesView files={files} category={activeCategory} searchQuery={searchQuery} onDelete={handleDeleteFile} />
       </div>
     );
-    if (activeView === 'integrations') return (
-      <div className="flex-1 flex flex-col bg-[#1a1d21] overflow-y-auto">
-        <div className="px-8 py-6 border-b border-white/[0.07] shrink-0">
-          <h1 className="text-[20px] font-bold text-white flex items-center gap-2">
-            <Blocks className="w-5 h-5 text-primary" /> Integrations
-          </h1>
-        </div>
-        <div className="flex-1 flex items-center justify-center flex-col gap-3 text-[#b9babd]">
-          <Blocks className="w-10 h-10 opacity-20" />
-          <p className="text-sm">Integrations coming soon</p>
-        </div>
-      </div>
-    );
+
     if (activeView === 'dms') return <DmChatView activeDm={activeDm} />;
 
     // ── Home / channel view ──
