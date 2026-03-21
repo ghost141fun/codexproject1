@@ -8,11 +8,12 @@ import { useUser, useAuth } from '@/database';
 import { useRouter } from 'next/navigation';
 
 interface SideRailProps {
-  activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations';
-  onViewChange: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations') => void;
+  activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile';
+  onViewChange: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile') => void;
+  onOpenAddMenu: () => void;
 }
 
-export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) => {
+export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange, onOpenAddMenu }) => {
   const { user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
@@ -82,10 +83,20 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange }) 
         >
           <LogOut className="w-6 h-6" />
         </button>
-        <button className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/5 transition-colors">
+        <button 
+          onClick={onOpenAddMenu}
+          className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+          title="Add"
+        >
           <Plus className="w-6 h-6" />
         </button>
-        <Avatar className="w-9 h-9 rounded-lg cursor-pointer border border-white/10 ring-primary/20 hover:ring-2 transition-all">
+        <Avatar 
+          onClick={() => onViewChange('profile')}
+          className={cn(
+            "w-9 h-9 rounded-lg cursor-pointer border ring-primary/20 hover:ring-2 transition-all",
+            activeView === 'profile' ? "border-primary ring-2" : "border-white/10"
+          )}
+        >
           <AvatarImage src={`https://picsum.photos/seed/${user?.id || 'user'}/100/100`} />
           <AvatarFallback className="rounded-lg bg-primary/20 text-primary">
             {displayName[0].toUpperCase()}

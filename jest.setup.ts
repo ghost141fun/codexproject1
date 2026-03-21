@@ -1,4 +1,4 @@
-'''import '@testing-library/jest-dom';
+import '@testing-library/jest-dom';
 
 Object.defineProperty(window.HTMLCanvasElement.prototype, 'getContext', {
   value: () => ({
@@ -31,5 +31,4 @@ Object.defineProperty(window.HTMLCanvasElement.prototype, 'getContext', {
       addColorStop: jest.fn(),
     })),
   }),
-});
-''
+});

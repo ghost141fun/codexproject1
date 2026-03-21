@@ -1,0 +1,1660 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Search, Plus, Send, Smile, Paperclip, Phone, Video,
+  MoreHorizontal, Pin, Star, Archive, Trash2, X, Check,
+  CheckCheck, Circle, Mic, Image, FileText, AtSign,
+  ChevronDown, Bell, BellOff, Edit3, Copy, Reply,
+  Bookmark, ThumbsUp, Heart, Laugh, Zap, Clock,
+  Users, Lock, Hash, ArrowLeft, Settings, MessageSquare,
+} from 'lucide-react';
+
+// -- Types ---------------------------------------------------------------------
+type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
+type UserStatus = 'online' | 'away' | 'busy' | 'offline';
+
+interface Reaction { emoji: string; users: string[]; }
+
+interface Message {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: Date;
+  status: MessageStatus;
+  reactions: Reaction[];
+  replyTo?: string;
+  edited?: boolean;
+  pinned?: boolean;
+  attachmentType?: 'image' | 'file' | 'audio';
+  attachmentName?: string;
+}
+
+interface Conversation {
+  id: string;
+  participants: Person[];
+  messages: Message[];
+  isGroup: boolean;
+  groupName?: string;
+  unread: number;
+  pinned: boolean;
+  muted: boolean;
+  lastSeen?: Date;
+}
+
+interface Person {
+  id: string;
+  name: string;
+  avatar: string;
+  color: string;
+  status: UserStatus;
+  role?: string;
+  bio?: string;
+}
+
+// -- Seed people ---------------------------------------------------------------
+const ME: Person = { id:'me', name:'You', avatar:'YO', color:'#7c3aed', status:'online', role:'Developer' };
+
+const PEOPLE: Person[] = [
+  { id:'p1', name:'Arjun Sharma',  avatar:'AS', color:'#7c3aed', status:'online',  role:'Product Manager',    bio:'Building great products one sprint at a time.' },
+  { id:'p2', name:'Priya Nair',    avatar:'PN', color:'#10b981', status:'online',  role:'Backend Engineer',   bio:'Rust + Go enthusiast. Coffee first.' },
+  { id:'p3', name:'Meera Das',     avatar:'MD', color:'#f59e0b', status:'away',    role:'UX Designer',        bio:'Pixels and prototypes.' },
+  { id:'p4', name:'Ravi Kumar',    avatar:'RK', color:'#3b82f6', status:'busy',    role:'DevOps Engineer',    bio:'If it deploys, it ships.' },
+  { id:'p5', name:'Sneha Rao',     avatar:'SR', color:'#ec4899', status:'offline', role:'Frontend Engineer',  bio:'React + Tailwind = home.' },
+  { id:'p6', name:'Kabir Singh',   avatar:'KS', color:'#06b6d4', status:'online',  role:'Data Analyst',       bio:'Numbers tell stories.' },
+  { id:'p7', name:'Divya Menon',   avatar:'DM', color:'#8b5cf6', status:'away',    role:'QA Engineer',        bio:'Finding bugs before they find you.' },
+];
+
+const STATUS_COLOR: Record<UserStatus, string> = {
+  online:'#10b981', away:'#f59e0b', busy:'#ef4444', offline:'#6b7280',
+};
+const STATUS_LABEL: Record<UserStatus, string> = {
+  online:'Online', away:'Away', busy:'Do not disturb', offline:'Offline',
+};
+
+const QUICK_REACTIONS = ['??','??','??','??','??','??'];
+
+// -- Seed conversations ---------------------------------------------------------
+function seedConversations(): Conversation[] {
+  const ago = (m: number) => new Date(Date.now() - m * 60_000);
+  return [
+    {
+      id:'c1', isGroup:false, unread:2, pinned:true, muted:false,
+      participants:[PEOPLE[0]],
+      messages:[
+        { id:'m1', senderId:'p1', text:'Hey! Did you get a chance to look at the new onboarding mockups?', timestamp:ago(62), status:'read', reactions:[] },
+        { id:'m2', senderId:'me', text:'Just opened them — the flow looks much cleaner now. Love the progress indicator on step 3.', timestamp:ago(58), status:'read', reactions:[{emoji:'??',users:['p1']}] },
+        { id:'m3', senderId:'p1', text:'Glad you like it! One thing — can we move the "Skip" button to the top right? Users keep missing it.', timestamp:ago(55), status:'read', reactions:[] },
+        { id:'m4', senderId:'me', text:'Totally agree. I\'ll update the Figma file and share the link in #design-review.', timestamp:ago(40), status:'read', reactions:[{emoji:'??',users:['p1']}] },
+        { id:'m5', senderId:'p1', text:'Perfect. Also, the 3pm standup — are we still on?', timestamp:ago(8), status:'delivered', reactions:[] },
+        { id:'m6', senderId:'p1', text:'Can you review the PR before then? It\'s a small change but I want eyes on it.', timestamp:ago(4), status:'delivered', reactions:[] },
+      ],
+    },
+    {
+      id:'c2', isGroup:false, unread:0, pinned:true, muted:false,
+      participants:[PEOPLE[1]],
+      messages:[
+        { id:'m7',  senderId:'p2', text:'The Redis cache fix is merged. Latency dropped by 40% on the /messages endpoint.', timestamp:ago(125), status:'read', reactions:[{emoji:'??',users:['me']}] },
+        { id:'m8',  senderId:'me', text:'That\'s huge! Great work Priya ??', timestamp:ago(120), status:'read', reactions:[] },
+        { id:'m9',  senderId:'p2', text:'Thanks! Next up — the WebSocket reconnect logic. That one\'s trickier.', timestamp:ago(118), status:'read', reactions:[] },
+        { id:'m10', senderId:'me', text:'Let me know if you need a second pair of eyes.', timestamp:ago(115), status:'read', reactions:[{emoji:'??',users:['p2']}] },
+        { id:'m11', senderId:'p2', text:'Will do. Sharing my screen at 4pm if you\'re free?', timestamp:ago(30), status:'read', reactions:[] },
+      ],
+    },
+    {
+      id:'c3', isGroup:false, unread:1, pinned:false, muted:false,
+      participants:[PEOPLE[2]],
+      messages:[
+        { id:'m12', senderId:'p3', text:'Hey, the Figma handoff for sprint 14 is done! Let me know if anything looks off.', timestamp:ago(200), status:'read', reactions:[] },
+        { id:'m13', senderId:'me', text:'Just checked it, looks clean. Only one thing — the button radius on mobile cards is 6px but the DS says 8px.', timestamp:ago(190), status:'read', reactions:[] },
+        { id:'m14', senderId:'p3', text:'Oops good catch! Fixing now...', timestamp:ago(185), status:'read', reactions:[] },
+        { id:'m15', senderId:'p3', text:'Updated! Can you check once more?', timestamp:ago(45), status:'delivered', reactions:[] },
+      ],
+    },
+    {
+      id:'c4', isGroup:true, groupName:'Sprint 15 Team', unread:5, pinned:false, muted:false,
+      participants:[PEOPLE[0], PEOPLE[1], PEOPLE[3]],
+      messages:[
+        { id:'m16', senderId:'p1', text:'Morning team! Quick update: the sprint planning doc is in Notion. Please add your estimates by EOD.', timestamp:ago(480), status:'read', reactions:[] },
+        { id:'m17', senderId:'p4', text:'On it. Also heads up — the staging env was down earlier, all good now.', timestamp:ago(470), status:'read', reactions:[{emoji:'??',users:['p1','me']}] },
+        { id:'m18', senderId:'me', text:'@Ravi nice catch. I noticed the deploy took 3x longer too — worth investigating?', timestamp:ago(460), status:'read', reactions:[] },
+        { id:'m19', senderId:'p4', text:'Yeah the pipeline has a stale lock file issue. I\'ll open a ticket.', timestamp:ago(455), status:'read', reactions:[] },
+        { id:'m20', senderId:'p1', text:'Let\'s sync at the standup. See everyone at 3pm!', timestamp:ago(20), status:'delivered', reactions:[] },
+        { id:'m21', senderId:'p4', text:'??', timestamp:ago(18), status:'delivered', reactions:[] },
+        { id:'m22', senderId:'p1', text:'Also — anyone free for a quick call before that?', timestamp:ago(5), status:'delivered', reactions:[] },
+      ],
+    },
+    {
+      id:'c5', isGroup:false, unread:0, pinned:false, muted:true,
+      participants:[PEOPLE[5]],
+      messages:[
+        { id:'m23', senderId:'p6', text:'Hey, sent over the Q3 analytics report to your email.', timestamp:ago(720), status:'read', reactions:[] },
+        { id:'m24', senderId:'me', text:'Got it, thanks Kabir!', timestamp:ago(715), status:'read', reactions:[{emoji:'??',users:['p6']}] },
+      ],
+    },
+    {
+      id:'c6', isGroup:false, unread:0, pinned:false, muted:false,
+      participants:[PEOPLE[4]],
+      messages:[
+        { id:'m25', senderId:'p5', text:'The login page animations are live on staging. Can you test them?', timestamp:ago(1440), status:'read', reactions:[] },
+        { id:'m26', senderId:'me', text:'Tested on Chrome and Safari — both look great!', timestamp:ago(1430), status:'read', reactions:[{emoji:'??',users:['p5']}] },
+      ],
+    },
+  ];
+}
+
+// -- Helpers -------------------------------------------------------------------
+function timeLabel(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  if (diff < 60_000)   return 'now';
+  if (diff < 3600_000) return `${Math.floor(diff/60000)}m`;
+  if (diff < 86400_000)return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+}
+
+function fullTime(d: Date): string {
+  return d.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+}
+
+function groupMessages(msgs: Message[]): { date: string; items: Message[] }[] {
+  const map = new Map<string, Message[]>();
+  for (const m of msgs) {
+    const key = m.timestamp.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(m);
+  }
+  return Array.from(map.entries()).map(([date,items])=>({date,items}));
+}
+
+function getConvName(c: Conversation): string {
+  return c.isGroup ? c.groupName! : c.participants[0].name;
+}
+function getConvAvatar(c: Conversation): string {
+  return c.isGroup ? c.participants.map(p=>p.avatar[0]).join('').slice(0,2) : c.participants[0].avatar;
+}
+function getConvColor(c: Conversation): string {
+  return c.isGroup ? '#7c3aed' : c.participants[0].color;
+}
+function getLastMsg(c: Conversation): Message | undefined {
+  return c.messages[c.messages.length-1];
+}
+
+// -----------------------------------------------------------------------------
+export default function DMPage() {
+  const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
+  const [activeId,   setActiveId]   = useState<string | null>('c1');
+  const [searchQ,    setSearchQ]    = useState('');
+  const [input,      setInput]      = useState('');
+  const [replyTo,    setReplyTo]    = useState<Message | null>(null);
+  const [editingId,  setEditingId]  = useState<string | null>(null);
+  const [editText,   setEditText]   = useState('');
+  const [showEmoji,  setShowEmoji]  = useState(false);
+  const [hoveredId,  setHoveredId]  = useState<string | null>(null);
+  const [showProfile,setShowProfile]= useState(false);
+  const [showNewDM,  setShowNewDM]  = useState(false);
+  const [dmSearch,   setDmSearch]   = useState('');
+  const [isTyping,   setIsTyping]   = useState(false);
+  const [toast,      setToast]      = useState<string|null>(null);
+  const [showPinned, setShowPinned] = useState(false);
+  const [reactingId, setReactingId] = useState<string|null>(null);
+
+  const bottomRef   = useRef<HTMLDivElement>(null);
+  const inputRef    = useRef<HTMLTextAreaElement>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+
+  const active = conversations.find(c => c.id === activeId) ?? null;
+  const person = active && !active.isGroup ? active.participants[0] : null;
+
+  const filtered = conversations.filter(c => {
+    const n = getConvName(c).toLowerCase();
+    return !searchQ || n.includes(searchQ.toLowerCase());
+  });
+
+  // -- Scroll to bottom on new messages --------------------------------------
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior:'smooth' });
+  }, [active?.messages.length]);
+
+  // -- Mark active conversation as read --------------------------------------
+  useEffect(() => {
+    if (!activeId) return;
+    setConversations(prev => prev.map(c =>
+      c.id === activeId ? { ...c, unread:0 } : c
+    ));
+  }, [activeId]);
+
+  // -- Simulated "other person typing" --------------------------------------
+  useEffect(() => {
+    if (!active || active.isGroup) return;
+    const t = setInterval(() => {
+      if (Math.random() < 0.15) {
+        setIsTyping(true);
+        setTimeout(() => setIsTyping(false), 3000);
+      }
+    }, 8000);
+    return () => clearInterval(t);
+  }, [activeId]);
+
+  // -- Simulated incoming messages -------------------------------------------
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (!activeId) return;
+      if (Math.random() > 0.3) return;
+      const conv = conversations.find(c => c.id === activeId);
+      if (!conv) return;
+      const sender = conv.participants[Math.floor(Math.random()*conv.participants.length)];
+      const texts = [
+        'Sounds good!','Let me check on that.','Can we jump on a quick call?',
+        'Just pushed an update.','What do you think?','On it!','Makes sense ??',
+        'Will get back to you in a bit.','Checking now...','Done!',
+      ];
+      const newMsg: Message = {
+        id:`auto-${Date.now()}`, senderId:sender.id,
+        text:texts[Math.floor(Math.random()*texts.length)],
+        timestamp:new Date(), status:'delivered', reactions:[],
+      };
+      setConversations(prev => prev.map(c =>
+        c.id === activeId
+          ? { ...c, messages:[...c.messages, newMsg], unread:0 }
+          : c
+      ));
+    }, 18_000);
+    return () => clearInterval(t);
+  }, [activeId, conversations]);
+
+  function showToast(msg: string) {
+    setToast(msg); setTimeout(() => setToast(null), 2800);
+  }
+
+  // -- Send message ----------------------------------------------------------
+  function sendMessage() {
+    if (!input.trim() || !activeId) return;
+    const newMsg: Message = {
+      id:`msg-${Date.now()}`, senderId:'me',
+      text: input.trim(), timestamp:new Date(),
+      status:'sending', reactions:[],
+      replyTo: replyTo?.id,
+    };
+    setConversations(prev => prev.map(c =>
+      c.id === activeId ? { ...c, messages:[...c.messages, newMsg] } : c
+    ));
+    setInput(''); setReplyTo(null);
+    // Simulate status progression
+    setTimeout(() => updateMsgStatus(activeId, newMsg.id, 'sent'),      600);
+    setTimeout(() => updateMsgStatus(activeId, newMsg.id, 'delivered'), 1400);
+    setTimeout(() => updateMsgStatus(activeId, newMsg.id, 'read'),      3000);
+  }
+
+  function updateMsgStatus(convId:string, msgId:string, status:MessageStatus) {
+    setConversations(prev => prev.map(c =>
+      c.id===convId
+        ? { ...c, messages: c.messages.map(m => m.id===msgId ? {...m,status} : m) }
+        : c
+    ));
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  // -- Edit message ----------------------------------------------------------
+  function startEdit(m: Message) {
+    setEditingId(m.id); setEditText(m.text);
+  }
+  function saveEdit() {
+    if (!editingId || !activeId) return;
+    setConversations(prev => prev.map(c =>
+      c.id===activeId
+        ? { ...c, messages: c.messages.map(m => m.id===editingId ? {...m, text:editText, edited:true} : m) }
+        : c
+    ));
+    setEditingId(null); setEditText('');
+  }
+
+  // -- React -----------------------------------------------------------------
+  function addReaction(msgId:string, emoji:string) {
+    if (!activeId) return;
+    setConversations(prev => prev.map(c => {
+      if (c.id!==activeId) return c;
+      return { ...c, messages: c.messages.map(m => {
+        if (m.id!==msgId) return m;
+        const existing = m.reactions.find(r=>r.emoji===emoji);
+        if (existing) {
+          const already = existing.users.includes('me');
+          return { ...m, reactions: already
+            ? m.reactions.map(r=>r.emoji===emoji ? {...r,users:r.users.filter(u=>u!=='me')} : r).filter(r=>r.users.length>0)
+            : m.reactions.map(r=>r.emoji===emoji ? {...r,users:[...r.users,'me']} : r)
+          };
+        }
+        return { ...m, reactions:[...m.reactions,{emoji,users:['me']}] };
+      })};
+    }));
+    setReactingId(null);
+  }
+
+  // -- Pin message -----------------------------------------------------------
+  function togglePin(msgId:string) {
+    if (!activeId) return;
+    setConversations(prev => prev.map(c =>
+      c.id===activeId
+        ? { ...c, messages: c.messages.map(m => m.id===msgId ? {...m,pinned:!m.pinned} : m) }
+        : c
+    ));
+    showToast('Message pinned');
+  }
+
+  // -- Delete message --------------------------------------------------------
+  function deleteMsg(msgId:string) {
+    if (!activeId) return;
+    setConversations(prev => prev.map(c =>
+      c.id===activeId
+        ? { ...c, messages:c.messages.filter(m=>m.id!==msgId) }
+        : c
+    ));
+  }
+
+  // -- New DM ----------------------------------------------------------------
+  function startNewDM(person: Person) {
+    const existing = conversations.find(c => !c.isGroup && c.participants[0].id===person.id);
+    if (existing) { setActiveId(existing.id); setShowNewDM(false); return; }
+    const newConv: Conversation = {
+      id:`c-${Date.now()}`, isGroup:false, unread:0, pinned:false, muted:false,
+      participants:[person], messages:[],
+    };
+    setConversations(prev=>[newConv,...prev]);
+    setActiveId(newConv.id); setShowNewDM(false);
+  }
+
+  // -- Toggle mute -----------------------------------------------------------
+  function toggleMute(id:string) {
+    setConversations(prev=>prev.map(c=>c.id===id?{...c,muted:!c.muted}:c));
+    showToast(conversations.find(c=>c.id===id)?.muted ? 'Unmuted' : 'Muted conversation');
+  }
+
+  // -- Toggle conv pin -------------------------------------------------------
+  function toggleConvPin(id:string) {
+    setConversations(prev=>prev.map(c=>c.id===id?{...c,pinned:!c.pinned}:c));
+  }
+
+  // -- Archive / delete conv -------------------------------------------------
+  function deleteConv(id:string) {
+    setConversations(prev=>prev.filter(c=>c.id!==id));
+    if (activeId===id) setActiveId(null);
+    showToast('Conversation deleted');
+  }
+
+  const pinnedMessages = active?.messages.filter(m=>m.pinned) ?? [];
+  const msgGroups      = active ? groupMessages(active.messages) : [];
+  const peopleToAdd    = PEOPLE.filter(p => !dmSearch || p.name.toLowerCase().includes(dmSearch.toLowerCase()));
+
+  const totalUnread = conversations.reduce((s,c)=>s+c.unread,0);
+
+  return (
+    <div className="flex h-full bg-[#111214] text-[#e8eaf0] overflow-hidden">
+
+      {/* -- LEFT SIDEBAR -- */}
+      <div className="w-[272px] shrink-0 border-r border-[#2a2c33] flex flex-col bg-[#111214]">
+
+        {/* Sidebar header */}
+        <div className="px-4 pt-4 pb-3 border-b border-[#2a2c33]">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-[15px] font-bold tracking-tight">Direct Messages</h2>
+              {totalUnread > 0 && (
+                <span className="bg-[#7c3aed] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">{totalUnread}</span>
+              )}
+            </div>
+            <button onClick={() => setShowNewDM(true)}
+              className="w-7 h-7 bg-[#1e2026] border border-[#2a2c33] rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] hover:border-[#7c3aed] transition-all"
+              title="New message">
+              <Plus size={14}/>
+            </button>
+          </div>
+          {/* Search */}
+          <div className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] rounded-lg px-3 py-1.5 focus-within:border-[#7c3aed] transition-colors">
+            <Search size={12} className="text-[#6b7280] shrink-0"/>
+            <input type="text" placeholder="Search people..." value={searchQ}
+              onChange={e=>setSearchQ(e.target.value)}
+              className="bg-transparent border-none outline-none text-[#e8eaf0] text-[12px] w-full placeholder-[#6b7280] font-mono"/>
+          </div>
+        </div>
+
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto py-2">
+          {filtered.length===0 && (
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#6b7280]">
+              <Search size={20} className="opacity-30"/>
+              <p className="font-mono text-[11px]">No results</p>
+            </div>
+          )}
+          {filtered
+            .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0))
+            .map(conv => {
+              const last = getLastMsg(conv);
+              const isMine = last?.senderId==='me';
+              return (
+                <div key={conv.id}
+                  onClick={() => setActiveId(conv.id)}
+                  className={`group relative flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all
+                    ${activeId===conv.id ? 'bg-[rgba(124,58,237,0.15)] border-r-2 border-[#7c3aed]' : 'hover:bg-[#18191d]'}`}>
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
+                      style={{ background: getConvColor(conv) }}>
+                      {conv.isGroup
+                        ? <Users size={16}/>
+                        : getConvAvatar(conv)
+                      }
+                    </div>
+                    {!conv.isGroup && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111214]"
+                        style={{ background: STATUS_COLOR[conv.participants[0].status] }}/>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`text-[13px] font-semibold truncate ${conv.unread>0 ? 'text-[#e8eaf0]' : 'text-[#9ca3af]'}`}>
+                          {getConvName(conv)}
+                        </span>
+                        {conv.pinned && <Pin size={9} className="text-[#a855f7] shrink-0"/>}
+                        {conv.muted  && <BellOff size={9} className="text-[#6b7280] shrink-0"/>}
+                      </div>
+                      <span className="font-mono text-[9.5px] text-[#6b7280] shrink-0 ml-1">
+                        {last ? timeLabel(last.timestamp) : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className={`font-mono text-[11px] truncate ${conv.unread>0 ? 'text-[#9ca3af]' : 'text-[#6b7280]'}`}>
+                        {last ? (isMine ? `You: ${last.text}` : last.text) : 'No messages yet'}
+                      </p>
+                      {conv.unread>0 && (
+                        <span className="ml-1 shrink-0 bg-[#7c3aed] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full">{conv.unread}</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Hover actions */}
+                  <div className={`absolute right-2 top-1/2 -translate-y-1/2 items-center gap-0.5 bg-[#1e2026] border border-[#2a2c33] rounded-lg p-0.5 ${activeId===conv.id ? 'hidden' : 'hidden group-hover:flex'}`}
+                    onClick={e=>e.stopPropagation()}>
+                    <button onClick={()=>toggleMute(conv.id)} title="Mute"
+                      className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] rounded transition-colors">
+                      {conv.muted ? <Bell size={11}/> : <BellOff size={11}/>}
+                    </button>
+                    <button onClick={()=>toggleConvPin(conv.id)} title="Pin"
+                      className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${conv.pinned?'text-[#a855f7]':'text-[#6b7280] hover:text-[#a855f7]'}`}>
+                      <Pin size={11}/>
+                    </button>
+                    <button onClick={()=>deleteConv(conv.id)} title="Delete"
+                      className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#ef4444] rounded transition-colors">
+                      <Trash2 size={11}/>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Sidebar footer — status */}
+        <div className="px-3 py-3 border-t border-[#2a2c33] flex items-center gap-2.5">
+          <div className="relative">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{background:'#7c3aed'}}>YO</div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111214] bg-[#10b981]"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold">You</p>
+            <p className="font-mono text-[10px] text-[#10b981]">Online</p>
+          </div>
+          <Settings size={13} className="text-[#6b7280] hover:text-[#e8eaf0] cursor-pointer transition-colors"/>
+        </div>
+      </div>
+
+      {/* -- CHAT AREA -- */}
+      {active ? (
+        <div className="flex flex-col flex-1 overflow-hidden">
+
+          {/* Chat header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#2a2c33] shrink-0">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={()=>setShowProfile(true)}>
+              <div className="relative">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
+                  style={{background:getConvColor(active)}}>
+                  {active.isGroup ? <Users size={16}/> : getConvAvatar(active)}
+                </div>
+                {!active.isGroup && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111214]"
+                    style={{background:STATUS_COLOR[active.participants[0].status]}}/>
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[14px] font-bold">{getConvName(active)}</p>
+                  {active.muted && <BellOff size={11} className="text-[#6b7280]"/>}
+                </div>
+                <p className="font-mono text-[10.5px] text-[#6b7280]">
+                  {active.isGroup
+                    ? `${active.participants.length+1} members`
+                    : STATUS_LABEL[active.participants[0].status]}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {pinnedMessages.length>0 && (
+                <button onClick={()=>setShowPinned(v=>!v)}
+                  className={`flex items-center gap-1.5 font-mono text-[10.5px] px-2.5 py-1.5 rounded-lg border transition-all
+                    ${showPinned ? 'bg-[rgba(168,85,247,0.15)] text-[#a855f7] border-[rgba(168,85,247,0.3)]' : 'text-[#6b7280] border-[#2a2c33] hover:text-[#e8eaf0] hover:border-[#33363f]'}`}>
+                  <Pin size={11}/> {pinnedMessages.length} pinned
+                </button>
+              )}
+              <button className="w-8 h-8 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] hover:bg-[#1e2026] rounded-lg transition-all" title="Voice call"><Phone size={14}/></button>
+              <button className="w-8 h-8 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] hover:bg-[#1e2026] rounded-lg transition-all" title="Video call"><Video size={14}/></button>
+              <button onClick={()=>toggleMute(active.id)}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${active.muted ? 'text-[#f59e0b] bg-[rgba(245,158,11,0.08)]' : 'text-[#6b7280] hover:text-[#e8eaf0] hover:bg-[#1e2026]'}`} title="Mute">
+                {active.muted ? <BellOff size={14}/> : <Bell size={14}/>}
+              </button>
+              <button onClick={()=>setShowProfile(v=>!v)}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${showProfile ? 'bg-[rgba(124,58,237,0.15)] text-[#a855f7]' : 'text-[#6b7280] hover:text-[#e8eaf0] hover:bg-[#1e2026]'}`} title="Profile">
+                <MoreHorizontal size={14}/>
+              </button>
+            </div>
+          </div>
+
+          {/* Pinned messages banner */}
+          {showPinned && pinnedMessages.length>0 && (
+            <div className="px-4 py-2 bg-[rgba(168,85,247,0.06)] border-b border-[rgba(168,85,247,0.2)] shrink-0">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-[#a855f7] mb-2 flex items-center gap-1.5"><Pin size={10}/> Pinned messages</p>
+              {pinnedMessages.map(m=>(
+                <div key={m.id} className="font-mono text-[11.5px] text-[#9ca3af] truncate py-0.5">
+                  <span className="text-[#c084fc]">{m.senderId==='me'?'You':active.participants.find(p=>p.id===m.senderId)?.name}:</span> {m.text}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-1 overflow-hidden">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {/* Conversation start */}
+              <div className="flex flex-col items-center mb-8 pt-4">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center text-[22px] font-bold text-white mb-3"
+                  style={{background:getConvColor(active)}}>
+                  {active.isGroup ? <Users size={28}/> : getConvAvatar(active)}
+                </div>
+                <p className="text-[16px] font-bold">{getConvName(active)}</p>
+                {!active.isGroup && person && (
+                  <>
+                    <p className="font-mono text-[11.5px] text-[#6b7280] mt-0.5">{person.role}</p>
+                    <p className="font-mono text-[11px] text-[#33363f] mt-1">{person.bio}</p>
+                  </>
+                )}
+                <p className="font-mono text-[10.5px] text-[#6b7280] mt-3">This is the beginning of your direct message history.</p>
+              </div>
+
+              {/* Message groups */}
+              {msgGroups.map(({ date, items }) => (
+                <div key={date}>
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-[#1e2026]"/>
+                    <span className="font-mono text-[10px] text-[#6b7280] shrink-0">{date}</span>
+                    <div className="flex-1 h-px bg-[#1e2026]"/>
+                  </div>
+                  {items.map((msg, idx) => {
+                    const isMine = msg.senderId==='me';
+                    const sender = isMine ? ME : (active.participants.find(p=>p.id===msg.senderId) ?? PEOPLE[0]);
+                    const prevMsg = idx>0 ? items[idx-1] : null;
+                    const sameAuthor = prevMsg?.senderId===msg.senderId;
+                    const replyMsg = msg.replyTo ? active.messages.find(m=>m.id===msg.replyTo) : null;
+
+                    return (
+                      <div key={msg.id}
+                        onMouseEnter={()=>setHoveredId(msg.id)}
+                        onMouseLeave={()=>{ setHoveredId(null); setReactingId(null); }}
+                        className={`group relative flex items-end gap-2.5 ${isMine?'flex-row-reverse':'flex-row'} ${sameAuthor?'mt-0.5':'mt-4'}`}>
+
+                        {/* Avatar */}
+                        {!sameAuthor ? (
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 mb-0.5"
+                            style={{background:sender.color}}>{sender.avatar}</div>
+                        ) : <div className="w-8 shrink-0"/>}
+
+                        <div className={`flex flex-col ${isMine?'items-end':'items-start'} max-w-[70%]`}>
+                          {/* Reply context */}
+                          {replyMsg && (
+                            <div className={`flex items-start gap-1.5 mb-1 px-2 py-1 rounded-lg bg-[#1e2026] border-l-2 border-[#7c3aed] max-w-full ${isMine?'self-end':''}`}>
+                              <Reply size={10} className="text-[#a855f7] shrink-0 mt-0.5"/>
+                              <p className="font-mono text-[10px] text-[#6b7280] truncate">{replyMsg.text}</p>
+                            </div>
+                          )}
+
+                          {/* Sender name */}
+                          {!sameAuthor && !isMine && (
+                            <p className="font-mono text-[10.5px] text-[#6b7280] mb-1 ml-1">{sender.name}</p>
+                          )}
+
+                          {/* Bubble */}
+                          {editingId===msg.id ? (
+                            <div className="flex gap-2 w-full">
+                              <textarea value={editText} onChange={e=>setEditText(e.target.value)}
+                                className="flex-1 bg-[#1e2026] border border-[#7c3aed] rounded-xl px-3 py-2 text-[13px] text-[#e8eaf0] outline-none resize-none font-mono"
+                                rows={2}/>
+                              <div className="flex flex-col gap-1">
+                                <button onClick={saveEdit} className="w-7 h-7 bg-[#7c3aed] rounded-lg flex items-center justify-center text-white"><Check size={12}/></button>
+                                <button onClick={()=>setEditingId(null)} className="w-7 h-7 bg-[#1e2026] border border-[#2a2c33] rounded-lg flex items-center justify-center text-[#6b7280]"><X size={12}/></button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={`relative px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed
+                              ${isMine
+                                ? 'bg-[#7c3aed] text-white rounded-br-md'
+                                : 'bg-[#1e2026] text-[#e8eaf0] rounded-bl-md border border-[#2a2c33]'
+                              }
+                              ${msg.pinned ? 'ring-1 ring-[#a855f7]' : ''}`}>
+                              {msg.attachmentType && (
+                                <div className="flex items-center gap-2 mb-2 p-2 bg-black/20 rounded-lg">
+                                  {msg.attachmentType==='image' && <Image size={14}/>}
+                                  {msg.attachmentType==='file'  && <FileText size={14}/>}
+                                  {msg.attachmentType==='audio' && <Mic size={14}/>}
+                                  <span className="font-mono text-[11px] opacity-80">{msg.attachmentName}</span>
+                                </div>
+                              )}
+                              {msg.text}
+                              {msg.edited && <span className="text-[10px] opacity-50 ml-2">(edited)</span>}
+                            </div>
+                          )}
+
+                          {/* Reactions */}
+                          {msg.reactions.length>0 && (
+                            <div className={`flex gap-1 mt-1 flex-wrap ${isMine?'justify-end':''}`}>
+                              {msg.reactions.map(r=>(
+                                <button key={r.emoji} onClick={()=>addReaction(msg.id,r.emoji)}
+                                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-all
+                                    ${r.users.includes('me')
+                                      ? 'bg-[rgba(124,58,237,0.2)] border-[rgba(124,58,237,0.4)] text-[#c084fc]'
+                                      : 'bg-[#1e2026] border-[#2a2c33] text-[#9ca3af] hover:border-[#7c3aed]'}`}>
+                                  {r.emoji}<span className="font-mono text-[10px]">{r.users.length}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Timestamp + status */}
+                          <div className={`flex items-center gap-1.5 mt-0.5 ${isMine?'flex-row-reverse':''}`}>
+                            <span className="font-mono text-[9.5px] text-[#33363f]">{timeLabel(msg.timestamp)}</span>
+                            {isMine && (
+                              <span className="text-[#33363f]">
+                                {msg.status==='sending'   && <Circle size={9}/>}
+                                {msg.status==='sent'      && <Check size={9}/>}
+                                {msg.status==='delivered' && <CheckCheck size={9}/>}
+                                {msg.status==='read'      && <CheckCheck size={9} className="text-[#a855f7]"/>}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Hover action bar */}
+                        {hoveredId===msg.id && (
+                          <div className={`absolute ${isMine?'left-0':'right-0'} -top-5 flex items-center gap-0.5 bg-[#18191d] border border-[#2a2c33] rounded-lg px-1 py-0.5 shadow-xl z-10`}>
+                            {/* Quick reactions */}
+                            {reactingId===msg.id
+                              ? QUICK_REACTIONS.map(e=>(
+                                  <button key={e} onClick={()=>addReaction(msg.id,e)}
+                                    className="w-6 h-6 flex items-center justify-center text-[13px] hover:scale-125 transition-transform rounded">
+                                    {e}
+                                  </button>
+                                ))
+                              : <button onClick={()=>setReactingId(msg.id)}
+                                  className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] rounded transition-colors">
+                                  <Smile size={12}/>
+                                </button>
+                            }
+                            <button onClick={()=>setReplyTo(msg)}
+                              className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] rounded transition-colors">
+                              <Reply size={12}/>
+                            </button>
+                            {isMine && (
+                              <button onClick={()=>startEdit(msg)}
+                                className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] rounded transition-colors">
+                                <Edit3 size={12}/>
+                              </button>
+                            )}
+                            <button onClick={()=>togglePin(msg.id)}
+                              className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${msg.pinned?'text-[#a855f7]':'text-[#6b7280] hover:text-[#a855f7]'}`}>
+                              <Pin size={12}/>
+                            </button>
+                            <button onClick={()=>{ navigator.clipboard?.writeText(msg.text); showToast('Copied!'); }}
+                              className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] rounded transition-colors">
+                              <Copy size={12}/>
+                            </button>
+                            {isMine && (
+                              <button onClick={()=>deleteMsg(msg.id)}
+                                className="w-6 h-6 flex items-center justify-center text-[#6b7280] hover:text-[#ef4444] rounded transition-colors">
+                                <Trash2 size={12}/>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Typing indicator */}
+              {isTyping && !active.isGroup && (
+                <div className="flex items-end gap-2.5 mt-4">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
+                    style={{background:active.participants[0].color}}>{active.participants[0].avatar}</div>
+                  <div className="bg-[#1e2026] border border-[#2a2c33] px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="flex gap-1 items-center h-3">
+                      {[0,1,2].map(i=>(
+                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#6b7280]"
+                          style={{animation:`bounce 1.2s ${i*0.2}s infinite`}}/>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={bottomRef}/>
+            </div>
+
+            {/* -- Profile sidebar -- */}
+            {showProfile && (
+              <div className="w-[260px] shrink-0 border-l border-[#2a2c33] bg-[#111214] flex flex-col overflow-y-auto"
+                style={{animation:'slideInRight 0.18s ease'}}>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2c33]">
+                  <p className="text-[12px] font-semibold text-[#9ca3af]">Profile</p>
+                  <button onClick={()=>setShowProfile(false)} className="text-[#6b7280] hover:text-[#e8eaf0] transition-colors"><X size={14}/></button>
+                </div>
+                <div className="px-4 py-5 text-center border-b border-[#2a2c33]">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center text-[20px] font-bold text-white mx-auto mb-3"
+                    style={{background:getConvColor(active)}}>
+                    {active.isGroup ? <Users size={28}/> : getConvAvatar(active)}
+                  </div>
+                  <p className="text-[15px] font-bold">{getConvName(active)}</p>
+                  {person && (
+                    <>
+                      <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">{person.role}</p>
+                      <div className="flex items-center justify-center gap-1.5 mt-2">
+                        <div className="w-2 h-2 rounded-full" style={{background:STATUS_COLOR[person.status]}}/>
+                        <span className="font-mono text-[10.5px]" style={{color:STATUS_COLOR[person.status]}}>{STATUS_LABEL[person.status]}</span>
+                      </div>
+                      {person.bio && <p className="font-mono text-[11px] text-[#6b7280] mt-3 leading-relaxed">{person.bio}</p>}
+                    </>
+                  )}
+                  {active.isGroup && (
+                    <p className="font-mono text-[11px] text-[#6b7280] mt-1">{active.participants.length+1} members</p>
+                  )}
+                </div>
+                <div className="px-4 py-3 space-y-1.5">
+                  <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-[#1e2026] border border-[#2a2c33] rounded-xl text-[12.5px] font-semibold hover:border-[#33363f] transition-all">
+                    <Phone size={13} className="text-[#6b7280]"/> Voice call
+                  </button>
+                  <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-[#1e2026] border border-[#2a2c33] rounded-xl text-[12.5px] font-semibold hover:border-[#33363f] transition-all">
+                    <Video size={13} className="text-[#6b7280]"/> Video call
+                  </button>
+                  <button onClick={()=>toggleMute(active.id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-[#1e2026] border border-[#2a2c33] rounded-xl text-[12.5px] font-semibold hover:border-[#33363f] transition-all">
+                    {active.muted ? <Bell size={13} className="text-[#6b7280]"/> : <BellOff size={13} className="text-[#6b7280]"/>}
+                    {active.muted ? 'Unmute' : 'Mute conversation'}
+                  </button>
+                  {active.isGroup && (
+                    <div className="pt-2">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-2">Members</p>
+                      {[ME,...active.participants].map(p=>(
+                        <div key={p.id} className="flex items-center gap-2 py-1.5">
+                          <div className="relative">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                              style={{background:p.color}}>{p.avatar}</div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[#111214]"
+                              style={{background:STATUS_COLOR[p.status]}}/>
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-semibold">{p.name}</p>
+                            <p className="font-mono text-[9.5px] text-[#6b7280]">{p.role}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={()=>deleteConv(active.id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-xl text-[12.5px] font-semibold text-[#ef4444] hover:bg-[rgba(239,68,68,0.14)] transition-all mt-2">
+                    <Trash2 size={13}/> Delete conversation
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+
+          {/* -- Rich text editor -- */}
+          <RichTextEditor
+            convName={getConvName(active)}
+            replyTo={replyTo}
+            onClearReply={() => setReplyTo(null)}
+            onSend={(text: string, attachmentType?: 'audio'|'video', attachmentName?: string, attachmentUrl?: string) => {
+              if (!text.trim() || !activeId) return;
+              const newMsg: Message = {
+                id:`msg-${Date.now()}`, senderId:'me',
+                text: text.trim(), timestamp:new Date(),
+                status:'sending', reactions:[],
+                replyTo: replyTo?.id,
+                attachmentType,
+                attachmentName,
+              };
+              setConversations(prev => prev.map(c =>
+                c.id === activeId ? { ...c, messages:[...c.messages, newMsg] } : c
+              ));
+              setReplyTo(null);
+              setTimeout(() => updateMsgStatus(activeId, newMsg.id, 'sent'),      600);
+              setTimeout(() => updateMsgStatus(activeId, newMsg.id, 'delivered'), 1400);
+              setTimeout(() => updateMsgStatus(activeId, newMsg.id, 'read'),      3000);
+            }}
+          />
+        </div>
+      ) : (
+        /* -- Empty state -- */
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#6b7280]">
+          <div className="w-16 h-16 rounded-2xl bg-[#1e2026] border border-[#2a2c33] flex items-center justify-center">
+            <MessageSquare size={28} className="opacity-40"/>
+          </div>
+          <div className="text-center">
+            <p className="text-[15px] font-semibold text-[#9ca3af]">Select a conversation</p>
+            <p className="font-mono text-[11.5px] mt-1">or start a new message</p>
+          </div>
+          <button onClick={()=>setShowNewDM(true)}
+            className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white font-semibold text-[13px] px-5 py-2.5 rounded-xl transition-all">
+            <Plus size={14}/> New Message
+          </button>
+        </div>
+      )}
+
+      {/* -- NEW DM MODAL -- */}
+      {showNewDM && (
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={e=>{if(e.target===e.currentTarget)setShowNewDM(false)}}>
+          <div className="bg-[#16171b] border border-[#2a2c33] rounded-2xl w-[420px] max-w-full overflow-hidden"
+            style={{animation:'slideUp 0.2s ease'}}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2c33]">
+              <p className="text-[15px] font-bold">New Message</p>
+              <button onClick={()=>setShowNewDM(false)} className="w-7 h-7 bg-[#1e2026] border border-[#2a2c33] rounded-lg text-[#6b7280] hover:text-[#e8eaf0] flex items-center justify-center"><X size={14}/></button>
+            </div>
+            <div className="px-5 py-3 border-b border-[#2a2c33]">
+              <div className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] rounded-lg px-3 py-2 focus-within:border-[#7c3aed] transition-colors">
+                <Search size={13} className="text-[#6b7280] shrink-0"/>
+                <input autoFocus type="text" placeholder="Search teammates..." value={dmSearch}
+                  onChange={e=>setDmSearch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[#e8eaf0] text-[13px] w-full placeholder-[#6b7280] font-mono"/>
+              </div>
+            </div>
+            <div className="py-2 max-h-[300px] overflow-y-auto">
+              {peopleToAdd.map(p=>(
+                <button key={p.id} onClick={()=>startNewDM(p)}
+                  className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-[#1e2026] transition-colors text-left">
+                  <div className="relative shrink-0">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
+                      style={{background:p.color}}>{p.avatar}</div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#16171b]"
+                      style={{background:STATUS_COLOR[p.status]}}/>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold">{p.name}</p>
+                    <p className="font-mono text-[10.5px] text-[#6b7280]">{p.role}</p>
+                  </div>
+                  <span className="font-mono text-[10px]" style={{color:STATUS_COLOR[p.status]}}>{STATUS_LABEL[p.status]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 bg-[#18191d] border border-[#2a2c33] rounded-xl px-4 py-2.5 text-[#e8eaf0] font-semibold text-[12.5px] shadow-2xl z-[300]"
+          style={{animation:'slideUp 0.25s ease'}}>
+          {toast}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideInRight { from{transform:translateX(100%)}to{transform:translateX(0)} }
+        @keyframes slideUp { from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1} }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)} }
+      `}</style>
+    </div>
+  );
+
+// -- Rich Text Editor + Terminal + Video + Voice -------------------------------
+const EMOJI_LIST = [
+  '??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??',
+  '??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??',
+  '??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??',
+  '??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??',
+  '??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??',
+  '??','??','??','??','??','??','??','?','??','??','?','???','??','??','??','??',
+  '??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??',
+  '??','?','?','??','??','??','??','??','??','??','??','??','??','??','??','??',
+];
+
+interface RichTextEditorProps {
+  convName: string;
+  replyTo: Message | null;
+  onClearReply: () => void;
+  onSend: (text: string, attachmentType?: 'audio'|'video', attachmentName?: string, attachmentUrl?: string) => void;
+}
+
+type FormatType = 'bold' | 'italic' | 'strike';
+
+// -- Terminal output lines -----------------------------------------------------
+interface TermLine { type: 'input'|'output'|'error'|'info'; text: string; }
+
+const TERMINAL_RESPONSES: Record<string, string[]> = {
+  help:    ['Available commands: help, ls, pwd, whoami, date, echo, clear, ping, uptime, cat, curl'],
+  ls:      ['README.md  package.json  src/  public/  node_modules/  .gitignore  tailwind.config.ts'],
+  pwd:     ['/workspace/devtalk'],
+  whoami:  ['devtalk-user'],
+  date:    [new Date().toString()],
+  uptime:  ['up 3 days, 14 hours, 22 minutes'],
+  clear:   ['__CLEAR__'],
+};
+
+function evalTermCmd(cmd: string): string[] {
+  const parts = cmd.trim().split(' ');
+  const base  = parts[0].toLowerCase();
+  if (base === 'echo')  return [parts.slice(1).join(' ')];
+  if (base === 'ping')  return [`PING ${parts[1] || 'localhost'}: 56 bytes of data`, '64 bytes: icmp_seq=0 ttl=64 time=0.42 ms', '--- ping statistics ---', '1 packets transmitted, 1 received, 0% packet loss'];
+  if (base === 'cat')   return parts[1] ? [`cat: ${parts[1]}: displaying stub content`, '{"name":"devtalk","version":"0.1.0","private":true}'] : ['cat: missing operand'];
+  if (base === 'curl')  return parts[1] ? [`  % Total  % Received`, `{"status":"ok","message":"response from ${parts[1]}"}`, 'Connection: close'] : ['curl: try curl <url>'];
+  if (base === 'node')  return ['Welcome to Node.js v20.0.0.', 'Type ".help" for more information.', '> '];
+  if (base === 'npm')   return parts[1]==='install' ? ['npm warn deprecated...','added 847 packages in 4.2s'] : ['Usage: npm <command>'];
+  if (base === 'git')   return parts[1]==='status' ? ['On branch main','Your branch is up to date.','nothing to commit, working tree clean'] : parts[1]==='log' ? ['commit a1b2c3d (HEAD -> main)','Author: You <you@devtalk.dev>','Date: '+new Date().toDateString(),'','    feat: add rich text editor to DMs'] : ['git: try git status or git log'];
+  if (base === 'ls' && parts.includes('-la')) return [
+    'total 48','drwxr-xr-x  8 user staff   256 Mar 21 10:22 .',
+    '-rw-r--r--  1 user staff  2810 Mar 21 10:18 package.json',
+    '-rw-r--r--  1 user staff   512 Mar 20 09:00 README.md',
+    'drwxr-xr-x 12 user staff   384 Mar 21 10:22 src',
+  ];
+  if (TERMINAL_RESPONSES[base]) return TERMINAL_RESPONSES[base];
+  return [`bash: ${cmd}: command not found`];
+}
+
+function RichTextEditor({ convName, replyTo, onClearReply, onSend }: RichTextEditorProps) {
+  const [text,         setText]         = useState('');
+  const [formats,      setFormats]      = useState<Set<FormatType>>(new Set());
+  const [showEmoji,    setShowEmoji]    = useState(false);
+  const [showMention,  setShowMention]  = useState(false);
+  const [isList,       setIsList]       = useState<'bullet'|'ordered'|null>(null);
+  const [isCode,       setIsCode]       = useState(false);
+  const [isQuote,      setIsQuote]      = useState(false);
+  const [isCmd,        setIsCmd]        = useState(false);
+  const [mentionQ,     setMentionQ]     = useState('');
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [termLines,    setTermLines]    = useState<TermLine[]>([
+    { type:'info', text:'DevTalk Terminal v1.0 — type help for commands' },
+    { type:'info', text:'Type a command and press Enter. Use "send" to attach output to message.' },
+  ]);
+  const [termInput,    setTermInput]    = useState('');
+  const [termHistory,  setTermHistory]  = useState<string[]>([]);
+  const [termHistIdx,  setTermHistIdx]  = useState(-1);
+
+  // Voice recording
+  const [voiceState,   setVoiceState]   = useState<'idle'|'recording'|'preview'>('idle');
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const [voiceBlob,    setVoiceBlob]    = useState<Blob|null>(null);
+  const voiceMediaRef  = useRef<MediaRecorder|null>(null);
+  const voiceChunks    = useRef<BlobEvent['data'][]>([]);
+  const voiceTimer     = useRef<ReturnType<typeof setInterval>|null>(null);
+
+  // Video recording
+  const [videoState,   setVideoState]   = useState<'idle'|'preview'|'recording'|'done'>('idle');
+  const [videoSeconds, setVideoSeconds] = useState(0);
+  const [videoBlob,    setVideoBlob]    = useState<Blob|null>(null);
+  const videoStreamRef = useRef<MediaStream|null>(null);
+  const videoMediaRef  = useRef<MediaRecorder|null>(null);
+  const videoChunks    = useRef<BlobEvent['data'][]>([]);
+  const videoTimer     = useRef<ReturnType<typeof setInterval>|null>(null);
+  const liveVideoRef   = useRef<HTMLVideoElement>(null);
+  const previewVideoRef= useRef<HTMLVideoElement>(null);
+
+  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const termInputRef   = useRef<HTMLInputElement>(null);
+  const termBottomRef  = useRef<HTMLDivElement>(null);
+  const emojiRef       = useRef<HTMLDivElement>(null);
+
+  // -- Close emoji on outside click ------------------------------------------
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  // -- Auto-resize textarea --------------------------------------------------
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+  }, [text]);
+
+  // -- Scroll terminal to bottom ---------------------------------------------
+  useEffect(() => {
+    termBottomRef.current?.scrollIntoView({ behavior:'smooth' });
+  }, [termLines]);
+
+  // -- Attach live stream to video element -----------------------------------
+  useEffect(() => {
+    if (videoState === 'preview' && liveVideoRef.current && videoStreamRef.current) {
+      liveVideoRef.current.srcObject = videoStreamRef.current;
+    }
+  }, [videoState]);
+
+  // -- @mention trigger -----------------------------------------------------
+  useEffect(() => {
+    const lastAt = text.lastIndexOf('@');
+    if (lastAt >= 0) {
+      const after = text.slice(lastAt + 1);
+      if (!after.includes(' ') && after.length <= 20) { setMentionQ(after); setShowMention(true); return; }
+    }
+    setShowMention(false);
+  }, [text]);
+
+  // -- Cleanup on unmount ----------------------------------------------------
+  useEffect(() => {
+    return () => {
+      videoStreamRef.current?.getTracks().forEach(t => t.stop());
+      if (voiceTimer.current) clearInterval(voiceTimer.current);
+      if (videoTimer.current) clearInterval(videoTimer.current);
+    };
+  }, []);
+
+  function toggleFormat(f: FormatType) {
+    setFormats(prev => { const n = new Set(prev); n.has(f) ? n.delete(f) : n.add(f); return n; });
+    textareaRef.current?.focus();
+  }
+
+  function applyFormatToSelection(f: FormatType) {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const { selectionStart: s, selectionEnd: e } = ta;
+    if (s === e) { toggleFormat(f); return; }
+    const token = f==='bold' ? '**' : f==='italic' ? '_' : '~~';
+    setText(text.slice(0,s) + token + text.slice(s,e) + token + text.slice(e));
+    setTimeout(() => { ta.selectionStart=s+token.length; ta.selectionEnd=e+token.length; ta.focus(); }, 0);
+  }
+
+  function insertEmoji(emoji: string) { setText(p => p+emoji); setShowEmoji(false); textareaRef.current?.focus(); }
+  function insertMention(name: string) {
+    const lastAt = text.lastIndexOf('@');
+    setText(text.slice(0,lastAt) + '@'+name+' ');
+    setShowMention(false); setMentionQ('');
+    textareaRef.current?.focus();
+  }
+
+  function handleInsertLink() {
+    const u = prompt('Enter URL:');
+    if (u) setText(p => p + '[link](' + u + ')');
+    textareaRef.current?.focus();
+  }
+
+  function buildFinalText(): string {
+    let t = text;
+    if (formats.has('bold'))   t = `**${t}**`;
+    if (formats.has('italic')) t = `_${t}_`;
+    if (formats.has('strike')) t = `~~${t}~~`;
+    if (isCode)  t = '`'+t+'`';
+    if (isQuote) t = `> ${t}`;
+    if (isCmd)   t = '```\n'+t+'\n```';
+    if (isList==='bullet')  t = text.split('\n').map(l=>'• '+l).join('\n');
+    if (isList==='ordered') t = text.split('\n').map((l,i)=>`${i+1}. `+l).join('\n');
+    return t;
+  }
+
+  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key==='Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!text.trim()) return;
+      onSend(buildFinalText());
+      setText(''); setFormats(new Set()); setIsList(null);
+      setIsCode(false); setIsQuote(false); setIsCmd(false);
+    }
+  }
+
+  // -- Terminal --------------------------------------------------------------
+  function handleSendTerminalOutput() {
+    const out = termLines.filter(l => l.type === 'output').map(l => l.text).join('\n');
+    if (out) { onSend('```bash\n' + out + '\n```'); setShowTerminal(false); }
+  }
+
+  function runTermCmd() {
+    const cmd = termInput.trim();
+    if (!cmd) return;
+    setTermHistory(h => [cmd, ...h]);
+    setTermHistIdx(-1);
+    setTermInput('');
+    if (cmd === 'send') {
+      const out = termLines.filter(l=>l.type==='output').map(l=>l.text).join('\n');
+      if (out) { onSend('```' + '\n' + out + '\n' + '```'); setShowTerminal(false); }
+      return;
+    }
+    const results = evalTermCmd(cmd);
+    if (results[0]==='__CLEAR__') { setTermLines([{type:'info',text:'Terminal cleared.'}]); return; }
+    setTermLines(prev => [
+      ...prev,
+      {type:'input', text:cmd},
+      ...results.map(r => ({type:'output' as const, text:r})),
+    ]);
+    setTimeout(() => termInputRef.current?.focus(), 50);
+  }
+
+  function handleTermKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key==='Enter') { runTermCmd(); }
+    if (e.key==='ArrowUp') {
+      e.preventDefault();
+      const idx = Math.min(termHistIdx+1, termHistory.length-1);
+      setTermHistIdx(idx);
+      setTermInput(termHistory[idx] ?? '');
+    }
+    if (e.key==='ArrowDown') {
+      e.preventDefault();
+      const idx = Math.max(termHistIdx-1, -1);
+      setTermHistIdx(idx);
+      setTermInput(idx===-1 ? '' : (termHistory[idx] ?? ''));
+    }
+  }
+
+  // -- Voice recording -------------------------------------------------------
+  async function startVoice() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      const mr = new MediaRecorder(stream);
+      voiceChunks.current = [];
+      mr.ondataavailable = e => voiceChunks.current.push(e.data);
+      mr.onstop = () => {
+        const blob = new Blob(voiceChunks.current, { type:'audio/webm' });
+        setVoiceBlob(blob);
+        setVoiceState('preview');
+        stream.getTracks().forEach(t=>t.stop());
+      };
+      mr.start();
+      voiceMediaRef.current = mr;
+      setVoiceState('recording');
+      setVoiceSeconds(0);
+      voiceTimer.current = setInterval(() => setVoiceSeconds(s=>s+1), 1000);
+    } catch {
+      setTermLines(prev=>[...prev,{type:'error',text:'Microphone access denied.'}]);
+    }
+  }
+
+  function stopVoice() {
+    voiceMediaRef.current?.stop();
+    if (voiceTimer.current) clearInterval(voiceTimer.current);
+  }
+
+  function cancelVoice() {
+    voiceMediaRef.current?.stop();
+    if (voiceTimer.current) clearInterval(voiceTimer.current);
+    setVoiceState('idle'); setVoiceBlob(null); setVoiceSeconds(0);
+  }
+
+  function sendVoice() {
+    if (!voiceBlob) return;
+    const url = URL.createObjectURL(voiceBlob);
+    const mins = Math.floor(voiceSeconds/60);
+    const secs = String(voiceSeconds%60).padStart(2,'0');
+    const dur  = mins + ':' + secs;
+    onSend('?? Voice message (' + dur + ')', 'audio', 'voice-' + Date.now() + '.webm', url);
+    setVoiceState('idle'); setVoiceBlob(null); setVoiceSeconds(0);
+  }
+
+  // -- Video recording -------------------------------------------------------
+  async function openCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+      videoStreamRef.current = stream;
+      setVideoState('preview');
+      setVideoSeconds(0);
+    } catch {
+      alert('Camera access denied. Please allow camera permissions.');
+    }
+  }
+
+  function startVideoRecord() {
+    if (!videoStreamRef.current) return;
+    const mr = new MediaRecorder(videoStreamRef.current);
+    videoChunks.current = [];
+    mr.ondataavailable = e => videoChunks.current.push(e.data);
+    mr.onstop = () => {
+      const blob = new Blob(videoChunks.current, { type:'video/webm' });
+      setVideoBlob(blob);
+      setVideoState('done');
+      if (previewVideoRef.current) {
+        previewVideoRef.current.src = URL.createObjectURL(blob);
+      }
+    };
+    mr.start();
+    videoMediaRef.current = mr;
+    setVideoState('recording');
+    videoTimer.current = setInterval(() => setVideoSeconds(s=>s+1), 1000);
+  }
+
+  function stopVideoRecord() {
+    videoMediaRef.current?.stop();
+    if (videoTimer.current) clearInterval(videoTimer.current);
+  }
+
+  function cancelVideo() {
+    videoMediaRef.current?.stop();
+    if (videoTimer.current) clearInterval(videoTimer.current);
+    videoStreamRef.current?.getTracks().forEach(t=>t.stop());
+    setVideoState('idle'); setVideoBlob(null); setVideoSeconds(0);
+  }
+
+  function sendVideo() {
+    if (!videoBlob) return;
+    const url = URL.createObjectURL(videoBlob);
+    const mins = Math.floor(videoSeconds/60);
+    const secs = String(videoSeconds%60).padStart(2,'0');
+    const dur  = mins + ':' + secs;
+    onSend('?? Video clip (' + dur + ')', 'video', 'clip-' + Date.now() + '.webm', url);
+    cancelVideo();
+  }
+
+  const hasContent = text.trim().length > 0;
+  const filteredPeople = PEOPLE.filter(p => p.name.toLowerCase().includes(mentionQ.toLowerCase())).slice(0,5);
+  const fmtTime = (s:number) => Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+
+  return (
+    <div className="border-t border-[#2a2c33] bg-[#111214] shrink-0">
+
+      {/* -- Reply banner -- */}
+      {replyTo && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#18191d] border-b border-[#2a2c33]">
+          <Reply size={12} className="text-[#a855f7] shrink-0"/>
+          <div className="flex-1 min-w-0">
+            <p className="font-mono text-[10px] text-[#a855f7] mb-0.5">
+              Replying to {replyTo.senderId==='me' ? 'yourself' : PEOPLE.find(p=>p.id===replyTo.senderId)?.name ?? 'someone'}
+            </p>
+            <p className="font-mono text-[11px] text-[#6b7280] truncate">{replyTo.text}</p>
+          </div>
+          <button onClick={onClearReply} className="text-[#6b7280] hover:text-[#e8eaf0]"><X size={12}/></button>
+        </div>
+      )}
+
+      {/* -------------- TERMINAL PANEL -------------- */}
+      {showTerminal && (
+        <div className="mx-4 mt-3 bg-[#0d0f0f] border border-[#2a2c33] rounded-xl overflow-hidden"
+          style={{animation:'fadeIn 0.15s ease'}}>
+          {/* Terminal header */}
+          <div className="flex items-center justify-between px-3 py-2 bg-[#18191d] border-b border-[#2a2c33]">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-[#ef4444] cursor-pointer" onClick={()=>setShowTerminal(false)}/>
+                <div className="w-3 h-3 rounded-full bg-[#f59e0b]"/>
+                <div className="w-3 h-3 rounded-full bg-[#10b981]"/>
+              </div>
+              <span className="font-mono text-[11px] text-[#6b7280] ml-1">devtalk — bash</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleSendTerminalOutput} className="font-mono text-[10px] text-[#a855f7] hover:text-[#c084fc] px-2 py-0.5 rounded border border-[rgba(168,85,247,0.3)] hover:border-[rgba(168,85,247,0.5)] transition-colors">
+                Send output
+              </button>
+              <button onClick={()=>setShowTerminal(false)} className="text-[#6b7280] hover:text-[#e8eaf0]"><X size={13}/></button>
+            </div>
+          </div>
+
+          {/* Terminal output */}
+          <div className="h-44 overflow-y-auto px-3 py-2 font-mono text-[12px] leading-relaxed">
+            {termLines.map((line,i) => (
+              <div key={i} className={
+                line.type==='input'  ? 'text-[#a855f7]' :
+                line.type==='error'  ? 'text-[#ef4444]' :
+                line.type==='info'   ? 'text-[#6b7280] italic' :
+                'text-[#10b981]'
+              }>
+                {line.type==='input' && <span className="text-[#6b7280]">$ </span>}
+                {line.text}
+              </div>
+            ))}
+            <div ref={termBottomRef}/>
+          </div>
+
+          {/* Terminal input */}
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-[#1e2026]">
+            <span className="font-mono text-[12px] text-[#a855f7] shrink-0">$</span>
+            <input
+              ref={termInputRef}
+              autoFocus
+              type="text"
+              value={termInput}
+              onChange={e=>setTermInput(e.target.value)}
+              onKeyDown={handleTermKey}
+              placeholder="type a command..."
+              className="flex-1 bg-transparent border-none outline-none font-mono text-[12px] text-[#e8eaf0] placeholder-[#33363f] caret-[#a855f7]"
+            />
+            <button onClick={runTermCmd} className="font-mono text-[10px] text-[#6b7280] hover:text-[#e8eaf0] transition-colors">?</button>
+          </div>
+        </div>
+      )}
+
+      {/* -------------- VOICE RECORDING -------------- */}
+      {voiceState !== 'idle' && (
+        <div className="mx-4 mt-3 bg-[#18191d] border border-[#2a2c33] rounded-xl overflow-hidden"
+          style={{animation:'fadeIn 0.15s ease'}}>
+          <div className="flex items-center gap-3 px-4 py-3">
+            {/* Waveform visual */}
+            <div className="flex items-center gap-0.5 h-8">
+              {Array.from({length:20}).map((_,i)=>(
+                <div key={i}
+                  className="w-1 rounded-full bg-[#a855f7]"
+                  style={{
+                    height: voiceState==='recording' ? `${Math.random()*24+4}px` : '8px',
+                    opacity: voiceState==='recording' ? 1 : 0.4,
+                    animation: voiceState==='recording' ? `waveBar 0.6s ${i*0.05}s ease-in-out infinite alternate` : 'none',
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex-1">
+              <p className="text-[12px] font-semibold">
+                {voiceState==='recording' ? '? Recording…' : 'Voice message ready'}
+              </p>
+              <p className="font-mono text-[10.5px] text-[#6b7280]">{fmtTime(voiceSeconds)}</p>
+            </div>
+            {voiceState==='preview' && voiceBlob && (
+              <audio controls src={URL.createObjectURL(voiceBlob)} className="h-8 w-40" style={{filter:'invert(0.8)'}}/>
+            )}
+            <div className="flex items-center gap-1.5">
+              {voiceState==='recording'
+                ? <button onClick={stopVoice}
+                    className="w-8 h-8 bg-[#ef4444] rounded-full flex items-center justify-center text-white">
+                    <div className="w-3 h-3 bg-white rounded-sm"/>
+                  </button>
+                : <button onClick={sendVoice}
+                    className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all">
+                    <Send size={12}/> Send
+                  </button>
+              }
+              <button onClick={cancelVoice} className="w-8 h-8 bg-[#1e2026] border border-[#2a2c33] rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#ef4444]">
+                <Trash2 size={13}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------- VIDEO RECORDING -------------- */}
+      {videoState !== 'idle' && (
+        <div className="mx-4 mt-3 bg-[#0d0f0f] border border-[#2a2c33] rounded-xl overflow-hidden"
+          style={{animation:'fadeIn 0.15s ease'}}>
+          {/* Video header */}
+          <div className="flex items-center justify-between px-3 py-2 bg-[#18191d] border-b border-[#2a2c33]">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#ef4444] animate-pulse"/>
+              <span className="font-mono text-[11px] text-[#9ca3af]">
+                {videoState==='preview' ? 'Camera preview' : videoState==='recording' ? `Recording ${fmtTime(videoSeconds)}` : 'Video ready'}
+              </span>
+            </div>
+            <button onClick={cancelVideo} className="text-[#6b7280] hover:text-[#e8eaf0]"><X size={13}/></button>
+          </div>
+
+          {/* Video viewport */}
+          <div className="relative bg-black" style={{height:'200px'}}>
+            {(videoState==='preview' || videoState==='recording') && (
+              <video ref={liveVideoRef} autoPlay muted playsInline
+                className="w-full h-full object-cover"
+                style={{transform:'scaleX(-1)'}}/>
+            )}
+            {videoState==='done' && (
+              <video ref={previewVideoRef} controls
+                className="w-full h-full object-cover"/>
+            )}
+            {videoState==='recording' && (
+              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 px-2 py-1 rounded-lg">
+                <div className="w-2 h-2 rounded-full bg-[#ef4444] animate-pulse"/>
+                <span className="font-mono text-[10px] text-white">{fmtTime(videoSeconds)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Video controls */}
+          <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#18191d]">
+            {videoState==='preview' && (
+              <button onClick={startVideoRecord}
+                className="flex items-center gap-1.5 bg-[#ef4444] hover:bg-red-500 text-white text-[12.5px] font-semibold px-5 py-2 rounded-xl transition-all">
+                <div className="w-3 h-3 rounded-full bg-white"/> Start Recording
+              </button>
+            )}
+            {videoState==='recording' && (
+              <button onClick={stopVideoRecord}
+                className="flex items-center gap-1.5 bg-[#ef4444] hover:bg-red-500 text-white text-[12.5px] font-semibold px-5 py-2 rounded-xl transition-all">
+                <div className="w-3 h-3 bg-white rounded-sm"/> Stop
+              </button>
+            )}
+            {videoState==='done' && (
+              <button onClick={sendVideo}
+                className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12.5px] font-semibold px-5 py-2 rounded-xl transition-all">
+                <Send size={13}/> Send Video
+              </button>
+            )}
+            <button onClick={cancelVideo}
+              className="flex items-center gap-1.5 bg-[#1e2026] border border-[#2a2c33] text-[#9ca3af] hover:text-[#ef4444] text-[12.5px] font-semibold px-4 py-2 rounded-xl transition-all">
+              <X size={13}/> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* -------------- MAIN EDITOR BOX -------------- */}
+      <div className="mx-4 my-3 bg-[#1e2026] border border-[#2a2c33] focus-within:border-[#7c3aed] rounded-xl overflow-visible transition-colors relative">
+
+        {/* Top formatting toolbar */}
+        <div className="flex items-center gap-0.5 px-3 py-2 border-b border-[#2a2c33] flex-wrap">
+          <ToolbarBtn active={formats.has('bold')}   onClick={()=>applyFormatToSelection('bold')}   title="Bold"><span className="text-[13px] font-bold leading-none">B</span></ToolbarBtn>
+          <ToolbarBtn active={formats.has('italic')} onClick={()=>applyFormatToSelection('italic')} title="Italic"><span className="text-[13px] italic leading-none">I</span></ToolbarBtn>
+          <ToolbarBtn active={formats.has('strike')} onClick={()=>applyFormatToSelection('strike')} title="Strikethrough"><span className="text-[13px] line-through leading-none">S</span></ToolbarBtn>
+
+          <div className="w-px h-4 bg-[#2a2c33] mx-1"/>
+
+          <ToolbarBtn onClick={handleInsertLink} title="Insert link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </ToolbarBtn>
+
+          <div className="w-px h-4 bg-[#2a2c33] mx-1"/>
+
+          <ToolbarBtn active={isList==='bullet'}  onClick={()=>setIsList(p=>p==='bullet'?null:'bullet')}   title="Bullet list">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/>
+              <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+          </ToolbarBtn>
+          <ToolbarBtn active={isList==='ordered'} onClick={()=>setIsList(p=>p==='ordered'?null:'ordered')} title="Ordered list">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
+              <path d="M4 6h1v4" strokeWidth="1.5"/><line x1="3" y1="10" x2="5" y2="10" strokeWidth="1.5"/>
+              <path d="M3 14h2l-2 2h2" strokeWidth="1.5"/>
+            </svg>
+          </ToolbarBtn>
+
+          <div className="w-px h-4 bg-[#2a2c33] mx-1"/>
+
+          <ToolbarBtn active={isQuote} onClick={()=>setIsQuote(p=>!p)} title="Block quote">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/>
+              <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>
+            </svg>
+          </ToolbarBtn>
+          <ToolbarBtn active={isCode} onClick={()=>setIsCode(p=>!p)} title="Inline code">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+            </svg>
+          </ToolbarBtn>
+          <ToolbarBtn active={isCmd} onClick={()=>setIsCmd(p=>!p)} title="Code block">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </ToolbarBtn>
+
+          {/* -- TERMINAL button in top toolbar -- */}
+          <div className="w-px h-4 bg-[#2a2c33] mx-1"/>
+          <ToolbarBtn active={showTerminal} onClick={()=>setShowTerminal(p=>!p)} title="Open terminal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+          </ToolbarBtn>
+        </div>
+
+        {/* Textarea area */}
+        <div className="relative">
+          {(formats.size>0||isCode||isQuote||isCmd||isList) && (
+            <div className="flex gap-1 px-3 pt-2 flex-wrap">
+              {formats.has('bold')   && <FormatBadge>bold</FormatBadge>}
+              {formats.has('italic') && <FormatBadge>italic</FormatBadge>}
+              {formats.has('strike') && <FormatBadge>strike</FormatBadge>}
+              {isCode  && <FormatBadge>code</FormatBadge>}
+              {isQuote && <FormatBadge>quote</FormatBadge>}
+              {isCmd   && <FormatBadge>codeblock</FormatBadge>}
+              {isList  && <FormatBadge>{isList} list</FormatBadge>}
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={e=>setText(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={'Message ' + convName + '...'}
+            className={`w-full bg-transparent border-none outline-none text-[#e8eaf0] text-[13px] placeholder-[#6b7280] resize-none leading-relaxed px-3 py-3
+              ${formats.has('bold') ? 'font-bold' : ''}
+              ${formats.has('italic') ? 'italic' : ''}
+              ${isCode||isCmd ? 'font-mono' : ''}`}
+            style={{ minHeight:'44px', maxHeight:'140px' }}
+          />
+          {/* @mention dropdown */}
+          {showMention && filteredPeople.length>0 && (
+            <div className="absolute bottom-full left-3 mb-1 bg-[#1a1b1f] border border-[#33363f] rounded-xl overflow-hidden shadow-2xl z-20 w-56">
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[#6b7280] px-3 pt-2 pb-1">Mention</p>
+              {filteredPeople.map(p=>(
+                <button key={p.id} onClick={()=>insertMention(p.name)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[#252629] transition-colors text-left">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{background:p.color}}>{p.avatar}</div>
+                  <div>
+                    <p className="text-[12px] font-semibold">{p.name}</p>
+                    <p className="font-mono text-[9px] text-[#6b7280]">{p.role}</p>
+                  </div>
+                  <div className="ml-auto w-2 h-2 rounded-full shrink-0" style={{background:STATUS_COLOR[p.status]}}/>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom toolbar */}
+        <div className="flex items-center gap-1 px-3 py-2 border-t border-[#2a2c33]">
+          <ToolbarBtn onClick={()=>{}} title="Attach file"><Plus size={15}/></ToolbarBtn>
+
+          <div className="w-px h-4 bg-[#2a2c33] mx-0.5"/>
+
+          {/* Emoji */}
+          <div className="relative" ref={emojiRef}>
+            <ToolbarBtn active={showEmoji} onClick={()=>setShowEmoji(p=>!p)} title="Emoji"><Smile size={15}/></ToolbarBtn>
+            {showEmoji && (
+              <div className="absolute bottom-full left-0 mb-2 bg-[#1a1b1f] border border-[#33363f] rounded-xl p-3 shadow-2xl z-20 w-[292px]">
+                <p className="font-mono text-[9px] uppercase tracking-widest text-[#6b7280] mb-2">Emoji</p>
+                <div className="grid grid-cols-8 gap-1 max-h-[180px] overflow-y-auto">
+                  {EMOJI_LIST.map(e=>(
+                    <button key={e} onClick={()=>insertEmoji(e)}
+                      className="w-8 h-8 flex items-center justify-center text-[18px] hover:bg-[#252629] rounded-lg transition-colors">{e}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Mention */}
+          <ToolbarBtn onClick={()=>{setText(p=>p+'@'); textareaRef.current?.focus();}} title="Mention someone"><AtSign size={15}/></ToolbarBtn>
+
+          {/* Video */}
+          <ToolbarBtn
+            active={videoState!=='idle'}
+            onClick={()=>{ if(videoState==='idle') openCamera(); else cancelVideo(); }}
+            title="Record video clip"
+          >
+            <Video size={15}/>
+          </ToolbarBtn>
+
+          {/* Voice */}
+          <ToolbarBtn
+            active={voiceState!=='idle'}
+            onClick={()=>{ if(voiceState==='idle') startVoice(); else if(voiceState==='recording') stopVoice(); }}
+            title={voiceState==='idle'?'Record voice message':voiceState==='recording'?'Stop recording':'Voice preview'}
+          >
+            <Mic size={15} className={voiceState==='recording'?'text-[#ef4444]':''}/>
+          </ToolbarBtn>
+
+          <div className="flex-1"/>
+
+          {/* Send */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={()=>{
+                if(!hasContent) return;
+                onSend(buildFinalText());
+                setText(''); setFormats(new Set()); setIsList(null);
+                setIsCode(false); setIsQuote(false); setIsCmd(false);
+              }}
+              disabled={!hasContent}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-l-lg text-[12.5px] font-semibold transition-all
+                ${hasContent?'bg-[#7c3aed] hover:bg-[#a855f7] text-white':'bg-[#1a1b1f] text-[#33363f] cursor-not-allowed'}`}>
+              <Send size={13}/> Send
+            </button>
+            <button className={`flex items-center justify-center px-1.5 py-1.5 rounded-r-lg border-l transition-all
+              ${hasContent?'bg-[#7c3aed] hover:bg-[#a855f7] text-white border-[#6d28d9]':'bg-[#1a1b1f] text-[#33363f] border-[#2a2c33] cursor-not-allowed'}`}
+              title="Send options">
+              <ChevronDown size={13}/>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p className="font-mono text-[9.5px] text-[#33363f] text-center pb-2">
+        Enter to send · Shift+Enter for new line · @ to mention · &gt;_ for terminal
+      </p>
+
+      <style>{`
+        @keyframes waveBar { from{transform:scaleY(0.3)} to{transform:scaleY(1)} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
+    </div>
+  );
+}
+
+// -- Format badge --------------------------------------------------------------
+function FormatBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[rgba(124,58,237,0.2)] text-[#c084fc] border border-[rgba(124,58,237,0.3)]">
+      {children}
+    </span>
+  );
+}
+
+// -- Toolbar button ------------------------------------------------------------
+function ToolbarBtn({ children, onClick, active, title }: {
+  children: React.ReactNode; onClick: () => void; active?: boolean; title?: string;
+}) {
+  return (
+    <button onClick={onClick} title={title}
+      className={`w-7 h-7 flex items-center justify-center rounded-md transition-all
+        ${active?'bg-[rgba(124,58,237,0.2)] text-[#c084fc]':'text-[#6b7280] hover:text-[#e8eaf0] hover:bg-[#2a2c33]'}`}>
+      {children}
+    </button>
+  );
+}
+
+

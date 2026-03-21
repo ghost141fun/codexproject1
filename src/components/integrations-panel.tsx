@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import {
-  LayoutGrid, CheckCircle2, MessageSquare, Database,
-  BarChart2, Users, Code2, Search, Plus, X, Check,
-  Zap, ChevronRight, Star, Sparkles,
+  LayoutGrid, CheckCircle2, MessageSquare, Database, BarChart2,
+  Users, Code2, Search, Plus, X, Check, Zap, ChevronRight, Star,
+  Sparkles, Bell, RefreshCw, Link2, Shield, ToggleLeft, ToggleRight,
+  Calendar, Clock, Download, Upload, Settings2, ExternalLink, FileSpreadsheet,
+  Palette, Video, CheckSquare, BookOpen, PenLine,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -26,20 +28,108 @@ interface CustomTemplate {
   featured?: boolean; badge?: string;
 }
 
+interface ProdFeature {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  settingKey: string;
+  type: 'toggle' | 'select';
+  options?: string[];
+  default: boolean | string;
+}
+
+// ── Productivity feature definitions ──────────────────────────────────────────
+const PROD_FEATURES: Record<string, ProdFeature[]> = {
+  'Microsoft Excel': [
+    { icon: <Upload size={14}/>,          title: 'Auto-push reports',       desc: 'Automatically push DevTalk summaries to your workbook daily.',        settingKey:'autoPush',      type:'toggle', default:false },
+    { icon: <Download size={14}/>,        title: 'Import on connect',       desc: 'Pull latest rows from your sheet when a channel is opened.',           settingKey:'importOnLoad',  type:'toggle', default:true  },
+    { icon: <RefreshCw size={14}/>,       title: 'Sync interval',           desc: 'How often to sync data between DevTalk and Excel.',                    settingKey:'syncInterval',  type:'select', options:['5 min','15 min','30 min','1 hour'], default:'15 min' },
+    { icon: <Bell size={14}/>,            title: 'Change notifications',    desc: 'Notify the channel when the workbook is edited by a collaborator.',    settingKey:'changeNotifs',  type:'toggle', default:true  },
+    { icon: <Shield size={14}/>,          title: 'Read-only mode',          desc: 'Prevent DevTalk from writing back to the workbook.',                   settingKey:'readOnly',      type:'toggle', default:false },
+    { icon: <FileSpreadsheet size={14}/>, title: 'Embed sheet previews',    desc: 'Show a live table preview when a workbook is linked in a message.',    settingKey:'embedPreview',  type:'toggle', default:true  },
+  ],
+  'Figma': [
+    { icon: <ExternalLink size={14}/>,    title: 'Inline file preview',     desc: 'Render a Figma frame thumbnail when a file URL is pasted.',            settingKey:'inlinePreview', type:'toggle', default:true  },
+    { icon: <Bell size={14}/>,            title: 'Comment notifications',   desc: 'Post a message when someone adds a comment on a linked file.',         settingKey:'commentNotifs', type:'toggle', default:true  },
+    { icon: <RefreshCw size={14}/>,       title: 'Version alerts',          desc: 'Notify the channel when a new Figma version is published.',            settingKey:'versionAlerts', type:'toggle', default:false },
+    { icon: <Link2 size={14}/>,           title: 'Auto-link detection',     desc: 'Automatically detect and expand Figma URLs in any channel.',           settingKey:'autoLink',      type:'toggle', default:true  },
+    { icon: <Palette size={14}/>,         title: 'Default frame size',      desc: 'Choose the thumbnail size shown in previews.',                         settingKey:'frameSize',     type:'select', options:['Small','Medium','Large'], default:'Medium' },
+  ],
+  'Loom': [
+    { icon: <Video size={14}/>,           title: 'Inline video player',     desc: 'Embed a playable Loom video directly inside messages.',                settingKey:'inlinePlayer',  type:'toggle', default:true  },
+    { icon: <BookOpen size={14}/>,        title: 'Auto-transcript',         desc: 'Attach an AI-generated transcript below each shared recording.',       settingKey:'autoTranscript',type:'toggle', default:true  },
+    { icon: <Bell size={14}/>,            title: 'View notifications',      desc: 'Notify you when someone watches your shared Loom.',                    settingKey:'viewNotifs',    type:'toggle', default:false },
+    { icon: <Clock size={14}/>,           title: 'Chapter summaries',       desc: 'Show AI chapter timestamps below the video for quick navigation.',     settingKey:'chapters',      type:'toggle', default:true  },
+    { icon: <Download size={14}/>,        title: 'Download transcript',     desc: 'Allow members to download the transcript as a .txt file.',             settingKey:'downloadTxt',   type:'toggle', default:false },
+  ],
+  'Google Calendar': [
+    { icon: <Calendar size={14}/>,        title: 'Meeting reminders',       desc: 'Post a message 10 minutes before a calendar event starts.',            settingKey:'meetingReminders',type:'toggle', default:true  },
+    { icon: <Plus size={14}/>,            title: 'Create from messages',    desc: 'Turn any DevTalk message into a calendar event with /event.',          settingKey:'createFromMsg', type:'toggle', default:true  },
+    { icon: <RefreshCw size={14}/>,       title: 'Sync frequency',          desc: 'How often to refresh your calendar feed.',                             settingKey:'syncFreq',      type:'select', options:['1 min','5 min','15 min'], default:'5 min' },
+    { icon: <Bell size={14}/>,            title: 'Daily agenda digest',     desc: 'Post your day\'s meetings to a private DM every morning.',             settingKey:'dailyDigest',   type:'toggle', default:false },
+    { icon: <Link2 size={14}/>,           title: 'Auto-join links',         desc: 'Detect Google Meet / Zoom links and surface a join button.',           settingKey:'autoJoin',      type:'toggle', default:true  },
+  ],
+  'Asana': [
+    { icon: <CheckSquare size={14}/>,     title: 'Task creation shortcuts', desc: 'Use /task in any channel to create an Asana task instantly.',          settingKey:'taskShortcut',  type:'toggle', default:true  },
+    { icon: <Bell size={14}/>,            title: 'Task update alerts',      desc: 'Notify the channel when an Asana task is completed or reassigned.',    settingKey:'taskAlerts',    type:'toggle', default:true  },
+    { icon: <Link2 size={14}/>,           title: 'URL unfurl',              desc: 'Expand Asana task URLs into rich previews with status and assignee.',  settingKey:'urlUnfurl',     type:'toggle', default:true  },
+    { icon: <RefreshCw size={14}/>,       title: 'Project sync',            desc: 'Mirror a DevTalk channel to an Asana project.',                       settingKey:'projectSync',   type:'toggle', default:false },
+    { icon: <Calendar size={14}/>,        title: 'Due date reminders',      desc: 'DM assignees 24 hours before a task is due.',                         settingKey:'dueDateDm',     type:'toggle', default:true  },
+  ],
+  'Grammarly': [
+    { icon: <PenLine size={14}/>,         title: 'Inline suggestions',      desc: 'Show grammar and spelling fixes as you type in any channel.',          settingKey:'inlineSuggest', type:'toggle', default:true  },
+    { icon: <Bell size={14}/>,            title: 'Tone detector',           desc: 'Warn you if a message sounds too aggressive or unclear.',              settingKey:'toneDetector',  type:'toggle', default:true  },
+    { icon: <Shield size={14}/>,          title: 'Clarity score',           desc: 'Display a readability score before you send long messages.',           settingKey:'clarityScore',  type:'toggle', default:false },
+    { icon: <RefreshCw size={14}/>,       title: 'Auto-correct',            desc: 'Automatically fix common typos without a confirmation prompt.',        settingKey:'autoCorrect',   type:'toggle', default:false },
+    { icon: <BookOpen size={14}/>,        title: 'Vocabulary suggestions',  desc: 'Suggest stronger or more precise word choices.',                       settingKey:'vocabSuggest',  type:'toggle', default:true  },
+  ],
+  'Microsoft To Do': [
+    { icon: <Plus size={14}/>,            title: 'Message to task',         desc: 'Right-click any message to instantly create a To Do task.',            settingKey:'msgToTask',     type:'toggle', default:true  },
+    { icon: <Bell size={14}/>,            title: 'Due reminders',           desc: 'Send a DM when a task assigned to you is due.',                        settingKey:'dueReminder',   type:'toggle', default:true  },
+    { icon: <RefreshCw size={14}/>,       title: 'Sync interval',           desc: 'How often to sync your To Do lists with DevTalk.',                     settingKey:'syncInterval',  type:'select', options:['Real-time','5 min','30 min'], default:'Real-time' },
+    { icon: <CheckSquare size={14}/>,     title: 'Completion notifications',desc: 'Notify the channel when a shared task is completed.',                  settingKey:'completeNotif', type:'toggle', default:false },
+    { icon: <Link2 size={14}/>,           title: 'Shared list access',      desc: 'Allow channel members to view and edit linked To Do lists.',           settingKey:'sharedAccess',  type:'toggle', default:true  },
+  ],
+  'Miro': [
+    { icon: <ExternalLink size={14}/>,    title: 'Board embed',             desc: 'Show a live Miro board preview when a board URL is shared.',           settingKey:'boardEmbed',    type:'toggle', default:true  },
+    { icon: <Bell size={14}/>,            title: 'Edit notifications',      desc: 'Post a message when a collaborator edits a linked board.',             settingKey:'editNotifs',    type:'toggle', default:false },
+    { icon: <Plus size={14}/>,            title: 'Create board shortcut',   desc: 'Use /miro in any channel to create a new board instantly.',            settingKey:'createShortcut',type:'toggle', default:true  },
+    { icon: <Palette size={14}/>,         title: 'Embed resolution',        desc: 'Quality of the embedded board thumbnail.',                             settingKey:'embedRes',      type:'select', options:['Low','Medium','High'], default:'Medium' },
+    { icon: <Shield size={14}/>,          title: 'View-only embeds',        desc: 'Prevent editing directly from the DevTalk embed.',                     settingKey:'viewOnlyEmbed', type:'toggle', default:true  },
+  ],
+};
+
+// ── Default features for any productivity card without a specific config ──────
+const DEFAULT_PROD_FEATURES: ProdFeature[] = [
+  { icon: <Bell size={14}/>,     title: 'Notifications',    desc: 'Receive alerts for important events from this integration.',  settingKey:'notifications', type:'toggle', default:true  },
+  { icon: <RefreshCw size={14}/>,title: 'Auto-sync',        desc: 'Keep data in sync automatically at a regular interval.',      settingKey:'autoSync',      type:'toggle', default:false },
+  { icon: <Link2 size={14}/>,    title: 'URL unfurling',    desc: 'Expand links from this service into rich previews.',          settingKey:'urlUnfurl',     type:'toggle', default:true  },
+  { icon: <Shield size={14}/>,   title: 'Read-only mode',   desc: 'Prevent DevTalk from writing data back to this service.',     settingKey:'readOnly',      type:'toggle', default:false },
+];
+
 // ── Built-in integrations ──────────────────────────────────────────────────────
 const INITIAL_INTEGRATIONS: Integration[] = [
-  { id:1,  name:'Slack',        emoji:'💬', bg:'#4A154B', category:'communication', connected:true,  desc:'Send alerts and notifications to Slack channels in real-time.',     tags:['messaging','alerts'],   fields:[{label:'Webhook URL',           placeholder:'https://hooks.slack.com/...'}],                                                                                       glow:'rgba(74,21,75,0.35)'    },
-  { id:2,  name:'GitHub',       emoji:'🐙', bg:'#161b22', category:'devtools',      connected:true,  desc:'Sync repos, trigger workflows, and track pull requests.',           tags:['git','ci/cd'],          fields:[{label:'Personal Access Token', placeholder:'ghp_...'},{label:'Organization',placeholder:'your-org'}],                                                             glow:'rgba(36,41,47,0.35)'    },
-  { id:3,  name:'Google Drive', emoji:'📁', bg:'#1a73e8', category:'storage',       connected:true,  desc:'Read and write files directly from your Drive.',                   tags:['files','sync'],         fields:[{label:'OAuth Client ID',       placeholder:'xxxx.apps.googleusercontent.com'}],                                                                                  glow:'rgba(26,115,232,0.35)'  },
-  { id:4,  name:'Amplitude',    emoji:'📊', bg:'#1f1135', category:'analytics',     connected:true,  desc:'Track product analytics and funnel conversions.',                  tags:['analytics','events'],   fields:[{label:'API Key',               placeholder:'your-api-key'},{label:'Secret Key',placeholder:'your-secret-key'}],                                                    glow:'rgba(31,17,53,0.35)'    },
-  { id:5,  name:'Notion',       emoji:'📝', bg:'#2f2f2f', category:'storage',       connected:false, desc:'Create and sync pages, databases, and documents.',                 tags:['docs','wiki'],          fields:[{label:'Integration Token',     placeholder:'secret_...'}],                                                                                                       glow:'rgba(47,47,47,0.35)'    },
-  { id:6,  name:'Salesforce',   emoji:'☁️', bg:'#00a1e0', category:'crm',           connected:false, desc:'Sync leads, contacts, and opportunities from your CRM.',           tags:['crm','leads'],          fields:[{label:'Client ID',placeholder:''},{label:'Client Secret',placeholder:''},{label:'Instance URL',placeholder:'https://your-domain.salesforce.com'}],               glow:'rgba(0,161,224,0.25)'   },
-  { id:7,  name:'Stripe',       emoji:'💳', bg:'#6772e5', category:'analytics',     connected:false, desc:'Monitor payments, subscriptions, and revenue metrics.',            tags:['payments','billing'],   fields:[{label:'Secret Key',            placeholder:'sk_live_...'},{label:'Webhook Secret',placeholder:'whsec_...'}],                                                      glow:'rgba(103,114,229,0.25)' },
-  { id:8,  name:'Jira',         emoji:'🔵', bg:'#0052cc', category:'devtools',      connected:false, desc:'Track issues, sprints, and project milestones.',                   tags:['tickets','agile'],      fields:[{label:'Domain',                placeholder:'your-org.atlassian.net'},{label:'API Token',placeholder:''}],                                                          glow:'rgba(0,82,204,0.25)'    },
-  { id:9,  name:'HubSpot',      emoji:'🧲', bg:'#ff5c35', category:'crm',           connected:false, desc:'Manage contacts, deals, and marketing pipelines.',                 tags:['crm','marketing'],      fields:[{label:'Access Token',          placeholder:'pat-na1-...'}],                                                                                                      glow:'rgba(255,92,53,0.25)'   },
-  { id:10, name:'Datadog',      emoji:'🐶', bg:'#632ca6', category:'analytics',     connected:false, desc:'Monitor infrastructure, logs, and APM traces.',                    tags:['monitoring','logs'],    fields:[{label:'API Key',placeholder:''},{label:'App Key',placeholder:''}],                                                                                               glow:'rgba(99,44,166,0.25)'   },
-  { id:11, name:'Twilio',       emoji:'📱', bg:'#f22f46', category:'communication', connected:false, desc:'Send SMS, calls, and WhatsApp messages programmatically.',          tags:['sms','calls'],          fields:[{label:'Account SID',           placeholder:'ACxxxxxxxxxxxxxxxx'},{label:'Auth Token',placeholder:''}],                                                             glow:'rgba(242,47,70,0.25)'   },
-  { id:12, name:'AWS S3',       emoji:'🪣', bg:'#232f3e', category:'storage',       connected:false, desc:'Store and retrieve objects from S3 buckets.',                      tags:['cloud','files'],        fields:[{label:'Access Key ID',         placeholder:'AKIAXXXXXXXXXXXXXXXX'},{label:'Secret Access Key',placeholder:''},{label:'Bucket',placeholder:'my-bucket'}],           glow:'rgba(35,47,62,0.35)'    },
+  { id:1,  name:'Slack',            emoji:'\u{1F4AC}', bg:'#4A154B', category:'communication', connected:true,  desc:'Send alerts and notifications to Slack channels in real-time.',                                                                    tags:['messaging','alerts'],            fields:[{label:'Webhook URL',placeholder:'https://hooks.slack.com/...'}],                                                                                                                                          glow:'rgba(74,21,75,0.35)'     },
+  { id:2,  name:'GitHub',           emoji:'\u{1F419}', bg:'#161b22', category:'devtools',      connected:true,  desc:'Sync repos, trigger workflows, and track pull requests.',                                                                          tags:['git','ci/cd'],                   fields:[{label:'Personal Access Token',placeholder:'ghp_...'},{label:'Organization',placeholder:'your-org'}],                                                                                                        glow:'rgba(36,41,47,0.35)'     },
+  { id:3,  name:'Google Drive',     emoji:'\u{1F4C1}', bg:'#1a73e8', category:'storage',       connected:true,  desc:'Read and write files directly from your Drive.',                                                                                   tags:['files','sync'],                  fields:[{label:'OAuth Client ID',placeholder:'xxxx.apps.googleusercontent.com'}],                                                                                                                                  glow:'rgba(26,115,232,0.35)'   },
+  { id:4,  name:'Amplitude',        emoji:'\u{1F4CA}', bg:'#1f1135', category:'analytics',     connected:true,  desc:'Track product analytics and funnel conversions.',                                                                                  tags:['analytics','events'],            fields:[{label:'API Key',placeholder:'your-api-key'},{label:'Secret Key',placeholder:'your-secret-key'}],                                                                                                            glow:'rgba(31,17,53,0.35)'     },
+  { id:5,  name:'Notion',           emoji:'\u{1F4DD}', bg:'#2f2f2f', category:'storage',       connected:false, desc:'Create and sync pages, databases, and documents.',                                                                                 tags:['docs','wiki'],                   fields:[{label:'Integration Token',placeholder:'secret_...'}],                                                                                                                                                    glow:'rgba(47,47,47,0.35)'     },
+  { id:6,  name:'Salesforce',       emoji:'\u2601\uFE0F',bg:'#00a1e0',category:'crm',          connected:false, desc:'Sync leads, contacts, and opportunities from your CRM.',                                                                           tags:['crm','leads'],                   fields:[{label:'Client ID',placeholder:''},{label:'Client Secret',placeholder:''},{label:'Instance URL',placeholder:'https://your-domain.salesforce.com'}],                                                           glow:'rgba(0,161,224,0.25)'    },
+  { id:7,  name:'Stripe',           emoji:'\u{1F4B3}', bg:'#6772e5', category:'analytics',     connected:false, desc:'Monitor payments, subscriptions, and revenue metrics.',                                                                            tags:['payments','billing'],            fields:[{label:'Secret Key',placeholder:'sk_live_...'},{label:'Webhook Secret',placeholder:'whsec_...'}],                                                                                                            glow:'rgba(103,114,229,0.25)'  },
+  { id:8,  name:'Jira',             emoji:'\u{1F535}', bg:'#0052cc', category:'devtools',      connected:false, desc:'Track issues, sprints, and project milestones.',                                                                                   tags:['tickets','agile'],               fields:[{label:'Domain',placeholder:'your-org.atlassian.net'},{label:'API Token',placeholder:''}],                                                                                                                    glow:'rgba(0,82,204,0.25)'     },
+  { id:9,  name:'HubSpot',          emoji:'\u{1F9F2}', bg:'#ff5c35', category:'crm',           connected:false, desc:'Manage contacts, deals, and marketing pipelines.',                                                                                 tags:['crm','marketing'],               fields:[{label:'Access Token',placeholder:'pat-na1-...'}],                                                                                                                                                        glow:'rgba(255,92,53,0.25)'    },
+  { id:10, name:'Datadog',          emoji:'\u{1F436}', bg:'#632ca6', category:'analytics',     connected:false, desc:'Monitor infrastructure, logs, and APM traces.',                                                                                    tags:['monitoring','logs'],             fields:[{label:'API Key',placeholder:''},{label:'App Key',placeholder:''}],                                                                                                                                        glow:'rgba(99,44,166,0.25)'    },
+  { id:11, name:'Twilio',           emoji:'\u{1F4F1}', bg:'#f22f46', category:'communication', connected:false, desc:'Send SMS, calls, and WhatsApp messages programmatically.',                                                                         tags:['sms','calls'],                   fields:[{label:'Account SID',placeholder:'ACxxxxxxxxxxxxxxxx'},{label:'Auth Token',placeholder:''}],                                                                                                                  glow:'rgba(242,47,70,0.25)'    },
+  { id:12, name:'AWS S3',           emoji:'\u{1FAA3}', bg:'#232f3e', category:'storage',       connected:false, desc:'Store and retrieve objects from S3 buckets.',                                                                                      tags:['cloud','files'],                 fields:[{label:'Access Key ID',placeholder:'AKIAXXXXXXXXXXXXXXXX'},{label:'Secret Access Key',placeholder:''},{label:'Bucket',placeholder:'my-bucket'}],                                                               glow:'rgba(35,47,62,0.35)'     },
+  // ── Productivity ──
+  { id:13, name:'Microsoft Excel',  emoji:'\u{1F4D7}', bg:'#1D6F42', category:'productivity',  connected:false, desc:'Import, export, and sync Excel spreadsheets. Auto-generate reports and push live data from DevTalk directly into your workbooks.',  tags:['spreadsheet','reports','xlsx'],  fields:[{label:'Microsoft Account Email',placeholder:'you@company.com'},{label:'OneDrive Folder Path',placeholder:'/Documents/Reports'},{label:'Target Workbook',placeholder:'devtalk-data.xlsx'},{label:'Sheet Name',placeholder:'Sheet1'}],        glow:'rgba(29,111,66,0.4)'     },
+  { id:14, name:'Figma',            emoji:'\u{1F3A8}', bg:'#1E1E1E', category:'productivity',  connected:false, desc:'Link Figma files, share design previews, inspect components, and post prototype comments inside any DevTalk channel.',             tags:['design','ui/ux','prototypes'],   fields:[{label:'Personal Access Token',placeholder:'figd_xxxxxxxxxxxx'},{label:'Team ID',placeholder:'your-figma-team-id'}],                                                                                           glow:'rgba(162,89,255,0.35)'   },
+  { id:15, name:'Loom',             emoji:'\u{1F3A5}', bg:'#625DF5', category:'productivity',  connected:false, desc:'Share Loom recordings inline with instant previews, auto-transcripts, and AI-generated chapter summaries.',                        tags:['video','async','recordings'],    fields:[{label:'API Key',placeholder:'your-loom-api-key'}],                                                                                                                                                        glow:'rgba(98,93,245,0.35)'    },
+  { id:16, name:'Google Calendar',  emoji:'\u{1F4C5}', bg:'#4285F4', category:'productivity',  connected:false, desc:'Create events, set reminders, and sync meetings from DevTalk channels directly to your Google Calendar.',                          tags:['calendar','meetings','events'],  fields:[{label:'OAuth Client ID',placeholder:'xxxx.apps.googleusercontent.com'},{label:'OAuth Client Secret',placeholder:'GOCSPX-...'}],                                                                           glow:'rgba(66,133,244,0.35)'   },
+  { id:17, name:'Asana',            emoji:'\u{1F5C2}\uFE0F',bg:'#F06A6A',category:'productivity',connected:false,desc:'Create tasks, assign owners, set due dates, and track project progress without leaving DevTalk.',                                tags:['tasks','projects','teams'],      fields:[{label:'Personal Access Token',placeholder:'1/xxxxxxxxxxxxxxxxxx'},{label:'Workspace ID',placeholder:'your-workspace-id'}],                                                                                  glow:'rgba(240,106,106,0.35)'  },
+  { id:18, name:'Grammarly',        emoji:'\u270D\uFE0F',bg:'#15C39A', category:'productivity', connected:false, desc:'Instantly check grammar, tone, and clarity for all messages written in DevTalk before you hit send.',                             tags:['writing','grammar','ai'],        fields:[{label:'API Key',placeholder:'grammarly-api-key'}],                                                                                                                                                        glow:'rgba(21,195,154,0.35)'   },
+  { id:19, name:'Microsoft To Do',  emoji:'\u2705',    bg:'#2564CF', category:'productivity',  connected:false, desc:'Turn DevTalk messages into To Do tasks instantly. Sync lists, set reminders, and track personal and team to-dos.',                 tags:['tasks','todo','microsoft'],      fields:[{label:'Microsoft Account Email',placeholder:'you@outlook.com'},{label:'Default List',placeholder:'DevTalk Tasks'}],                                                                                       glow:'rgba(37,100,207,0.35)'   },
+  { id:20, name:'Miro',             emoji:'\u{1F5BC}\uFE0F',bg:'#FFD02F',category:'productivity',connected:false,desc:'Embed Miro boards and whiteboards inline in channels. Brainstorm, diagram, and plan visually with your team.',                  tags:['whiteboard','diagrams','visual'],fields:[{label:'Access Token',placeholder:'your-miro-access-token'},{label:'Team ID',placeholder:'your-miro-team-id'}],                                                                      glow:'rgba(255,208,47,0.22)'   },
 ];
 
 // ── Custom templates ───────────────────────────────────────────────────────────
@@ -174,6 +264,11 @@ export function IntegrationsPanel() {
   const [showBlankForm,    setShowBlankForm]    = useState(false);
   const [blankForm, setBlankForm] = useState({ name:'', emoji:'🔌', bg:'#374151', desc:'', tags:'', webhookUrl:'', apiKey:'', secret:'' });
 
+  // Productivity Drawer
+  const [drawerId, setDrawerId] = useState<number | null>(null);
+  const [drawerSettings, setDrawerSettings] = useState<Record<string, any>>({});
+  const drawerItem = integrations.find(i => i.id === drawerId) ?? null;
+
   const connectedCount = integrations.filter(i => i.connected).length;
   const availableCount = integrations.length - connectedCount;
 
@@ -203,12 +298,36 @@ export function IntegrationsPanel() {
   function handleAction(id: number) {
     const item = integrations.find(i => i.id === id)!;
     if (item.connected) {
-      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected:false } : i));
-      showToast(`${item.name} disconnected`);
+      if (item.category === 'productivity') {
+        openDrawer(id);
+      } else {
+        setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected:false } : i));
+        showToast(`${item.name} disconnected`);
+      }
     } else {
       setFieldValues({});
       setModalId(id);
     }
+  }
+
+  function openDrawer(id: number) {
+    const item = integrations.find(i => i.id === id)!;
+    const features = PROD_FEATURES[item.name] || DEFAULT_PROD_FEATURES;
+    const defaults: Record<string, any> = {};
+    features.forEach(f => defaults[f.settingKey] = f.default);
+    setDrawerSettings(defaults);
+    setDrawerId(id);
+  }
+
+  function toggleDrawerSetting(key: string) {
+    setDrawerSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function disconnectFromDrawer() {
+    if (!drawerItem) return;
+    setIntegrations(prev => prev.map(i => i.id === drawerItem.id ? { ...i, connected:false } : i));
+    showToast(`${drawerItem.name} disconnected`);
+    setDrawerId(null);
   }
 
   function confirmConnect() {
@@ -572,7 +691,111 @@ export function IntegrationsPanel() {
           from { transform: translateY(18px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
         }
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to   { transform: translateX(0); }
+        }
       `}</style>
+
+      {/* ── Productivity Drawer ── */}
+      {drawerItem && (
+        <div className="fixed inset-0 z-[200] flex justify-end"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if(e.target === e.currentTarget) setDrawerId(null); }}>
+          <div className="w-[500px] h-full bg-[#111214] border-l border-[#2a2c33] shadow-2xl flex flex-col overflow-hidden"
+            style={{ animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+
+            {/* drawer header */}
+            <div className="p-6 border-b border-[#2a2c33] flex items-center justify-between shrink-0"
+              style={{ background: `linear-gradient(to bottom right, ${drawerItem.glow.replace('0.35','0.15')}, transparent)` }}>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg shrink-0" style={{ background:drawerItem.bg }}>{drawerItem.emoji}</div>
+                <div>
+                  <h2 className="text-[20px] font-bold tracking-tight">{drawerItem.name}</h2>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shadow-[0_0_5px_#10b981]" />
+                    <span className="font-mono text-[11px] text-[#10b981] font-semibold uppercase tracking-wider">Connected</span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setDrawerId(null)} className="w-9 h-9 bg-[#18191d] border border-[#2a2c33] rounded-xl text-[#6b7280] hover:text-[#e8eaf0] flex items-center justify-center transition-colors"><X size={18} /></button>
+            </div>
+
+            {/* drawer scroll area */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              {/* about */}
+              <div>
+                <h3 className="font-mono text-[11px] uppercase tracking-widest text-[#6b7280] mb-3">About Integration</h3>
+                <p className="font-mono text-[13px] text-[#9ca3af] leading-relaxed italic">"{drawerItem.desc}"</p>
+                <div className="flex gap-2 mt-4 flex-wrap">
+                  {drawerItem.tags.map(t => <span key={t} className="font-mono text-[10px] px-2 py-1 rounded-full bg-[#18191d] text-[#6b7280] border border-[#2a2c33]">{t}</span>)}
+                </div>
+              </div>
+
+              {/* features & settings */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-mono text-[11px] uppercase tracking-widest text-[#6b7280]">Advanced Features</h3>
+                  <Sparkles size={12} className="text-[#a855f7]" />
+                </div>
+                <div className="space-y-3">
+                  {(PROD_FEATURES[drawerItem.name] || DEFAULT_PROD_FEATURES).map(feat => (
+                    <div key={feat.settingKey} className="group bg-[#18191d] border border-[#2a2c33] hover:border-[#33363f] p-4 rounded-xl transition-all">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-[#111214] border border-[#2a2c33] flex items-center justify-center text-[#a855f7] shrink-0 group-hover:scale-110 transition-transform">
+                            {feat.icon}
+                          </div>
+                          <div>
+                            <p className="text-[13.5px] font-bold text-[#e8eaf0]">{feat.title}</p>
+                            <p className="font-mono text-[11px] text-[#6b7280] leading-snug mt-1">{feat.desc}</p>
+                          </div>
+                        </div>
+                        {feat.type === 'toggle' ? (
+                          <button onClick={() => toggleDrawerSetting(feat.settingKey)}
+                            className={`shrink-0 transition-colors ${drawerSettings[feat.settingKey] ? 'text-[#7c3aed]' : 'text-[#33363f]'}`}>
+                            {drawerSettings[feat.settingKey] ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                          </button>
+                        ) : (
+                          <div className="relative group/sel">
+                            <select value={drawerSettings[feat.settingKey]}
+                               onChange={e => setDrawerSettings(p => ({...p, [feat.settingKey]: e.target.value}))}
+                               className="bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[11px] rounded-lg px-3 py-1.5 pr-8 appearance-none outline-none focus:border-[#7c3aed]">
+                               {feat.options?.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                            <ChevronRight size={10} className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-[#6b7280] pointer-events-none" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* danger zone */}
+              <div className="pt-4 mt-4 border-t border-[#2a2c33]">
+                <h3 className="font-mono text-[11px] uppercase tracking-widest text-[#ef4444] mb-4">Danger Zone</h3>
+                <button onClick={disconnectFromDrawer}
+                  className="w-full flex items-center justify-between p-4 bg-[rgba(239,68,68,0.05)] border border-[rgba(239,68,68,0.1)] hover:bg-[rgba(239,68,68,0.1)] hover:border-[rgba(239,68,68,0.2)] rounded-xl group transition-all">
+                  <div className="text-left">
+                    <p className="text-[13px] font-bold text-[#ef4444]">Disconnect Integration</p>
+                    <p className="font-mono text-[10.5px] text-[#6b7280] mt-0.5">Remove this app and all its settings.</p>
+                  </div>
+                  <X size={16} className="text-[#ef4444] opacity-40 group-hover:opacity-100 transition-opacity" />
+                </button>
+              </div>
+            </div>
+
+            {/* drawer footer */}
+            <div className="p-6 border-t border-[#2a2c33] bg-[#18191d] shrink-0">
+               <button onClick={() => { showToast('Settings saved successfully!'); setDrawerId(null); }}
+                  className="w-full bg-[#111214] border border-[#2a2c33] hover:border-[#7c3aed] text-[#e8eaf0] font-bold text-[14px] py-3 rounded-xl transition-all active:scale-[0.98]">
+                  Save Configuration
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

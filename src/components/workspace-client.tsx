@@ -19,7 +19,10 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { IntegrationsPanel } from '@/components/integrations-panel';
-
+import ActivityPage from '@/components/activity-panel';
+import { DMPage } from '@/components/dm-panel';
+import { ProfilePage } from '@/components/profile-panel';
+import { AddMenu } from '@/components/add-menu';
 interface WorkspaceClientProps {
   user: any;
   channels: any[];
@@ -107,19 +110,8 @@ function HuddleHub({ channels, user, onStart }: { channels: any[]; user: any; on
   );
 }
 
-function ActivityView() {
-  return (
-    <div className="flex-1 flex flex-col bg-[#1a1d21] overflow-y-auto">
-      <div className="px-8 py-6 border-b border-white/[0.07]">
-        <h1 className="text-[20px] font-bold text-white flex items-center gap-2"><Bell className="w-5 h-5" /> Activity</h1>
-      </div>
-      <div className="flex-1 flex items-center justify-center flex-col gap-3 text-[#b9babd]">
-        <Bell className="w-10 h-10 opacity-20" />
-        <p className="text-sm">No recent activity</p>
-      </div>
-    </div>
-  );
-}
+  // Replaced ActivityView with imported ActivityPage
+
 
 function FilesView({ files, category, searchQuery, onDelete }: {
   files: any[]; category: string; searchQuery: string; onDelete: (file: any) => void;
@@ -278,7 +270,7 @@ function DmChatView({ activeDm }: { activeDm: any }) {
 }
 
 export function WorkspaceClient({ user, channels: initialChannels, directMessages, files: initialFiles }: WorkspaceClientProps) {
-  const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile'>('home');
   const [channels, setChannels] = useState(initialChannels);
   const [activeId, setActiveId] = useState(initialChannels[0]?.id ?? '');
   const [activeType, setActiveType] = useState<'channel' | 'dm'>('channel');
@@ -294,6 +286,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   const [huddleChannelId, setHuddleChannelId] = useState<string | null>(null);
   const [huddleChannelName, setHuddleChannelName] = useState<string | null>(null);
   const [activeHuddles, setActiveHuddles] = useState<{ channelId: string; channelName: string }[]>([]);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
   const supabase = createClient();
 
@@ -366,7 +359,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   const renderSidebar = () => {
     switch (activeView) {
       case 'dms':
-        return <DmSidebar directMessages={directMessages} activeDm={activeDm} setActiveDm={handleSelectDm} onSelect={handleSelectChannel} />;
+        return null; // DMPage has its own sidebar
       case 'files':
         return (
           <FilesSidebar
@@ -400,8 +393,9 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
 
   const renderMain = () => {
     if (activeView === 'huddles' && !isHuddleActive) return <HuddleHub channels={channels} user={user} onStart={handleStartHuddle} />;
-    if (activeView === 'activity') return <ActivityView />;
+    if (activeView === 'activity') return <ActivityPage />;
     if (activeView === 'integrations') return <IntegrationsPanel />;
+    if (activeView === 'profile') return <ProfilePage />;
     if (activeView === 'files') return (
       <div className="flex-1 flex flex-col relative min-h-0">
         {isUploading && (
@@ -416,7 +410,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       </div>
     );
 
-    if (activeView === 'dms') return <DmChatView activeDm={activeDm} />;
+    if (activeView === 'dms') return <DMPage />;
 
     // ── Home / channel view ──
     return (
@@ -481,11 +475,16 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
 
   return (
     <div className="flex h-screen bg-[#1a1d21] overflow-hidden">
-      <SideRail activeView={activeView} onViewChange={setActiveView} />
+      <SideRail 
+        activeView={activeView} 
+        onViewChange={setActiveView} 
+        onOpenAddMenu={() => setIsAddMenuOpen(true)}
+      />
       {renderSidebar()}
       <main className="flex flex-col flex-1 min-w-0 relative overflow-hidden">
         {renderMain()}
       </main>
+      {isAddMenuOpen && <AddMenu onClose={() => setIsAddMenuOpen(false)} />}
       <Toaster />
     </div>
   );
