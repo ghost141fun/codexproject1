@@ -393,9 +393,9 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
 
   const renderMain = () => {
     if (activeView === 'huddles' && !isHuddleActive) return <HuddleHub channels={channels} user={user} onStart={handleStartHuddle} />;
-    if (activeView === 'activity') return <ActivityPage />;
+    if (activeView === 'activity') return <ActivityPage user={user} />;
     if (activeView === 'integrations') return <IntegrationsPanel />;
-    if (activeView === 'profile') return <ProfilePage />;
+    if (activeView === 'profile') return <ProfilePage user={user} />;
     if (activeView === 'files') return (
       <div className="flex-1 flex flex-col relative min-h-0">
         {isUploading && (
@@ -410,7 +410,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       </div>
     );
 
-    if (activeView === 'dms') return <DMPage />;
+    if (activeView === 'dms') return <DMPage user={user} />;
 
     // ── Home / channel view ──
     return (

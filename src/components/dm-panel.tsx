@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search, Plus, Phone, Video, MoreHorizontal, Pin, Trash2, X, Check,
   CheckCheck, Circle, Mic, Image, FileText, Bell, BellOff, Edit3, Reply,
-  MessageSquare,
+  MessageSquare, Loader2
 } from 'lucide-react';
 import { RichTextEditor, type Person, type ReplyTarget, type SentMessage } from '@/components/chat/rich-text-editor';
+import { useAuth } from '@/database';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
@@ -44,13 +45,13 @@ interface Conversation {
 // ── Seed people ───────────────────────────────────────────────────────────────
 const ME: Person = { id: 'me', name: 'You', avatar: 'YO', color: '#7c3aed', status: 'online', role: 'Developer' };
 const PEOPLE: Person[] = [
-  { id: 'p1', name: 'Arjun Sharma', avatar: 'AS', color: '#7c3aed', status: 'online', role: 'Product Manager', bio: 'Building great products one sprint at a time.' },
-  { id: 'p2', name: 'Priya Nair', avatar: 'PN', color: '#10b981', status: 'online', role: 'Backend Engineer', bio: 'Rust + Go enthusiast. Coffee first.' },
-  { id: 'p3', name: 'Meera Das', avatar: 'MD', color: '#f59e0b', status: 'away', role: 'UX Designer', bio: 'Pixels and prototypes.' },
-  { id: 'p4', name: 'Ravi Kumar', avatar: 'RK', color: '#3b82f6', status: 'busy', role: 'DevOps Engineer', bio: 'If it deploys, it ships.' },
-  { id: 'p5', name: 'Sneha Rao', avatar: 'SR', color: '#ec4899', status: 'offline', role: 'Frontend Engineer', bio: 'React + Tailwind = home.' },
-  { id: 'p6', name: 'Kabir Singh', avatar: 'KS', color: '#06b6d4', status: 'online', role: 'Data Analyst', bio: 'Numbers tell stories.' },
-  { id: 'p7', name: 'Divya Menon', avatar: 'DM', color: '#8b5cf6', status: 'away', role: 'QA Engineer', bio: 'Finding bugs before they find you.' },
+  { id: 'p1', name: 'Arjun Sharma', avatar: 'AS', color: '#7c3aed', status: 'online', role: 'Product Manager' },
+  { id: 'p2', name: 'Priya Nair', avatar: 'PN', color: '#10b981', status: 'online', role: 'Backend Engineer' },
+  { id: 'p3', name: 'Meera Das', avatar: 'MD', color: '#f59e0b', status: 'away', role: 'UX Designer' },
+  { id: 'p4', name: 'Ravi Kumar', avatar: 'RK', color: '#3b82f6', status: 'busy', role: 'DevOps Engineer' },
+  { id: 'p5', name: 'Sneha Rao', avatar: 'SR', color: '#ec4899', status: 'offline', role: 'Frontend Engineer' },
+  { id: 'p6', name: 'Kabir Singh', avatar: 'KS', color: '#06b6d4', status: 'online', role: 'Data Analyst' },
+  { id: 'p7', name: 'Divya Menon', avatar: 'DM', color: '#8b5cf6', status: 'away', role: 'QA Engineer' },
 ];
 
 const STATUS_COLOR: Record<UserStatus, string> = {
@@ -61,58 +62,8 @@ const STATUS_LABEL: Record<UserStatus, string> = {
   online: 'Online', away: 'Away', busy: 'Do not disturb', offline: 'Offline',
 };
 
-// ── Seed conversations ─────────────────────────────────────────────────────────
-function seedConversations(): Conversation[] {
-  const ago = (m: number) => new Date(Date.now() - m * 60_000);
-  return [
-    {
-      id: 'c1', isGroup: false, unread: 2, pinned: true, muted: false,
-      participants: [PEOPLE[0]],
-      messages: [
-        { id: 'm1', senderId: 'p1', text: 'Hey! Did you get a chance to look at the new onboarding mockups?', timestamp: ago(62), status: 'read', reactions: [] },
-        { id: 'm2', senderId: 'me', text: 'Just opened them — the flow looks much cleaner now. Love the progress indicator on step 3.', timestamp: ago(58), status: 'read', reactions: [{ emoji: '❤️', users: ['p1'] }] },
-        { id: 'm3', senderId: 'p1', text: 'Glad you like it! One thing — can we move the "Skip" button to the top right? Users keep missing it.', timestamp: ago(55), status: 'read', reactions: [] },
-        { id: 'm4', senderId: 'me', text: "Totally agree. I'll update the Figma file and share the link in #design-review.", timestamp: ago(40), status: 'read', reactions: [{ emoji: '👍', users: ['p1'] }] },
-        { id: 'm5', senderId: 'p1', text: 'Perfect. Also, the 3pm standup — are we still on?', timestamp: ago(8), status: 'delivered', reactions: [] },
-        { id: 'm6', senderId: 'p1', text: "Can you review the PR before then? It's a small change but I want eyes on it.", timestamp: ago(4), status: 'delivered', reactions: [] },
-      ],
-    },
-    {
-      id: 'c2', isGroup: false, unread: 0, pinned: true, muted: false,
-      participants: [PEOPLE[1]],
-      messages: [
-        { id: 'm7', senderId: 'p2', text: 'The Redis cache fix is merged. Latency dropped by 40% on the /messages endpoint.', timestamp: ago(125), status: 'read', reactions: [{ emoji: '🔥', users: ['me'] }] },
-        { id: 'm8', senderId: 'me', text: "That's huge! Great work Priya 🎉", timestamp: ago(120), status: 'read', reactions: [] },
-        { id: 'm9', senderId: 'p2', text: "Thanks! Next up — the WebSocket reconnect logic. That one's trickier.", timestamp: ago(118), status: 'read', reactions: [] },
-        { id: 'm10', senderId: 'me', text: 'Let me know if you need a second pair of eyes.', timestamp: ago(115), status: 'read', reactions: [{ emoji: '👍', users: ['p2'] }] },
-        { id: 'm11', senderId: 'p2', text: "Will do. Sharing my screen at 4pm if you're free?", timestamp: ago(30), status: 'read', reactions: [] },
-      ],
-    },
-    {
-      id: 'c3', isGroup: false, unread: 1, pinned: false, muted: false,
-      participants: [PEOPLE[2]],
-      messages: [
-        { id: 'm12', senderId: 'p3', text: 'Hey, the Figma handoff for sprint 14 is done! Let me know if anything looks off.', timestamp: ago(200), status: 'read', reactions: [] },
-        { id: 'm13', senderId: 'me', text: 'Just checked it, looks clean. Only one thing — the button radius on mobile cards is 6px but the DS says 8px.', timestamp: ago(190), status: 'read', reactions: [] },
-        { id: 'm14', senderId: 'p3', text: 'Oops good catch! Fixing now...', timestamp: ago(185), status: 'read', reactions: [] },
-        { id: 'm15', senderId: 'p3', text: 'Updated! Can you check once more?', timestamp: ago(45), status: 'delivered', reactions: [] },
-      ],
-    },
-    {
-      id: 'c4', isGroup: true, groupName: 'Sprint 15 Team', unread: 5, pinned: false, muted: false,
-      participants: [PEOPLE[0], PEOPLE[1], PEOPLE[3]],
-      messages: [
-        { id: 'm16', senderId: 'p1', text: 'Morning team! Quick update: the sprint planning doc is in Notion. Please add your estimates by EOD.', timestamp: ago(480), status: 'read', reactions: [] },
-        { id: 'm17', senderId: 'p4', text: 'On it. Also heads up — the staging env was down earlier, all good now.', timestamp: ago(470), status: 'read', reactions: [{ emoji: '👍', users: ['p1', 'me'] }] },
-        { id: 'm18', senderId: 'me', text: '@Ravi nice catch. I noticed the deploy took 3x longer too — worth investigating?', timestamp: ago(460), status: 'read', reactions: [] },
-        { id: 'm19', senderId: 'p4', text: "Yeah the pipeline has a stale lock file issue. I'll open a ticket.", timestamp: ago(455), status: 'read', reactions: [] },
-        { id: 'm20', senderId: 'p1', text: "Let's sync at the standup. See everyone at 3pm!", timestamp: ago(20), status: 'delivered', reactions: [] },
-        { id: 'm21', senderId: 'p4', text: '👋', timestamp: ago(18), status: 'delivered', reactions: [] },
-        { id: 'm22', senderId: 'p1', text: 'Also — anyone free for a quick call before that?', timestamp: ago(5), status: 'delivered', reactions: [] },
-      ],
-    },
-  ];
-}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function timeLabel(d: Date): string {
@@ -150,9 +101,11 @@ function getLastMsg(c: Conversation): Message | undefined {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export function DMPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
-  const [activeId, setActiveId] = useState<string | null>('c1');
+export function DMPage({ user }: { user: any }) {
+  const { supabase } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQ, setSearchQ] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -161,10 +114,170 @@ export function DMPage() {
   const [showProfile, setShowProfile] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
   const [dmSearch, setDmSearch] = useState('');
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const fetchMessages = useCallback(async (convId: string) => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from('direct_messages')
+      .select('*')
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching messages:', error);
+      return;
+    }
+
+    const formatted: Message[] = (data || []).map((m: any) => ({
+      id: m.id,
+      senderId: m.sender_id,
+      text: m.content,
+      timestamp: new Date(m.created_at),
+      status: 'sent',
+      reactions: [],
+      edited: !!m.edited_at
+    }));
+
+    setConversations(prev => prev.map(c => 
+      c.id === convId ? { ...c, messages: formatted } : c
+    ));
+  }, [supabase]);
+
+  const fetchAllUsers = useCallback(async () => {
+    if (!supabase || !user) return [];
+    const { data } = await supabase
+      .from('users')
+      .select('id, display_name, username, email, avatar_gradient, status, role')
+      .neq('id', user.id); // exclude self
+    return data || [];
+  }, [supabase, user]);
+
+  async function startConversation(otherUserId: string) {
+    if (!supabase || !user) return;
+
+    // Check if conversation already exists
+    const { data: existing } = await supabase
+      .from('direct_message_conversations')
+      .select('id')
+      .or(
+        `and(user1_id.eq.${user.id},user2_id.eq.${otherUserId}),and(user1_id.eq.${otherUserId},user2_id.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    let convId = existing?.id;
+
+    if (!convId) {
+      // Create new conversation
+      const { data: newConv } = await supabase
+        .from('direct_message_conversations')
+        .insert({ user1_id: user.id, user2_id: otherUserId })
+        .select('id')
+        .single();
+      convId = newConv?.id;
+    }
+
+    if (convId) {
+      setShowNewDM(false);
+      await fetchConversations(); // refresh list
+      setActiveId(convId);
+      fetchMessages(convId);
+    }
+  }
+
+  const fetchConversations = useCallback(async () => {
+    if (!user || !supabase) return;
+
+    const { data, error } = await supabase
+      .from('direct_message_conversations')
+      .select(`
+        *,
+        user1:user1_id(id, display_name, username, avatar_gradient, role, status),
+        user2:user2_id(id, display_name, username, avatar_gradient, role, status)
+      `)
+      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching conversations:', error);
+      return;
+    }
+
+    const formatted: Conversation[] = (data || []).map((c: any) => {
+      const otherUser = c.user1_id === user.id ? c.user2 : c.user1;
+      return {
+        id: c.id,
+        isGroup: false,
+        unread: 0,
+        pinned: false,
+        muted: false,
+        participants: [{
+          id: otherUser.id,
+          name: otherUser.display_name || otherUser.username,
+          avatar: (otherUser.display_name || otherUser.username || 'U')[0].toUpperCase(),
+          color: otherUser.avatar_gradient || '#7c3aed',
+          status: (otherUser.status || 'offline') as UserStatus,
+          role: otherUser.role || ''
+        }],
+        messages: []
+      };
+    });
+
+    setConversations(formatted);
+    setIsLoading(false);
+    if (formatted.length > 0 && !activeId) {
+      setActiveId(formatted[0].id);
+      fetchMessages(formatted[0].id);
+    }
+  }, [user, supabase, activeId, fetchMessages]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (activeId && supabase) {
+      fetchMessages(activeId);
+
+      const channel = supabase
+        .channel(`messages:${activeId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+          filter: `conversation_id=eq.${activeId}`
+        }, () => {
+          fetchMessages(activeId);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [activeId, fetchMessages, supabase]);
+
+  useEffect(() => {
+    if (showNewDM) console.log('Current user ID:', user?.id);
+  }, [showNewDM, user?.id]);
+
+  useEffect(() => {
+    if (!showNewDM || !supabase || !user) return;
+    
+    supabase
+      .from('users')
+      .select('id, display_name, username, email, avatar_gradient, status, role')
+      .neq('id', user.id)
+      .then(({ data, error }) => {
+        if (error) console.error('Error fetching users:', error.message);
+        else setAllUsers(data || []);
+      });
+  }, [showNewDM, supabase, user]);
 
   const active = conversations.find(c => c.id === activeId) ?? null;
   const person = active && !active.isGroup ? active.participants[0] : null;
@@ -199,34 +312,44 @@ export function DMPage() {
     return () => clearInterval(t);
   }, [activeId]);
 
-  function handleSend(msg: SentMessage) {
-    if (!activeId) return;
-    const newMsg: Message = {
-      id: msg.id,
-      senderId: 'me',
+  async function handleSend(msg: SentMessage) {
+    if (!activeId || !user || !supabase) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg: Message = {
+      id: tempId,
+      senderId: user.id,
       text: msg.formattedText || msg.text,
-      timestamp: msg.timestamp,
+      timestamp: new Date(),
       status: 'sending',
       reactions: [],
-      replyTo: replyTo?.id,
-      attachmentType: msg.attachmentType,
-      attachmentName: msg.attachmentName,
-      attachmentUrl: msg.attachmentUrl,
     };
 
+    // Optimistically add message immediately
     setConversations(prev => prev.map(c =>
-      c.id === activeId ? { ...c, messages: [...c.messages, newMsg] } : c
+      c.id === activeId ? { ...c, messages: [...c.messages, tempMsg] } : c
     ));
-    setReplyTo(null);
 
-    // Simulate sent status
-    setTimeout(() => {
+    const { error } = await supabase
+      .from('direct_messages')
+      .insert({
+        conversation_id: activeId,
+        sender_id: user.id,
+        content: msg.formattedText || msg.text,
+      });
+
+    if (error) {
+      console.error('Error sending message:', error);
+      // Remove temp message on failure
       setConversations(prev => prev.map(c =>
-        c.id === activeId
-          ? { ...c, messages: c.messages.map(m => m.id === msg.id ? { ...m, status: 'sent' } : m) }
-          : c
+        c.id === activeId ? { ...c, messages: c.messages.filter(m => m.id !== tempId) } : c
       ));
-    }, 1000);
+      return;
+    }
+
+    // Replace temp with real data
+    await fetchMessages(activeId);
+    setReplyTo(null);
   }
 
   function deleteMsg(msgId: string) {
@@ -314,15 +437,28 @@ export function DMPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-2">
-          {filtered
+        <div className="flex-1 overflow-y-auto py-2 custom-scrollbar">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-40 opacity-40">
+              <Loader2 className="w-5 h-5 animate-spin mb-2" />
+              <p className="text-[10px] font-mono tracking-tighter uppercase">Initializing secure line...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 opacity-20 px-6 text-center">
+              <MessageSquare className="w-8 h-8 mb-2 mx-auto" />
+              <p className="text-[10px] font-mono tracking-tighter uppercase">No conversations found</p>
+            </div>
+          ) : filtered
             .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
             .map(conv => {
               const last = getLastMsg(conv);
-              const isMine = last?.senderId === 'me';
+              const isMine = last?.senderId === user.id;
               return (
                 <div key={conv.id}
-                  onClick={() => setActiveId(conv.id)}
+                  onClick={() => {
+                    setActiveId(conv.id);
+                    fetchMessages(conv.id);
+                  }}
                   className={`group relative flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all
                     ${activeId === conv.id ? 'bg-[rgba(124,58,237,0.15)] border-r-2 border-[#7c3aed]' : 'hover:bg-[#18191d]'}`}>
                   <div className="relative shrink-0">
@@ -385,8 +521,9 @@ export function DMPage() {
                   <div className="flex-1 h-px bg-[#1e2026]" />
                 </div>
                 {items.map((msg, idx) => {
-                  const isMine = msg.senderId === 'me';
-                  const sender = isMine ? ME : (active.participants.find(p => p.id === msg.senderId) ?? PEOPLE[0]);
+                  const isMine = msg.senderId === user.id;
+                  const senderP = active.participants.find(p => p.id === msg.senderId);
+                  const sender = isMine ? { name: 'You', avatar: 'YO', color: '#7c3aed' } : (senderP ?? PEOPLE[0]);
                   const sameAuthor = idx > 0 && items[idx - 1].senderId === msg.senderId;
                   const replyMsg = msg.replyTo ? active.messages.find(m => m.id === msg.replyTo) : null;
 
@@ -503,36 +640,56 @@ export function DMPage() {
         </div>
       )}
 
-      {/* Profile Sidebar */}
-      {showProfile && active && (
-        <div className="w-[300px] shrink-0 border-l border-[#2a2c33] bg-[#111214] flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
-          <div className="p-4 border-b border-[#2a2c33] flex items-center justify-between">
-            <h3 className="text-[14px] font-bold">User Information</h3>
-            <button onClick={() => setShowProfile(false)} className="text-[#6b7280] hover:text-[#e8eaf0]"><X size={16}/></button>
-          </div>
-          <div className="p-6 flex flex-col items-center border-b border-[#2a2c33]">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center text-[32px] font-bold text-white mb-4 shadow-2xl"
-              style={{ background: getConvColor(active) }}>{getConvAvatar(active)}</div>
-            <p className="text-[18px] font-bold">{getConvName(active)}</p>
-            {person && <p className="text-[13px] text-[#a855f7] font-semibold mt-1">{person.role}</p>}
-            <div className="flex gap-3 mt-5">
-              <button className="w-10 h-10 rounded-xl bg-[#1e2026] border border-[#2a2c33] flex items-center justify-center hover:border-[#7c3aed] transition-colors"><Phone size={16}/></button>
-              <button className="w-10 h-10 rounded-xl bg-[#1e2026] border border-[#2a2c33] flex items-center justify-center hover:border-[#7c3aed] transition-colors"><Video size={16}/></button>
-              <button className="w-10 h-10 rounded-xl bg-[#1e2026] border border-[#2a2c33] flex items-center justify-center hover:border-[#7c3aed] transition-colors"><Bell size={16}/></button>
+      {showNewDM && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowNewDM(false); }}>
+          <div className="bg-[#16171b] border border-[#2a2c33] rounded-2xl w-[420px] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2c33]">
+              <p className="text-[15px] font-bold">New Direct Message</p>
+              <button onClick={() => setShowNewDM(false)}
+                className="w-7 h-7 bg-[#1e2026] border border-[#2a2c33] rounded-lg flex items-center justify-center text-[#6b7280] hover:text-white transition-colors">
+                <X size={14}/>
+              </button>
             </div>
-          </div>
-          <div className="p-5 space-y-6 flex-1 overflow-y-auto">
-            {person?.bio && (
-              <div>
-                <p className="text-[10px] font-mono text-[#33363f] uppercase tracking-widest mb-1.5">About</p>
-                <p className="text-[12.5px] text-[#9ca3af] leading-relaxed italic">"{person.bio}"</p>
+            <div className="p-4">
+              <div className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] rounded-lg px-3 py-2 mb-3 focus-within:border-[#7c3aed] transition-colors">
+                <Search size={13} className="text-[#6b7280] shrink-0"/>
+                <input autoFocus type="text" placeholder="Search people by name or email..."
+                  value={dmSearch} onChange={e => setDmSearch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[#e8eaf0] text-[13px] w-full placeholder-[#6b7280]"/>
               </div>
-            )}
-            <div>
-              <p className="text-[10px] font-mono text-[#33363f] uppercase tracking-widest mb-1.5">Status</p>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#1e2026]/50 border border-[#2a2c33]">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: person ? STATUS_COLOR[person.status] : '#6b7280' }}/>
-                <span className="text-[12px] font-semibold">{person ? STATUS_LABEL[person.status] : 'Offline'}</span>
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                {allUsers
+                  .filter(u => !dmSearch ||
+                    (u.display_name || u.username || '').toLowerCase().includes(dmSearch.toLowerCase()) ||
+                    u.email?.toLowerCase().includes(dmSearch.toLowerCase())
+                  )
+                  .map(u => (
+                    <button key={u.id} onClick={() => startConversation(u.id)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1e2026] transition-colors text-left">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0"
+                        style={{ background: u.avatar_gradient || '#7c3aed' }}>
+                        {(u.display_name || u.username || 'U')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-[#e8eaf0] truncate">
+                          {u.display_name || u.username}
+                        </p>
+                        <p className="font-mono text-[11px] text-[#6b7280] truncate">{u.email}</p>
+                      </div>
+                      <div className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: u.status === 'online' ? '#10b981' : '#6b7280' }}/>
+                    </button>
+                  ))
+                }
+                {allUsers.filter(u => !dmSearch ||
+                  (u.display_name || u.username || '').toLowerCase().includes(dmSearch.toLowerCase()) ||
+                  u.email?.toLowerCase().includes(dmSearch.toLowerCase())
+                ).length === 0 && (
+                  <div className="text-center py-8 text-[#6b7280]">
+                    <p className="text-[13px]">No users found</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,66 +1,53 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Camera, Edit3, Check, X, Bell, BellOff, Shield,
+  Camera, Edit3, Check, X, Bell, Shield,
   LogOut, Trash2, ChevronRight, Moon, Sun, Monitor,
-  Link2, Twitter, Github, Globe, Copy, CheckCheck,
-  MessageSquare, Hash, Users, Clock, TrendingUp,
-  Settings, Eye, EyeOff, Upload, Palette, Zap,
-  Lock, Key, Smartphone, AlertTriangle, Star,
-  Activity, Calendar, ArrowRight, Plus, Minus,
+  Twitter, Github, Globe, Copy, CheckCheck,
+  MessageSquare, Hash, Users, TrendingUp,
+  Eye, EyeOff, Upload, Palette,
+  Lock, AlertTriangle, Minus, QrCode, Loader2,
 } from 'lucide-react';
+import { useAuth } from '@/database';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-type Status      = 'online' | 'away' | 'busy' | 'offline';
-type ThemeMode   = 'dark' | 'light' | 'system';
-type ActiveTab   = 'profile' | 'account' | 'notifications' | 'appearance' | 'privacy';
+type Status    = 'online' | 'away' | 'busy' | 'offline';
+type ThemeMode = 'dark' | 'light' | 'system';
+type ActiveTab = 'profile' | 'account' | 'notifications' | 'appearance' | 'privacy';
 
 interface UserProfile {
-  name:        string;
-  displayName: string;
-  username:    string;
-  email:       string;
-  bio:         string;
-  role:        string;
-  status:      Status;
-  timezone:    string;
-  website:     string;
-  twitter:     string;
-  github:      string;
-  joinedDate:  string;
+  name: string; displayName: string; username: string; email: string;
+  bio: string; role: string; status: Status; timezone: string;
+  website: string; twitter: string; github: string; joinedDate: string;
   avatarGradient: string;
 }
 
-// ── Status config ──────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string; pulse?: boolean }> = {
-  online:  { label:'Online',           color:'#10b981', bg:'rgba(16,185,129,0.15)',  pulse:true  },
-  away:    { label:'Away',             color:'#f59e0b', bg:'rgba(245,158,11,0.15)'              },
-  busy:    { label:'Do Not Disturb',   color:'#ef4444', bg:'rgba(239,68,68,0.15)'               },
-  offline: { label:'Appear Offline',   color:'#6b7280', bg:'rgba(107,114,128,0.15)'             },
+  online:  { label:'Online',         color:'#10b981', bg:'rgba(16,185,129,0.15)', pulse:true },
+  away:    { label:'Away',           color:'#f59e0b', bg:'rgba(245,158,11,0.15)'             },
+  busy:    { label:'Do Not Disturb', color:'#ef4444', bg:'rgba(239,68,68,0.15)'              },
+  offline: { label:'Appear Offline', color:'#6b7280', bg:'rgba(107,114,128,0.15)'            },
 };
 
-// ── Mock activity data ─────────────────────────────────────────────────────────
 const ACTIVITY_DAYS = Array.from({ length: 52 }, (_, week) =>
   Array.from({ length: 7 }, (_, day) => ({
-    week, day,
-    count: Math.random() > 0.35 ? Math.floor(Math.random() * 12) : 0,
+    week, day, count: Math.random() > 0.35 ? Math.floor(Math.random() * 12) : 0,
   }))
 ).flat();
 
 const RECENT_ACTIVITY = [
-  { type:'message', text:'Sent 47 messages in #design-review',         time:'2h ago',   icon:'💬' },
-  { type:'channel', text:'Joined #q4-planning channel',                time:'5h ago',   icon:'#'  },
-  { type:'file',    text:'Shared sprint-14-handoff.fig in #product',   time:'Yesterday',icon:'📎' },
-  { type:'mention', text:'Mentioned in #backend-infra by Priya Nair',  time:'Yesterday',icon:'@'  },
-  { type:'react',   text:'Reacted to 12 messages this week',           time:'3d ago',   icon:'❤️' },
+  { type:'message', text:'Sent 47 messages in #design-review', time:'2h ago',    icon:'💬' },
+  { type:'channel', text:'Joined #q4-planning channel',         time:'5h ago',    icon:'#'  },
+  { type:'file',    text:'Shared sprint-14-handoff.fig',        time:'Yesterday', icon:'📎' },
+  { type:'mention', text:'Mentioned in #backend-infra',         time:'Yesterday', icon:'@'  },
+  { type:'react',   text:'Reacted to 12 messages this week',   time:'3d ago',    icon:'❤️' },
 ];
 
 const STATS = [
-  { label:'Messages',    val:'2,847', sub:'this month',  icon:MessageSquare, color:'#a855f7' },
-  { label:'Channels',    val:'18',    sub:'active',       icon:Hash,          color:'#3b82f6' },
-  { label:'Workspaces',  val:'3',     sub:'joined',       icon:Users,         color:'#10b981' },
-  { label:'Days Active', val:'94',    sub:'this year',    icon:TrendingUp,    color:'#f59e0b' },
+  { label:'Messages',    val:'2,847', sub:'this month', icon:MessageSquare, color:'#a855f7' },
+  { label:'Channels',    val:'18',    sub:'active',     icon:Hash,          color:'#3b82f6' },
+  { label:'Workspaces',  val:'3',     sub:'joined',     icon:Users,         color:'#10b981' },
+  { label:'Days Active', val:'94',    sub:'this year',  icon:TrendingUp,    color:'#f59e0b' },
 ];
 
 const GRADIENT_PRESETS = [
@@ -75,74 +62,281 @@ const GRADIENT_PRESETS = [
 ];
 
 const TIMEZONES = [
-  'UTC-8 (Pacific)',  'UTC-5 (Eastern)',  'UTC+0 (London)',
-  'UTC+1 (Paris)',    'UTC+2 (Cairo)',    'UTC+3 (Moscow)',
-  'UTC+5:30 (India)', 'UTC+8 (Beijing)', 'UTC+9 (Tokyo)',
-  'UTC+10 (Sydney)',
+  'UTC-8 (Pacific)', 'UTC-5 (Eastern)', 'UTC+0 (London)',
+  'UTC+1 (Paris)',   'UTC+2 (Cairo)',    'UTC+3 (Moscow)',
+  'UTC+5:30 (India)','UTC+8 (Beijing)', 'UTC+9 (Tokyo)', 'UTC+10 (Sydney)',
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-export function ProfilePage() {
-  const [activeTab, setActiveTab]   = useState<ActiveTab>('profile');
-  const [profile,   setProfile]     = useState<UserProfile>({
-    name:            'Nilufar Rashidova',
-    displayName:     'Nilufar',
-    username:        'nilufar',
-    email:           'nilufar@devtalk.dev',
-    bio:             'Frontend engineer obsessed with craft. Building beautiful things at the intersection of design and code. ✨',
-    role:            'Frontend Engineer',
-    status:          'online',
-    timezone:        'UTC+5:30 (India)',
-    website:         'https://nilufar.dev',
-    twitter:         '@nilufardev',
-    github:          'nilufar',
-    joinedDate:      'March 2024',
-    avatarGradient:  GRADIENT_PRESETS[0],
+/* ─────────────────────────────────────────────────────────────────────────────
+   ID CARD
+───────────────────────────────────────────────────────────────────────────── */
+function IDCard({ profile }: { profile: UserProfile }) {
+  const initials = (profile.displayName || profile.name)
+    .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+
+  return (
+    <div style={{
+      width: 220,
+      background: 'linear-gradient(160deg, #0f1923 0%, #0a1520 60%, #0d1e2e 100%)',
+      borderRadius: 18,
+      overflow: 'hidden',
+      boxShadow: '0 24px 56px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06)',
+      position: 'relative',
+      flexShrink: 0,
+    }}>
+      {/* Lanyard notch */}
+      <div style={{ display:'flex', justifyContent:'center', paddingTop:14, paddingBottom:6, position:'relative', zIndex:2 }}>
+        <div style={{
+          width:44, height:9, background:'rgba(255,255,255,0.07)',
+          borderRadius:999, border:'1px solid rgba(255,255,255,0.1)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}>
+          <div style={{ width:16, height:5, background:'rgba(0,0,0,0.5)', borderRadius:999, border:'1px solid rgba(255,255,255,0.08)' }} />
+        </div>
+      </div>
+
+      {/* Wave pattern */}
+      <div style={{ position:'absolute', inset:0, overflow:'hidden', zIndex:0, pointerEvents:'none' }}>
+        <svg width="100%" height="100%" viewBox="0 0 220 360" preserveAspectRatio="xMidYMid slice" style={{ opacity:0.18 }}>
+          {Array.from({ length:20 }, (_, i) => (
+            <path key={i}
+              d={`M-20 ${38 + i*18} Q55 ${28 + i*18} 110 ${38 + i*18} T240 ${38 + i*18}`}
+              fill="none" stroke="rgba(99,179,237,0.7)" strokeWidth="1.1"
+            />
+          ))}
+        </svg>
+        {/* Purple glow */}
+        <div style={{
+          position:'absolute', top:'35%', left:'50%', transform:'translate(-50%,-50%)',
+          width:160, height:160,
+          background:'radial-gradient(circle, rgba(124,58,237,0.28) 0%, transparent 70%)',
+          borderRadius:'50%',
+        }} />
+      </div>
+
+      {/* Content */}
+      <div style={{ position:'relative', zIndex:1, padding:'4px 20px 24px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+
+        {/* Org logo */}
+        <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:16 }}>
+          <div style={{ width:18, height:18, background:'#00d4b4', borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ color:'#020d0f', fontWeight:900, fontSize:10 }}>D</span>
+          </div>
+          <span style={{ color:'rgba(255,255,255,0.45)', fontSize:9, fontWeight:600, letterSpacing:'0.18em', fontFamily:'monospace' }}>DEVTALK</span>
+        </div>
+
+        {/* Avatar circle */}
+        <div style={{
+          width:76, height:76, borderRadius:'50%',
+          background: profile.avatarGradient,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:26, fontWeight:800, color:'white',
+          fontFamily:'system-ui, sans-serif',
+          boxShadow:'0 8px 28px rgba(0,0,0,0.45), 0 0 0 3px rgba(255,255,255,0.08)',
+          marginBottom:12, position:'relative',
+          letterSpacing:'-0.5px',
+        }}>
+          {initials}
+          {/* Status dot */}
+          <div style={{
+            position:'absolute', bottom:3, right:3,
+            width:14, height:14, borderRadius:'50%',
+            background: STATUS_CONFIG[profile.status].color,
+            border:'2.5px solid #0f1923',
+            boxShadow:`0 0 8px ${STATUS_CONFIG[profile.status].color}80`,
+          }} />
+        </div>
+
+        {/* Name */}
+        <p style={{ color:'white', fontWeight:700, fontSize:15, marginBottom:2, textAlign:'center', fontFamily:'system-ui, sans-serif', letterSpacing:'-0.2px' }}>
+          {profile.displayName || profile.name}
+        </p>
+
+        {/* Role */}
+        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:10, marginBottom:3, textAlign:'center', fontFamily:'monospace' }}>
+          {profile.role}
+        </p>
+
+        {/* Username */}
+        <p style={{ color:'#00d4b4', fontSize:9.5, fontFamily:'monospace', marginBottom:16, opacity:0.85 }}>
+          @{profile.username}
+        </p>
+
+        {/* Divider */}
+        <div style={{ width:'100%', height:1, background:'rgba(255,255,255,0.07)', marginBottom:14 }} />
+
+        {/* Info row */}
+        <div style={{ width:'100%', display:'flex', justifyContent:'space-between', marginBottom:16 }}>
+          {[
+            { label:'JOINED',   value: profile.joinedDate.split(' ')[0] },
+            { label:'STATUS',   value: STATUS_CONFIG[profile.status].label.split(' ')[0] },
+            { label:'ZONE',     value: profile.timezone.split(' ')[0]   },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ textAlign:'center' }}>
+              <p style={{ color:'rgba(255,255,255,0.28)', fontSize:7, fontFamily:'monospace', letterSpacing:'0.1em', marginBottom:2 }}>{label}</p>
+              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:9, fontFamily:'monospace', fontWeight:600 }}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* QR placeholder */}
+        <div style={{
+          width:48, height:48, background:'rgba(255,255,255,0.05)',
+          border:'1px solid rgba(255,255,255,0.09)', borderRadius:9,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          marginBottom:12,
+        }}>
+          <QrCode size={24} color="rgba(255,255,255,0.2)" />
+        </div>
+
+        {/* Card ID */}
+        <p style={{ color:'rgba(255,255,255,0.15)', fontSize:8, fontFamily:'monospace', letterSpacing:'0.2em' }}>
+          DT·{profile.username.toUpperCase().slice(0,6).padEnd(6,'·')}·24
+        </p>
+      </div>
+
+      {/* Bottom accent bar */}
+      <div style={{ height:3, background: profile.avatarGradient, opacity:0.85 }} />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ID CARD WITH LANYARD
+───────────────────────────────────────────────────────────────────────────── */
+function IDCardWithLanyard({ profile }: { profile: UserProfile }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+      {/* Lanyard string */}
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:-2 }}>
+        <div style={{ width:3, height:28, background:'linear-gradient(to bottom, rgba(255,255,255,0.15), rgba(255,255,255,0.08))', borderRadius:2 }} />
+        <div style={{
+          width:52, height:12,
+          border:'3px solid rgba(255,255,255,0.12)',
+          borderBottom:'none',
+          borderRadius:'999px 999px 0 0',
+          marginBottom:-1,
+        }} />
+      </div>
+      <IDCard profile={profile} />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN PROFILE PAGE
+───────────────────────────────────────────────────────────────────────────── */
+export function ProfilePage({ user }: { user: any }) {
+  const { supabase } = useAuth();
+  const [activeTab, setActiveTab] = useState<ActiveTab>('profile');
+  const [showCard, setShowCard] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>({
+    name: user?.display_name || 'Nilufar Rashidova',
+    displayName: user?.display_name || 'Nilufar',
+    username: user?.username || 'nilufar',
+    email: user?.email || 'nilufar@devtalk.dev',
+    bio: user?.bio || 'Frontend engineer obsessed with craft. Building beautiful things at the intersection of design and code. ✨',
+    role: user?.role || 'Frontend Engineer',
+    status: (user?.status as Status) || 'online',
+    timezone: user?.timezone || 'UTC+5:30 (India)',
+    website: user?.website || 'https://nilufar.dev',
+    twitter: user?.twitter || '@nilufardev',
+    github: user?.github || 'nilufar',
+    joinedDate: user?.joined_date || 'March 2024',
+    avatarGradient: user?.avatar_gradient || GRADIENT_PRESETS[0],
   });
 
-  const [editing,    setEditing]    = useState(false);
-  const [draft,      setDraft]      = useState<UserProfile>(profile);
-  const [copied,     setCopied]     = useState(false);
-  const [showGrad,   setShowGrad]   = useState(false);
-  const [saved,      setSaved]      = useState(false);
-  const [theme,      setTheme]      = useState<ThemeMode>('dark');
-  const [showEmail,  setShowEmail]  = useState(false);
-  const [twoFA,      setTwoFA]      = useState(false);
-  const [showPass,   setShowPass]   = useState(false);
+  // ── Database Interactions ──────────────────────────────────────────────────
+
+  const checkExistingRequest = useCallback(async () => {
+    if (!user?.id || !supabase) return;
+    const { data, error } = await supabase
+      .from('id_card_requests')
+      .select('id, status')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (data) {
+      setRequestSent(true);
+      setRequestId(data.id);
+    } else {
+      setRequestSent(false);
+      setRequestId(null);
+    }
+  }, [user?.id, supabase]);
+
+  useEffect(() => {
+    checkExistingRequest();
+  }, [checkExistingRequest]);
+
+  const handleRequestIDCard = async () => {
+    if (!user?.id || !supabase) return;
+    setIsRequesting(true);
+    const { data, error } = await supabase
+      .from('id_card_requests')
+      .insert({
+        user_id: user.id,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setRequestSent(true);
+      setRequestId(data.id);
+    }
+    setIsRequesting(false);
+  };
+
+  const handleCancelRequest = async () => {
+    if (!requestId || !supabase) return;
+    setIsRequesting(true);
+    const { error } = await supabase
+      .from('id_card_requests')
+      .delete()
+      .eq('id', requestId);
+
+    if (!error) {
+      setRequestSent(false);
+      setRequestId(null);
+    }
+    setIsRequesting(false);
+  };
+
+  const [editing,   setEditing]   = useState(false);
+  const [draft,     setDraft]     = useState<UserProfile>(profile);
+  const [copied,    setCopied]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [theme,     setTheme]     = useState<ThemeMode>('dark');
+  const [showEmail, setShowEmail] = useState(false);
+  const [twoFA,     setTwoFA]     = useState(false);
+  const [showPass,  setShowPass]  = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Notification prefs ───────────────────────────────────────────────────────
   const [notifs, setNotifs] = useState({
-    mentions:    true,  threads:    true,  reactions:  false,
-    dms:         true,  keywords:   true,  sounds:     true,
-    desktop:     true,  mobile:     false, email:      false,
+    mentions:true, threads:true, reactions:false, dms:true,
+    keywords:true, sounds:true, desktop:true, mobile:false, email:false,
   });
-
-  // ── Privacy prefs ────────────────────────────────────────────────────────────
   const [privacy, setPrivacy] = useState({
-    showStatus:    true,  showEmail:    false, showActivity: true,
-    searchable:    true,  readReceipts: true,  typingIndicator: true,
+    showStatus:true, showEmail:false, showActivity:true,
+    searchable:true, readReceipts:true, typingIndicator:true,
   });
-
-  // ── Appearance prefs ─────────────────────────────────────────────────────────
   const [appearance, setAppearance] = useState({
-    compactMode: false, animations: true, fontSize: 'normal',
-    sidebarDense: false, messageGrouping: true,
+    compactMode:false, animations:true, fontSize:'normal',
+    sidebarDense:false, messageGrouping:true,
   });
 
   function saveProfile() {
-    setProfile(draft);
-    setEditing(false);
-    setSaved(true);
+    setProfile(draft); setEditing(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
-
   function copyUsername() {
     navigator.clipboard?.writeText('@' + profile.username);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
-
   function getActivityColor(count: number) {
     if (count === 0) return '#1e2026';
     if (count < 3)  return '#4c1d95';
@@ -152,65 +346,50 @@ export function ProfilePage() {
   }
 
   const TABS: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { key:'profile',       label:'Profile',       icon:<Edit3 size={14}/>       },
-    { key:'account',       label:'Account',       icon:<Shield size={14}/>      },
-    { key:'notifications', label:'Notifications', icon:<Bell size={14}/>        },
-    { key:'appearance',    label:'Appearance',    icon:<Palette size={14}/>     },
-    { key:'privacy',       label:'Privacy',       icon:<Lock size={14}/>        },
+    { key:'profile',       label:'Profile',       icon:<Edit3 size={14}/>   },
+    { key:'account',       label:'Account',       icon:<Shield size={14}/>  },
+    { key:'notifications', label:'Notifications', icon:<Bell size={14}/>    },
+    { key:'appearance',    label:'Appearance',    icon:<Palette size={14}/> },
+    { key:'privacy',       label:'Privacy',       icon:<Lock size={14}/>    },
   ];
+
+  const currentProfile = editing ? draft : profile;
 
   return (
     <div className="flex h-full bg-[#111214] text-[#e8eaf0] overflow-hidden">
 
       {/* ── Left panel ── */}
       <div className="w-[260px] shrink-0 border-r border-[#2a2c33] flex flex-col bg-[#0e0f11]">
-
-        {/* Avatar + identity */}
         <div className="px-5 pt-7 pb-5 border-b border-[#2a2c33]">
           {/* Avatar */}
           <div className="relative w-fit mb-4">
-            <div
-              className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-2xl"
-              style={{ background: profile.avatarGradient }}
-            >
-              {/* Abstract geometric pattern — no letter */}
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <circle cx="20" cy="20" r="10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-                <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.25)" strokeWidth="1"/>
-                <line x1="20" y1="4" x2="20" y2="36" stroke="rgba(255,255,255,0.35)" strokeWidth="1"/>
-                <line x1="4" y1="20" x2="36" y2="20" stroke="rgba(255,255,255,0.35)" strokeWidth="1"/>
-                <circle cx="20" cy="20" r="3" fill="rgba(255,255,255,0.85)"/>
-                <circle cx="20" cy="10" r="2" fill="rgba(255,255,255,0.5)"/>
-                <circle cx="20" cy="30" r="2" fill="rgba(255,255,255,0.5)"/>
-                <circle cx="10" cy="20" r="2" fill="rgba(255,255,255,0.5)"/>
-                <circle cx="30" cy="20" r="2" fill="rgba(255,255,255,0.5)"/>
-              </svg>
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-2xl"
+              style={{ background: profile.avatarGradient }}>
+              {(profile.displayName || profile.name).split(' ').map((w:string)=>w[0]).join('').toUpperCase().slice(0,2)}
             </div>
-            {/* Status dot */}
-            <div
-              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#0e0f11] flex items-center justify-center"
-              style={{ background: STATUS_CONFIG[profile.status].color }}>
-              {profile.status === 'busy' && <Minus size={9} className="text-white" strokeWidth={3}/>}
-            </div>
-            {/* Edit avatar overlay */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute inset-0 bg-black/0 hover:bg-black/50 rounded-2xl flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-200">
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#0e0f11]"
+              style={{ background: STATUS_CONFIG[profile.status].color }} />
+            <button onClick={() => fileInputRef.current?.click()}
+              className="absolute inset-0 bg-black/0 hover:bg-black/50 rounded-2xl flex items-center justify-center opacity-0 hover:opacity-100 transition-all">
               <Camera size={18} className="text-white"/>
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-              onChange={e => { /* handle avatar upload */ }}/>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"/>
           </div>
 
-          {/* Name + username */}
           <p className="text-[15px] font-bold leading-tight">{profile.displayName || profile.name}</p>
           <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">@{profile.username}</p>
 
-          {/* Copy username */}
           <button onClick={copyUsername}
             className="flex items-center gap-1.5 mt-2 font-mono text-[10px] text-[#6b7280] hover:text-[#a855f7] transition-colors">
             {copied ? <CheckCheck size={11} className="text-[#10b981]"/> : <Copy size={11}/>}
             {copied ? 'Copied!' : 'Copy handle'}
+          </button>
+
+          {/* Show ID Card toggle */}
+          <button onClick={() => setShowCard(v => !v)}
+            className="flex items-center gap-1.5 mt-2 font-mono text-[10px] text-[#6b7280] hover:text-[#a855f7] transition-colors">
+            <QrCode size={11}/>
+            {showCard ? 'Hide ID card' : 'Show ID card'}
           </button>
 
           {/* Status selector */}
@@ -219,12 +398,8 @@ export function ProfilePage() {
             <div className="grid grid-cols-2 gap-1">
               {(Object.entries(STATUS_CONFIG) as [Status, typeof STATUS_CONFIG[Status]][]).map(([key, cfg]) => (
                 <button key={key} onClick={() => setProfile(p => ({ ...p, status: key }))}
-                  className={[
-                    'flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all',
-                    profile.status === key
-                      ? 'text-white'
-                      : 'text-[#6b7280] hover:bg-[#18191d] hover:text-[#e8eaf0]',
-                  ].join(' ')}
+                  className={['flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                    profile.status === key ? 'text-white' : 'text-[#6b7280] hover:bg-[#18191d] hover:text-[#e8eaf0]'].join(' ')}
                   style={profile.status === key ? { background: cfg.bg, color: cfg.color } : {}}>
                   <div className={['w-2 h-2 rounded-full shrink-0', cfg.pulse ? 'animate-pulse' : ''].join(' ')}
                     style={{ background: cfg.color }}/>
@@ -241,8 +416,7 @@ export function ProfilePage() {
           <div className="space-y-2.5">
             {STATS.map(({ label, val, sub, icon: Icon, color }) => (
               <div key={label} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: color + '18' }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: color+'18' }}>
                   <Icon size={13} style={{ color }}/>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -254,27 +428,20 @@ export function ProfilePage() {
           </div>
         </div>
 
-        {/* Nav tabs */}
+        {/* Nav */}
         <div className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {TABS.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={[
-                'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all text-left',
-                activeTab === tab.key
-                  ? 'bg-[rgba(124,58,237,0.15)] text-[#c084fc]'
-                  : 'text-[#6b7280] hover:bg-[#18191d] hover:text-[#e8eaf0]',
-              ].join(' ')}>
-              {tab.icon}
-              {tab.label}
+              className={['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all text-left',
+                activeTab === tab.key ? 'bg-[rgba(124,58,237,0.15)] text-[#c084fc]' : 'text-[#6b7280] hover:bg-[#18191d] hover:text-[#e8eaf0]'].join(' ')}>
+              {tab.icon}{tab.label}
             </button>
           ))}
         </div>
 
-        {/* Sign out */}
         <div className="px-3 py-3 border-t border-[#2a2c33]">
           <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[#6b7280] hover:bg-[rgba(239,68,68,0.1)] hover:text-[#ef4444] transition-all text-left">
-            <LogOut size={14}/>
-            Sign out
+            <LogOut size={14}/> Sign out
           </button>
         </div>
       </div>
@@ -284,7 +451,8 @@ export function ProfilePage() {
 
         {/* ════ PROFILE TAB ════ */}
         {activeTab === 'profile' && (
-          <div className="max-w-[680px] mx-auto px-8 py-8">
+          <div className="max-w-[720px] mx-auto px-8 py-8">
+
             {/* Header */}
             <div className="flex items-center justify-between mb-7">
               <div>
@@ -293,8 +461,7 @@ export function ProfilePage() {
               </div>
               <div className="flex items-center gap-2">
                 {saved && (
-                  <span className="flex items-center gap-1.5 font-mono text-[11px] text-[#10b981] px-3 py-1.5 bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.25)] rounded-lg"
-                    style={{ animation:'fadeIn 0.2s ease' }}>
+                  <span className="flex items-center gap-1.5 font-mono text-[11px] text-[#10b981] px-3 py-1.5 bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.25)] rounded-lg">
                     <Check size={11}/> Saved!
                   </span>
                 )}
@@ -317,34 +484,96 @@ export function ProfilePage() {
               </div>
             </div>
 
+            {/* ── ID CARD SECTION ── */}
+            {showCard && (
+              <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-6 mb-5" style={{ animation:'cardSectionIn 0.35s ease' }}>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-5">ID Card</p>
+                <div className="flex flex-col items-center py-8 gap-5">
+                  {/* Lock icon */}
+                  <div style={{
+                    width: 72, height: 72, borderRadius: 20,
+                    background: 'rgba(124,58,237,0.1)',
+                    border: '1px solid rgba(124,58,237,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.8)" strokeWidth="1.5">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </div>
+
+                  {/* Text */}
+                  <div className="text-center max-w-[340px]">
+                    <p className="text-[16px] font-bold text-white mb-2">ID Card Not Available</p>
+                    <p className="font-mono text-[12px] text-[#6b7280] leading-relaxed">
+                      Your workspace ID card hasn't been issued yet.
+                      Request one from your workspace owner to get your official DevTalk identity card.
+                    </p>
+                  </div>
+
+                  {/* Pending badge if request sent */}
+                  {requestSent && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.25)]" style={{ animation:'fadeIn 0.3s ease' }}>
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse" />
+                      <span className="font-mono text-[11px] text-[#f59e0b]">Request sent · Awaiting approval</span>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    {!requestSent
+                      ? <button
+                          onClick={handleRequestIDCard}
+                          disabled={isRequesting}
+                          className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50"
+                        >
+                          {isRequesting ? <Loader2 size={14} className="animate-spin" /> : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 9.81a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/>
+                            </svg>
+                          )}
+                          Request ID Card
+                        </button>
+                      : <button
+                          onClick={handleCancelRequest}
+                          disabled={isRequesting}
+                          className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50"
+                        >
+                          {isRequesting ? <Loader2 size={14} className="animate-spin" /> : null}
+                          Cancel request
+                        </button>
+                    }
+                    <button
+                      onClick={() => setShowCard(false)}
+                      className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all"
+                    >
+                      <X size={13}/> Dismiss
+                    </button>
+                  </div>
+
+                  {/* Info note */}
+                  <p className="font-mono text-[10px] text-[#33363f] text-center max-w-[300px]">
+                    Workspace owners can issue ID cards from the workspace settings panel.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Avatar section */}
             <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5 mb-4">
               <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-4">Avatar</p>
               <div className="flex items-center gap-5">
-                {/* Preview */}
                 <div className="relative">
-                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-xl"
-                    style={{ background: editing ? draft.avatarGradient : profile.avatarGradient }}>
-                    <svg width="38" height="38" viewBox="0 0 40 40" fill="none">
-                      <circle cx="20" cy="20" r="10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
-                      <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.25)" strokeWidth="1"/>
-                      <line x1="20" y1="4" x2="20" y2="36" stroke="rgba(255,255,255,0.35)" strokeWidth="1"/>
-                      <line x1="4" y1="20" x2="36" y2="20" stroke="rgba(255,255,255,0.35)" strokeWidth="1"/>
-                      <circle cx="20" cy="20" r="3" fill="rgba(255,255,255,0.85)"/>
-                      <circle cx="20" cy="10" r="2" fill="rgba(255,255,255,0.5)"/>
-                      <circle cx="20" cy="30" r="2" fill="rgba(255,255,255,0.5)"/>
-                      <circle cx="10" cy="20" r="2" fill="rgba(255,255,255,0.5)"/>
-                      <circle cx="30" cy="20" r="2" fill="rgba(255,255,255,0.5)"/>
-                    </svg>
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl"
+                    style={{ background: currentProfile.avatarGradient }}>
+                    {(profile.displayName||profile.name).split(' ').map((w:string)=>w[0]).join('').toUpperCase().slice(0,2)}
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#18191d]"
                     style={{ background: STATUS_CONFIG[profile.status].color }}/>
                 </div>
-
                 <div className="flex-1">
                   <div className="flex gap-2 mb-3">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
+                    <button onClick={() => fileInputRef.current?.click()}
                       className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all">
                       <Upload size={12}/> Upload photo
                     </button>
@@ -355,17 +584,13 @@ export function ProfilePage() {
                   <p className="font-mono text-[10.5px] text-[#6b7280]">JPG, PNG or GIF · Max 4MB</p>
                 </div>
               </div>
-
-              {/* Gradient picker */}
               <div className="mt-4 pt-4 border-t border-[#2a2c33]">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-3">Avatar gradient</p>
                 <div className="flex gap-2 flex-wrap">
                   {GRADIENT_PRESETS.map((g, i) => (
                     <button key={i} onClick={() => editing && setDraft(p => ({ ...p, avatarGradient:g }))}
-                      className={[
-                        'w-8 h-8 rounded-lg transition-all',
-                        (editing ? draft : profile).avatarGradient === g ? 'ring-2 ring-[#7c3aed] ring-offset-1 ring-offset-[#18191d] scale-110' : 'hover:scale-105',
-                      ].join(' ')}
+                      className={['w-8 h-8 rounded-lg transition-all',
+                        currentProfile.avatarGradient === g ? 'ring-2 ring-[#7c3aed] ring-offset-1 ring-offset-[#18191d] scale-110' : 'hover:scale-105'].join(' ')}
                       style={{ background: g }}/>
                   ))}
                 </div>
@@ -375,61 +600,41 @@ export function ProfilePage() {
             {/* Info fields */}
             <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5 mb-4 space-y-4">
               <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280]">Personal info</p>
-
               {[
-                { label:'Display name',  key:'displayName',  ph:'How you appear to others'  },
-                { label:'Full name',     key:'name',         ph:'Your legal name'            },
-                { label:'Username',      key:'username',     ph:'your-handle',               prefix:'@' },
-                { label:'Role / Title',  key:'role',         ph:'e.g. Frontend Engineer'    },
+                { label:'Display name', key:'displayName', ph:'How you appear to others' },
+                { label:'Full name',    key:'name',        ph:'Your legal name'           },
+                { label:'Username',     key:'username',    ph:'your-handle', prefix:'@'   },
+                { label:'Role / Title', key:'role',        ph:'e.g. Frontend Engineer'   },
               ].map(({ label, key, ph, prefix }) => (
                 <div key={key}>
                   <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">{label}</label>
-                  <div className="flex items-center gap-0">
+                  <div className="flex items-center">
                     {prefix && <span className="font-mono text-[13px] text-[#6b7280] bg-[#111214] border border-r-0 border-[#2a2c33] rounded-l-lg px-3 h-[38px] flex items-center">{prefix}</span>}
-                    <input
-                      type="text"
-                      value={(editing ? draft : profile)[key as keyof UserProfile]}
+                    <input type="text"
+                      value={currentProfile[key as keyof UserProfile]}
                       onChange={e => editing && setDraft(p => ({ ...p, [key]:e.target.value }))}
-                      readOnly={!editing}
-                      placeholder={ph}
-                      className={[
-                        'flex-1 bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 outline-none transition-colors h-[38px]',
+                      readOnly={!editing} placeholder={ph}
+                      className={['flex-1 bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 outline-none transition-colors h-[38px]',
                         prefix ? 'rounded-r-lg' : 'rounded-lg',
-                        editing ? 'focus:border-[#7c3aed] cursor-text' : 'cursor-default text-[#9ca3af]',
-                      ].join(' ')}
-                    />
+                        editing ? 'focus:border-[#7c3aed] cursor-text' : 'cursor-default text-[#9ca3af]'].join(' ')}/>
                   </div>
                 </div>
               ))}
-
-              {/* Bio */}
               <div>
                 <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">Bio</label>
-                <textarea
-                  value={editing ? draft.bio : profile.bio}
+                <textarea value={currentProfile.bio}
                   onChange={e => editing && setDraft(p => ({ ...p, bio:e.target.value }))}
-                  readOnly={!editing}
-                  rows={3}
-                  placeholder="Tell your team about yourself..."
-                  className={[
-                    'w-full bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 py-2.5 rounded-lg outline-none resize-none transition-colors',
-                    editing ? 'focus:border-[#7c3aed] cursor-text' : 'cursor-default text-[#9ca3af]',
-                  ].join(' ')}
-                />
-                {editing && <p className="font-mono text-[10px] text-[#33363f] mt-1 text-right">{draft.bio.length}/200</p>}
+                  readOnly={!editing} rows={3} placeholder="Tell your team about yourself..."
+                  className={['w-full bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 py-2.5 rounded-lg outline-none resize-none transition-colors',
+                    editing ? 'focus:border-[#7c3aed] cursor-text' : 'cursor-default text-[#9ca3af]'].join(' ')}/>
               </div>
-
-              {/* Timezone */}
               <div>
                 <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">Timezone</label>
-                <select
-                  value={editing ? draft.timezone : profile.timezone}
+                <select value={currentProfile.timezone}
                   onChange={e => editing && setDraft(p => ({ ...p, timezone:e.target.value }))}
                   disabled={!editing}
-                  className={[
-                    'w-full bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors',
-                    editing ? 'focus:border-[#7c3aed] cursor-pointer' : 'cursor-default text-[#9ca3af]',
-                  ].join(' ')}>
+                  className={['w-full bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors',
+                    editing ? 'focus:border-[#7c3aed] cursor-pointer' : 'cursor-default text-[#9ca3af]'].join(' ')}>
                   {TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -439,9 +644,9 @@ export function ProfilePage() {
             <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5 mb-4 space-y-3">
               <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280]">Links</p>
               {[
-                { label:'Website', key:'website', icon:<Globe size={14} className="text-[#6b7280]"/>,   prefix:'https://' },
-                { label:'Twitter', key:'twitter', icon:<Twitter size={14} className="text-[#1da1f2]"/>, prefix:'@'        },
-                { label:'GitHub',  key:'github',  icon:<Github size={14} className="text-[#6b7280]"/>,  prefix:'github.com/'},
+                { label:'Website', key:'website', icon:<Globe size={14} className="text-[#6b7280]"/>,    prefix:'https://' },
+                { label:'Twitter', key:'twitter', icon:<Twitter size={14} className="text-[#1da1f2]"/>,  prefix:'@'        },
+                { label:'GitHub',  key:'github',  icon:<Github size={14} className="text-[#6b7280]"/>,   prefix:'github.com/' },
               ].map(({ label, key, icon, prefix }) => (
                 <div key={key}>
                   <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">{label}</label>
@@ -451,12 +656,11 @@ export function ProfilePage() {
                       <span className="font-mono text-[11px] text-[#6b7280]">{prefix}</span>
                     </span>
                     <input type="text"
-                      value={(editing ? draft : profile)[key as keyof UserProfile].replace(prefix,'')}
+                      value={currentProfile[key as keyof UserProfile].replace(prefix,'')}
                       onChange={e => editing && setDraft(p => ({ ...p, [key]: prefix+e.target.value }))}
                       readOnly={!editing}
-                      placeholder={label.toLowerCase() + ' handle'}
-                      className="flex-1 bg-transparent border-none outline-none font-mono text-[13px] text-[#e8eaf0] px-3 h-[38px] placeholder-[#33363f]"
-                    />
+                      placeholder={label.toLowerCase()+' handle'}
+                      className="flex-1 bg-transparent border-none outline-none font-mono text-[13px] text-[#e8eaf0] px-3 h-[38px] placeholder-[#33363f]"/>
                   </div>
                 </div>
               ))}
@@ -466,32 +670,22 @@ export function ProfilePage() {
             <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5 mb-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280]">Activity this year</p>
-                <span className="font-mono text-[10px] text-[#6b7280]">
-                  {ACTIVITY_DAYS.filter(d => d.count > 0).length} active days
-                </span>
+                <span className="font-mono text-[10px] text-[#6b7280]">{ACTIVITY_DAYS.filter(d=>d.count>0).length} active days</span>
               </div>
-              {/* Heatmap grid */}
               <div className="flex gap-[3px] overflow-x-auto pb-1">
                 {Array.from({ length:52 }, (_, w) => (
                   <div key={w} className="flex flex-col gap-[3px]">
                     {Array.from({ length:7 }, (_, d) => {
-                      const cell = ACTIVITY_DAYS.find(a => a.week===w && a.day===d);
-                      return (
-                        <div key={d}
-                          className="w-2.5 h-2.5 rounded-[2px] transition-all hover:ring-1 hover:ring-[#7c3aed] cursor-pointer"
-                          style={{ background: getActivityColor(cell?.count ?? 0) }}
-                          title={cell ? (cell.count + ' messages') : '0 messages'}
-                        />
-                      );
+                      const cell = ACTIVITY_DAYS.find(a=>a.week===w&&a.day===d);
+                      return <div key={d} className="w-2.5 h-2.5 rounded-[2px] hover:ring-1 hover:ring-[#7c3aed] cursor-pointer transition-all"
+                        style={{ background: getActivityColor(cell?.count??0) }} title={(cell?.count??0)+' messages'}/>;
                     })}
                   </div>
                 ))}
               </div>
               <div className="flex items-center gap-1.5 mt-3">
                 <span className="font-mono text-[9.5px] text-[#33363f]">Less</span>
-                {[0,3,6,9,12].map(n => (
-                  <div key={n} className="w-2.5 h-2.5 rounded-[2px]" style={{ background: getActivityColor(n) }}/>
-                ))}
+                {[0,3,6,9,12].map(n=><div key={n} className="w-2.5 h-2.5 rounded-[2px]" style={{ background: getActivityColor(n) }}/>)}
                 <span className="font-mono text-[9.5px] text-[#33363f]">More</span>
               </div>
             </div>
@@ -502,12 +696,8 @@ export function ProfilePage() {
               <div className="space-y-3">
                 {RECENT_ACTIVITY.map((a, i) => (
                   <div key={i} className="flex items-center gap-3 py-2 border-b border-[#1e2026] last:border-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#1e2026] flex items-center justify-center text-[15px] shrink-0">
-                      {a.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] truncate">{a.text}</p>
-                    </div>
+                    <div className="w-8 h-8 rounded-lg bg-[#1e2026] flex items-center justify-center text-[15px] shrink-0">{a.icon}</div>
+                    <div className="flex-1 min-w-0"><p className="text-[13px] truncate">{a.text}</p></div>
                     <span className="font-mono text-[10.5px] text-[#6b7280] shrink-0">{a.time}</span>
                   </div>
                 ))}
@@ -521,33 +711,22 @@ export function ProfilePage() {
           <div className="max-w-[620px] mx-auto px-8 py-8">
             <h2 className="text-[20px] font-bold tracking-tight mb-1">Account</h2>
             <p className="font-mono text-[11.5px] text-[#6b7280] mb-7">Manage your login credentials and security</p>
-
-            {/* Email */}
             <Section title="Email address">
               <div className="flex items-center gap-3">
                 <div className="flex-1 font-mono text-[13px] text-[#e8eaf0] bg-[#111214] border border-[#2a2c33] rounded-lg px-3 h-[38px] flex items-center">
-                  {showEmail ? profile.email : profile.email.replace(/(.{2}).+(@.+)/, '$1•••$2')}
+                  {showEmail ? profile.email : profile.email.replace(/(.{2}).+(@.+)/,'$1•••$2')}
                 </div>
-                <button onClick={() => setShowEmail(v => !v)}
-                  className="w-9 h-9 bg-[#1e2026] border border-[#2a2c33] rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] transition-colors">
+                <button onClick={() => setShowEmail(v=>!v)} className="w-9 h-9 bg-[#1e2026] border border-[#2a2c33] rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#e8eaf0] transition-colors">
                   {showEmail ? <EyeOff size={14}/> : <Eye size={14}/>}
                 </button>
-                <button className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12px] font-semibold px-3 h-9 rounded-lg transition-all">
-                  Change
-                </button>
+                <button className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12px] font-semibold px-3 h-9 rounded-lg transition-all">Change</button>
               </div>
             </Section>
-
-            {/* Password */}
             <Section title="Password">
               <div className="space-y-2.5">
-                {['Current password', 'New password', 'Confirm new password'].map(label => (
-                  <div key={label} className="relative">
-                    <input
-                      type={showPass ? 'text' : 'password'}
-                      placeholder={label}
-                      className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors placeholder-[#33363f]"/>
-                  </div>
+                {['Current password','New password','Confirm new password'].map(label => (
+                  <input key={label} type={showPass ? 'text' : 'password'} placeholder={label}
+                    className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors placeholder-[#33363f]"/>
                 ))}
                 <div className="flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -560,77 +739,23 @@ export function ProfilePage() {
                 </div>
               </div>
             </Section>
-
-            {/* 2FA */}
             <Section title="Two-factor authentication">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold">{twoFA ? '2FA is enabled' : '2FA is disabled'}</p>
-                  <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">
-                    {twoFA ? 'Your account is protected with an authenticator app.' : 'Add an extra layer of security to your account.'}
-                  </p>
+                  <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">{twoFA ? 'Your account is protected.' : 'Add an extra layer of security.'}</p>
                 </div>
-                <button onClick={() => setTwoFA(v => !v)}
-                  className={[
-                    'flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all',
-                    twoFA
-                      ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444] hover:bg-[rgba(239,68,68,0.18)]'
-                      : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white',
-                  ].join(' ')}>
-                  {twoFA ? <><Shield size={13}/> Disable</> : <><Shield size={13}/> Enable 2FA</>}
+                <button onClick={() => setTwoFA(v=>!v)}
+                  className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all',
+                    twoFA ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white'].join(' ')}>
+                  <Shield size={13}/> {twoFA ? 'Disable' : 'Enable 2FA'}
                 </button>
               </div>
-              {twoFA && (
-                <div className="mt-3 p-3 bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.2)] rounded-xl flex items-center gap-2.5">
-                  <Check size={14} className="text-[#10b981] shrink-0"/>
-                  <p className="font-mono text-[11px] text-[#10b981]">Authenticator app connected · Last used 2h ago</p>
-                </div>
-              )}
             </Section>
-
-            {/* Sessions */}
-            <Section title="Active sessions">
-              {[
-                { device:'Chrome on macOS',       loc:'Mumbai, IN',      time:'Now',      current:true  },
-                { device:'DevTalk Mobile (iOS)',   loc:'Mumbai, IN',      time:'2h ago',   current:false },
-                { device:'Firefox on Windows',     loc:'Bengaluru, IN',   time:'3d ago',   current:false },
-              ].map((s, i) => (
-                <div key={i} className="flex items-center justify-between py-2.5 border-b border-[#1e2026] last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#1e2026] flex items-center justify-center text-[15px]">
-                      {s.device.includes('Mobile') ? '📱' : '💻'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-semibold">{s.device}</p>
-                        {s.current && (
-                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.12)] text-[#10b981] border border-[rgba(16,185,129,0.25)]">current</span>
-                        )}
-                      </div>
-                      <p className="font-mono text-[10.5px] text-[#6b7280]">{s.loc} · {s.time}</p>
-                    </div>
-                  </div>
-                  {!s.current && (
-                    <button className="font-mono text-[11px] text-[#ef4444] hover:text-red-400 transition-colors">Revoke</button>
-                  )}
-                </div>
-              ))}
-              <button className="mt-3 w-full font-mono text-[11.5px] text-[#ef4444] hover:text-red-400 transition-colors text-center">
-                Sign out all other sessions
-              </button>
-            </Section>
-
-            {/* Danger zone */}
             <div className="mt-4 bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.2)] rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle size={15} className="text-[#ef4444]"/>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-[#ef4444]">Danger zone</p>
-              </div>
+              <div className="flex items-center gap-2 mb-4"><AlertTriangle size={15} className="text-[#ef4444]"/><p className="font-mono text-[10px] uppercase tracking-widest text-[#ef4444]">Danger zone</p></div>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[13px] font-semibold">Delete account</p>
-                  <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">Permanently delete your account and all data.</p>
-                </div>
+                <div><p className="text-[13px] font-semibold">Delete account</p><p className="font-mono text-[11px] text-[#6b7280] mt-0.5">Permanently delete your account and all data.</p></div>
                 <button className="flex items-center gap-1.5 bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.3)] text-[#ef4444] text-[12.5px] font-semibold px-4 py-2 rounded-lg hover:bg-[rgba(239,68,68,0.18)] transition-all">
                   <Trash2 size={13}/> Delete
                 </button>
@@ -643,46 +768,27 @@ export function ProfilePage() {
         {activeTab === 'notifications' && (
           <div className="max-w-[620px] mx-auto px-8 py-8">
             <h2 className="text-[20px] font-bold tracking-tight mb-1">Notifications</h2>
-            <p className="font-mono text-[11.5px] text-[#6b7280] mb-7">Choose what you get notified about and how</p>
-
+            <p className="font-mono text-[11.5px] text-[#6b7280] mb-7">Choose what you get notified about</p>
             <Section title="Notify me about">
               {[
-                { key:'mentions',  label:'Direct mentions',        desc:'When someone @mentions you in a channel' },
-                { key:'threads',   label:'Thread replies',         desc:'Replies in threads you participate in'   },
-                { key:'reactions', label:'Reactions',              desc:'When someone reacts to your messages'    },
-                { key:'dms',       label:'Direct messages',        desc:'All new direct messages'                 },
-                { key:'keywords',  label:'Keyword alerts',         desc:'Messages containing your tracked words'  },
+                { key:'mentions', label:'Direct mentions',  desc:'When someone @mentions you'             },
+                { key:'threads',  label:'Thread replies',   desc:'Replies in threads you participate in'  },
+                { key:'reactions',label:'Reactions',        desc:'When someone reacts to your messages'   },
+                { key:'dms',      label:'Direct messages',  desc:'All new direct messages'                },
+                { key:'keywords', label:'Keyword alerts',   desc:'Messages containing your tracked words' },
               ].map(({ key, label, desc }) => (
-                <NotifRow key={key} label={label} desc={desc}
-                  value={notifs[key as keyof typeof notifs]}
-                  onChange={v => setNotifs(p => ({ ...p, [key]:v }))}/>
+                <NotifRow key={key} label={label} desc={desc} value={notifs[key as keyof typeof notifs]} onChange={v=>setNotifs(p=>({...p,[key]:v}))}/>
               ))}
             </Section>
-
             <Section title="How to notify me">
               {[
-                { key:'sounds',   label:'Notification sounds',  desc:'Play a sound for new notifications' },
-                { key:'desktop',  label:'Desktop alerts',       desc:'Show system notification banners'   },
-                { key:'mobile',   label:'Mobile push',          desc:'Push notifications to your phone'   },
-                { key:'email',    label:'Email digest',         desc:'Weekly email summary of activity'   },
+                { key:'sounds',  label:'Notification sounds', desc:'Play a sound for new notifications' },
+                { key:'desktop', label:'Desktop alerts',      desc:'Show system notification banners'   },
+                { key:'mobile',  label:'Mobile push',         desc:'Push notifications to your phone'   },
+                { key:'email',   label:'Email digest',        desc:'Weekly email summary of activity'   },
               ].map(({ key, label, desc }) => (
-                <NotifRow key={key} label={label} desc={desc}
-                  value={notifs[key as keyof typeof notifs]}
-                  onChange={v => setNotifs(p => ({ ...p, [key]:v }))}/>
+                <NotifRow key={key} label={label} desc={desc} value={notifs[key as keyof typeof notifs]} onChange={v=>setNotifs(p=>({...p,[key]:v}))}/>
               ))}
-            </Section>
-
-            <Section title="Do Not Disturb schedule">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 font-mono text-[12px] text-[#9ca3af]">
-                  Automatically mute from
-                </div>
-                <input type="time" defaultValue="22:00"
-                  className="bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[12px] px-3 h-9 rounded-lg outline-none transition-colors"/>
-                <span className="font-mono text-[12px] text-[#6b7280]">to</span>
-                <input type="time" defaultValue="08:00"
-                  className="bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[12px] px-3 h-9 rounded-lg outline-none transition-colors"/>
-              </div>
             </Section>
           </div>
         )}
@@ -692,65 +798,29 @@ export function ProfilePage() {
           <div className="max-w-[620px] mx-auto px-8 py-8">
             <h2 className="text-[20px] font-bold tracking-tight mb-1">Appearance</h2>
             <p className="font-mono text-[11.5px] text-[#6b7280] mb-7">Customise how DevTalk looks and feels</p>
-
             <Section title="Theme">
               <div className="grid grid-cols-3 gap-3">
-                {([
-                  { key:'dark',   label:'Dark',   icon:<Moon size={16}/> },
-                  { key:'light',  label:'Light',  icon:<Sun size={16}/>  },
-                  { key:'system', label:'System', icon:<Monitor size={16}/> },
-                ] as const).map(({ key, label, icon }) => (
-                  <button key={key} onClick={() => setTheme(key)}
-                    className={[
-                      'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all',
-                      theme === key
-                        ? 'border-[#7c3aed] bg-[rgba(124,58,237,0.12)] text-[#c084fc]'
-                        : 'border-[#2a2c33] bg-[#18191d] text-[#6b7280] hover:border-[#33363f] hover:text-[#e8eaf0]',
-                    ].join(' ')}>
-                    {icon}
-                    <span className="font-mono text-[11px]">{label}</span>
-                    {theme === key && <div className="w-1.5 h-1.5 rounded-full bg-[#7c3aed]"/>}
+                {([{key:'dark',label:'Dark',icon:<Moon size={16}/>},{key:'light',label:'Light',icon:<Sun size={16}/>},{key:'system',label:'System',icon:<Monitor size={16}/>}] as const).map(({key,label,icon})=>(
+                  <button key={key} onClick={()=>setTheme(key)}
+                    className={['flex flex-col items-center gap-2 p-4 rounded-xl border transition-all',
+                      theme===key ? 'border-[#7c3aed] bg-[rgba(124,58,237,0.12)] text-[#c084fc]' : 'border-[#2a2c33] bg-[#18191d] text-[#6b7280] hover:border-[#33363f]'].join(' ')}>
+                    {icon}<span className="font-mono text-[11px]">{label}</span>
                   </button>
                 ))}
               </div>
             </Section>
-
             <Section title="Interface density">
-              <div className="space-y-3">
-                {[
-                  { key:'compactMode',    label:'Compact message list',  desc:'Reduce spacing between messages'         },
-                  { key:'sidebarDense',   label:'Dense sidebar',          desc:'Show more channels with smaller spacing' },
-                  { key:'messageGrouping',label:'Group messages',          desc:'Combine consecutive messages from same sender' },
-                  { key:'animations',     label:'Animations',              desc:'Enable transitions and micro-animations' },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="flex items-center justify-between py-2">
-                    <div>
-                      <p className="text-[13px] font-semibold">{label}</p>
-                      <p className="font-mono text-[11px] text-[#6b7280]">{desc}</p>
-                    </div>
-                    <Toggle
-                      value={appearance[key as keyof typeof appearance] as boolean}
-                      onChange={v => setAppearance(p => ({ ...p, [key]:v }))}/>
-                  </div>
-                ))}
-              </div>
-            </Section>
-
-            <Section title="Font size">
-              <div className="grid grid-cols-3 gap-2">
-                {['small','normal','large'].map(size => (
-                  <button key={size} onClick={() => setAppearance(p => ({ ...p, fontSize:size }))}
-                    className={[
-                      'py-2.5 rounded-lg border font-mono transition-all capitalize',
-                      appearance.fontSize === size
-                        ? 'border-[#7c3aed] bg-[rgba(124,58,237,0.12)] text-[#c084fc]'
-                        : 'border-[#2a2c33] bg-[#18191d] text-[#6b7280] hover:border-[#33363f]',
-                      size === 'small' ? 'text-[11px]' : size === 'large' ? 'text-[15px]' : 'text-[13px]',
-                    ].join(' ')}>
-                    {size === 'small' ? 'Aa' : size === 'normal' ? 'Aa' : 'Aa'} {size}
-                  </button>
-                ))}
-              </div>
+              {[
+                {key:'compactMode',label:'Compact message list',desc:'Reduce spacing between messages'},
+                {key:'sidebarDense',label:'Dense sidebar',desc:'Show more channels with smaller spacing'},
+                {key:'messageGrouping',label:'Group messages',desc:'Combine consecutive messages from same sender'},
+                {key:'animations',label:'Animations',desc:'Enable transitions and micro-animations'},
+              ].map(({key,label,desc})=>(
+                <div key={key} className="flex items-center justify-between py-2">
+                  <div><p className="text-[13px] font-semibold">{label}</p><p className="font-mono text-[11px] text-[#6b7280]">{desc}</p></div>
+                  <Toggle value={appearance[key as keyof typeof appearance] as boolean} onChange={v=>setAppearance(p=>({...p,[key]:v}))}/>
+                </div>
+              ))}
             </Section>
           </div>
         )}
@@ -760,67 +830,36 @@ export function ProfilePage() {
           <div className="max-w-[620px] mx-auto px-8 py-8">
             <h2 className="text-[20px] font-bold tracking-tight mb-1">Privacy</h2>
             <p className="font-mono text-[11.5px] text-[#6b7280] mb-7">Control what others can see about you</p>
-
             <Section title="Visibility">
               {[
-                { key:'showStatus',   label:'Show my online status', desc:'Others can see if you are online, away, or offline' },
-                { key:'showEmail',    label:'Show email address',    desc:'Your email is visible to workspace members'          },
-                { key:'showActivity', label:'Show activity feed',    desc:'Others can see your recent messages and reactions'   },
-                { key:'searchable',   label:'Searchable by email',   desc:'People can find you by searching your email'        },
-              ].map(({ key, label, desc }) => (
-                <NotifRow key={key} label={label} desc={desc}
-                  value={privacy[key as keyof typeof privacy]}
-                  onChange={v => setPrivacy(p => ({ ...p, [key]:v }))}/>
+                {key:'showStatus',label:'Show my online status',desc:'Others can see if you are online'},
+                {key:'showEmail',label:'Show email address',desc:'Your email is visible to workspace members'},
+                {key:'showActivity',label:'Show activity feed',desc:'Others can see your recent activity'},
+                {key:'searchable',label:'Searchable by email',desc:'People can find you by searching your email'},
+              ].map(({key,label,desc})=>(
+                <NotifRow key={key} label={label} desc={desc} value={privacy[key as keyof typeof privacy]} onChange={v=>setPrivacy(p=>({...p,[key]:v}))}/>
               ))}
             </Section>
-
             <Section title="Messaging">
               {[
-                { key:'readReceipts',     label:'Send read receipts',    desc:'Others see when you have read their messages'  },
-                { key:'typingIndicator',  label:'Show typing indicator', desc:'Others see when you are composing a message'  },
-              ].map(({ key, label, desc }) => (
-                <NotifRow key={key} label={label} desc={desc}
-                  value={privacy[key as keyof typeof privacy]}
-                  onChange={v => setPrivacy(p => ({ ...p, [key]:v }))}/>
+                {key:'readReceipts',label:'Send read receipts',desc:'Others see when you have read their messages'},
+                {key:'typingIndicator',label:'Show typing indicator',desc:'Others see when you are composing'},
+              ].map(({key,label,desc})=>(
+                <NotifRow key={key} label={label} desc={desc} value={privacy[key as keyof typeof privacy]} onChange={v=>setPrivacy(p=>({...p,[key]:v}))}/>
               ))}
-            </Section>
-
-            <Section title="Data & usage">
-              <div className="space-y-2.5">
-                <button className="w-full flex items-center justify-between px-4 py-3 bg-[#111214] border border-[#2a2c33] rounded-xl hover:border-[#33363f] transition-all">
-                  <div className="flex items-center gap-3">
-                    <Download size={14} className="text-[#6b7280]"/>
-                    <div className="text-left">
-                      <p className="text-[13px] font-semibold">Download my data</p>
-                      <p className="font-mono text-[10.5px] text-[#6b7280]">Export all your messages and files</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={14} className="text-[#6b7280]"/>
-                </button>
-                <button className="w-full flex items-center justify-between px-4 py-3 bg-[rgba(239,68,68,0.05)] border border-[rgba(239,68,68,0.18)] rounded-xl hover:bg-[rgba(239,68,68,0.1)] transition-all">
-                  <div className="flex items-center gap-3">
-                    <Trash2 size={14} className="text-[#ef4444]"/>
-                    <div className="text-left">
-                      <p className="text-[13px] font-semibold text-[#ef4444]">Delete all my messages</p>
-                      <p className="font-mono text-[10.5px] text-[#6b7280]">Permanently remove all messages you have sent</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={14} className="text-[#6b7280]"/>
-                </button>
-              </div>
             </Section>
           </div>
         )}
       </div>
 
       <style>{`
-        @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes cardIn        { from{opacity:0;transform:scale(0.9) translateY(16px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes cardSectionIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
     </div>
   );
 }
 
-// ── Helper: Section wrapper ────────────────────────────────────────────────────
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5 mb-4">
@@ -830,45 +869,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// ── Helper: Toggle switch ─────────────────────────────────────────────────────
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button onClick={() => onChange(!value)}
-      className={[
-        'relative w-9 h-5 rounded-full transition-all duration-200 shrink-0',
-        value ? 'bg-[#7c3aed]' : 'bg-[#2a2c33]',
-      ].join(' ')}>
-      <div className={[
-        'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200',
-        value ? 'left-[18px]' : 'left-0.5',
-      ].join(' ')}/>
+      className={['relative w-9 h-5 rounded-full transition-all duration-200 shrink-0', value ? 'bg-[#7c3aed]' : 'bg-[#2a2c33]'].join(' ')}>
+      <div className={['absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200', value ? 'left-[18px]' : 'left-0.5'].join(' ')}/>
     </button>
   );
 }
 
-// ── Helper: Notification row ──────────────────────────────────────────────────
-function NotifRow({ label, desc, value, onChange }: {
-  label: string; desc: string; value: boolean; onChange: (v: boolean) => void;
-}) {
+function NotifRow({ label, desc, value, onChange }: { label:string; desc:string; value:boolean; onChange:(v:boolean)=>void }) {
   return (
     <div className="flex items-center justify-between py-2.5 border-b border-[#1e2026] last:border-0">
-      <div>
-        <p className="text-[13px] font-semibold">{label}</p>
-        <p className="font-mono text-[10.5px] text-[#6b7280] mt-0.5">{desc}</p>
-      </div>
+      <div><p className="text-[13px] font-semibold">{label}</p><p className="font-mono text-[10.5px] text-[#6b7280] mt-0.5">{desc}</p></div>
       <Toggle value={value} onChange={onChange}/>
     </div>
-  );
-}
-
-// ── Missing icon stub ─────────────────────────────────────────────────────────
-function Download({ size, className }: { size: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={className}
-      fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-    </svg>
   );
 }
 

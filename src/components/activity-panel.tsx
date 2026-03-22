@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Bell, MessageSquare, AtSign, Heart, UserPlus, GitPullRequest,
   CheckCircle2, AlertCircle, Star, Trash2, Archive, Filter,
   Search, RefreshCw, Settings, ChevronDown, X, Check, Eye,
   EyeOff, Clock, TrendingUp, Users, Zap, MoreHorizontal,
-  Pin, Volume2, VolumeX, Circle, ArrowRight, Hash, Lock,
+  Pin, Volume2, VolumeX, Circle, ArrowRight, Hash, Lock, Loader2,
 } from 'lucide-react';
+import { useAuth } from '@/database';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ActivityType =
@@ -191,8 +192,10 @@ function groupByDate(activities: Activity[]): { label: string; items: Activity[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ActivityPage() {
-  const [activities, setActivities]     = useState<Activity[]>(seedActivities);
+export default function ActivityPage({ user }: { user: any }) {
+  const { supabase } = useAuth();
+  const [activities, setActivities]     = useState<Activity[]>([]);
+  const [isLoading, setIsLoading]       = useState(true);
   const [filter,     setFilter]         = useState<FilterType>('all');
   const [search,     setSearch]         = useState('');
   const [selected,   setSelected]       = useState<Activity | null>(null);
@@ -204,30 +207,67 @@ export default function ActivityPage() {
     mentions: true, threads: true, reactions: false,
     tasks: true, milestones: true, system: false,
   });
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user || !supabase) return;
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*, actor:actor_id(display_name, username, avatar_gradient, role)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching notifications:', error);
+      return;
+    }
+
+    const formatted = (data || []).map((n: any) => ({
+      id: n.id,
+      type: n.type as ActivityType,
+      title: n.title,
+      body: n.body || '',
+      read: n.is_read,
+      pinned: n.is_pinned,
+      priority: (n.meta?.priority || 'medium') as Priority,
+      timestamp: new Date(n.created_at),
+      actor: {
+        name: n.actor?.display_name || 'System',
+        avatar: (n.actor?.display_name || 'S')[0].toUpperCase(),
+        color: n.actor?.avatar_gradient || '#6b7280'
+      },
+      channel: n.channel_id, // We'd need another join for channel name if we wanted it
+      meta: n.meta
+    }));
+
+    setActivities(formatted);
+    setIsLoading(false);
+  }, [user, supabase]);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    if (!supabase) return;
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('notifications_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user.id, supabase, fetchNotifications]);
 
   const unreadCount = activities.filter(a => !a.read).length;
-
-  // ── Simulated live notifications every 30s ────────────────────────────────
-  useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      if (muted) return;
-      const templates = [
-        { type:'mention' as ActivityType,      priority:'high'   as Priority, actor:{ name:'Priya Nair',  avatar:'PN', color:'#10b981' }, title:'Priya Nair mentioned you', body:'@you what do you think about pushing the release to next Monday?', channel:'general' },
-        { type:'thread_reply' as ActivityType, priority:'medium' as Priority, actor:{ name:'Ravi Kumar',  avatar:'RK', color:'#3b82f6' }, title:'Ravi Kumar replied in a thread', body:'Just pushed the fix. Can you re-run the CI pipeline?', channel:'backend-infra' },
-        { type:'reaction' as ActivityType,     priority:'low'    as Priority, actor:{ name:'Sneha Rao',   avatar:'SR', color:'#ec4899' }, title:'Sneha Rao reacted to your message', body:'Reacted with a heart to your latest update in #design.', channel:'design' },
-        { type:'task_assigned' as ActivityType,priority:'high'   as Priority, actor:{ name:'Kabir Singh', avatar:'KS', color:'#06b6d4' }, title:'New task assigned to you', body:'Review and approve the Q4 OKR document before EOD.', channel:'planning' },
-      ];
-      const tpl = templates[Math.floor(Math.random() * templates.length)];
-      const newActivity: Activity = {
-        ...tpl, id:`live-${Date.now()}`, read:false, pinned:false, timestamp: new Date(),
-      };
-      setActivities(prev => [newActivity, ...prev]);
-      setLiveToast(`New: ${newActivity.title}`);
-      setTimeout(() => setLiveToast(null), 4000);
-    }, 30_000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [muted]);
 
   // ── Derived list ──────────────────────────────────────────────────────────
   const filtered = activities.filter(a => {
@@ -248,23 +288,55 @@ export default function ActivityPage() {
   const groups = groupByDate(filtered);
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  function markRead(id: string) {
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, read: true } : a));
+  async function markRead(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id);
+
+    if (error) console.error('Error marking read:', error);
   }
-  function markAllRead() {
-    setActivities(prev => prev.map(a => ({ ...a, read: true })));
+  async function markAllRead() {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id);
+
+    if (error) console.error('Error marking all read:', error);
   }
-  function togglePin(id: string) {
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, pinned: !a.pinned } : a));
+  async function togglePin(id: string) {
+    if (!supabase) return;
+    const activity = activities.find(a => a.id === id);
+    if (!activity) return;
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_pinned: !activity.pinned })
+      .eq('id', id);
+
+    if (error) console.error('Error toggling pin:', error);
   }
-  function dismiss(id: string) {
-    setActivities(prev => prev.filter(a => a.id !== id));
+  async function dismiss(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error dismissing notification:', error);
+      return;
+    }
     if (selected?.id === id) setSelected(null);
   }
   function dismissAll() {
+    // This could also be a DB delete if needed
     setActivities(prev => prev.filter(a => a.read === false && a.pinned));
   }
   function clearAll() {
+    // Warning: this could be destructive if it deletes from DB
     setActivities([]);
     setSelected(null);
   }
@@ -276,16 +348,7 @@ export default function ActivityPage() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    await new Promise(r => setTimeout(r, 900));
-    // Simulate a new incoming notification on manual refresh
-    const fresh: Activity = {
-      id: `refresh-${Date.now()}`, type:'system', priority:'low', read:false, pinned:false,
-      title:'Activity feed refreshed',
-      body:'Your activity feed is up to date. No new items since last refresh.',
-      actor:{ name:'System', avatar:'SY', color:'#6b7280' },
-      timestamp: new Date(),
-    };
-    setActivities(prev => [fresh, ...prev]);
+    await fetchNotifications();
     setRefreshing(false);
   }
 
@@ -388,7 +451,12 @@ export default function ActivityPage() {
           {/* Feed */}
           <div className="flex flex-1 overflow-hidden">
             <div className={`flex-1 overflow-y-auto ${selected ? 'border-r border-[#2a2c33]' : ''}`}>
-              {groups.length === 0 ? (
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-[#6b7280]">
+                  <Loader2 size={36} className="animate-spin opacity-20"/>
+                  <p className="font-mono text-[11px]">Loading activity...</p>
+                </div>
+              ) : groups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-[#6b7280]">
                   <Bell size={36} className="opacity-20"/>
                   <div className="text-center">
