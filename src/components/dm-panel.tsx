@@ -4,10 +4,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search, Plus, Phone, Video, MoreHorizontal, Pin, Trash2, X, Check,
   CheckCheck, Circle, Mic, Image, FileText, Bell, BellOff, Edit3, Reply,
-  MessageSquare, Loader2
+  MessageSquare, Loader2, Download, ExternalLink, Film, Music, FileCode, File,
+  Image as ImageIcon
 } from 'lucide-react';
 import { RichTextEditor, type Person, type ReplyTarget, type SentMessage } from '@/components/chat/rich-text-editor';
 import { useAuth } from '@/database';
+import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
@@ -44,15 +46,6 @@ interface Conversation {
 
 // ── Seed people ───────────────────────────────────────────────────────────────
 const ME: Person = { id: 'me', name: 'You', avatar: 'YO', color: '#7c3aed', status: 'online', role: 'Developer' };
-const PEOPLE: Person[] = [
-  { id: 'p1', name: 'Arjun Sharma', avatar: 'AS', color: '#7c3aed', status: 'online', role: 'Product Manager' },
-  { id: 'p2', name: 'Priya Nair', avatar: 'PN', color: '#10b981', status: 'online', role: 'Backend Engineer' },
-  { id: 'p3', name: 'Meera Das', avatar: 'MD', color: '#f59e0b', status: 'away', role: 'UX Designer' },
-  { id: 'p4', name: 'Ravi Kumar', avatar: 'RK', color: '#3b82f6', status: 'busy', role: 'DevOps Engineer' },
-  { id: 'p5', name: 'Sneha Rao', avatar: 'SR', color: '#ec4899', status: 'offline', role: 'Frontend Engineer' },
-  { id: 'p6', name: 'Kabir Singh', avatar: 'KS', color: '#06b6d4', status: 'online', role: 'Data Analyst' },
-  { id: 'p7', name: 'Divya Menon', avatar: 'DM', color: '#8b5cf6', status: 'away', role: 'QA Engineer' },
-];
 
 const STATUS_COLOR: Record<UserStatus, string> = {
   online: '#10b981', away: '#f59e0b', busy: '#ef4444', offline: '#6b7280',
@@ -66,6 +59,118 @@ const STATUS_LABEL: Record<UserStatus, string> = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(blobUrl);
+  } catch { window.open(url, '_blank'); }
+}
+
+function FileCard({ name, url, type }: { name: string; url: string; type?: string }) {
+  const [downloading, setDownloading] = useState(false);
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  // Prioritize emoji type label from editor, fallback to extension
+  const isAudio = type === '🎵' || (type !== '🎬' && ['mp3', 'wav', 'ogg', 'm4a'].includes(ext));
+  const isVideo = type === '🎬' || (type !== '🎵' && ['mp4', 'mov', 'webm', 'avi'].includes(ext));
+
+  const getIcon = () => {
+    if (isVideo) return <Film className="w-5 h-5" />;
+    if (isAudio) return <Music className="w-5 h-5" />;
+    if (['js', 'ts', 'tsx', 'jsx', 'py', 'json', 'html', 'css', 'sql'].includes(ext)) return <FileCode className="w-5 h-5" />;
+    if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext)) return <FileText className="w-5 h-5" />;
+    return <File className="w-5 h-5" />;
+  };
+
+  const getAccent = () => {
+    if (isVideo) return 'from-purple-500/20 border-purple-500/30 text-purple-400';
+    if (isAudio) return 'from-green-500/20 border-green-500/30 text-green-400';
+    if (['js', 'ts', 'tsx', 'jsx', 'py'].includes(ext)) return 'from-yellow-500/20 border-yellow-500/30 text-yellow-400';
+    if (['pdf'].includes(ext)) return 'from-red-500/20 border-red-500/30 text-red-400';
+    if (['doc', 'docx'].includes(ext)) return 'from-blue-500/20 border-blue-500/30 text-blue-400';
+    return 'from-[#b9babd]/10 border-white/10 text-[#b9babd]';
+  };
+
+  return (
+    <div className="mt-2 space-y-2 max-w-sm">
+      <div className={cn("flex items-center gap-3 bg-gradient-to-r to-transparent border rounded-xl px-4 py-3 group transition-all hover:to-white/[0.02]", getAccent())}>
+        <div className={cn("w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0", getAccent().split(' ')[2])}>{getIcon()}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-white truncate">{name}</p>
+          <p className="text-[11px] text-[#5c5f63] uppercase tracking-wider mt-0.5">{ext} file</p>
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#b9babd] hover:text-white transition-colors"><ExternalLink className="w-3.5 h-3.5" /></a>
+          <button onClick={async () => { setDownloading(true); await downloadFile(url, name); setDownloading(false); }} disabled={downloading} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#b9babd] hover:text-white transition-colors disabled:opacity-50">
+            {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+      
+      {isAudio && (
+        <div className="px-1">
+          <audio controls className="w-full h-8 scale-90 origin-left" style={{ filter: 'invert(1) hue-rotate(180deg) brightness(1.5) contrast(1.2)' }}>
+            <source src={url} type={['mp3', 'wav', 'ogg', 'm4a'].includes(ext) ? `audio/${ext === 'm4a' ? 'mp4' : ext}` : undefined} />
+          </audio>
+        </div>
+      )}
+
+      {isVideo && (
+        <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+          <video controls className="w-full aspect-video">
+            <source src={url} type={['mp4', 'mov', 'webm'].includes(ext) ? `video/${ext === 'mov' ? 'quicktime' : ext}` : undefined} />
+          </video>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImageCard({ name, url }: { name: string; url: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  return (
+    <div className="mt-2 max-w-sm group">
+      <div className="relative rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.03]">
+        {!loaded && <div className="w-full h-40 flex items-center justify-center bg-white/[0.03]"><ImageIcon className="w-8 h-8 text-white/20 animate-pulse" /></div>}
+        <img src={url} alt={name} onLoad={() => setLoaded(true)} className={cn("w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity", loaded ? 'block' : 'hidden')} onClick={() => window.open(url, '_blank')} />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="h-7 w-7 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur text-white hover:bg-black/80 transition-colors"><ExternalLink className="w-3.5 h-3.5" /></a>
+          <button onClick={async () => { setDownloading(true); await downloadFile(url, name); setDownloading(false); }} disabled={downloading} className="h-7 w-7 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur text-white hover:bg-black/80 transition-colors">
+            {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+      <p className="text-[11px] text-[#5c5f63] mt-1 px-0.5 truncate">{name}</p>
+    </div>
+  );
+}
+
+function MessageContent({ content }: { content: string }) {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  const textLines: string[] = [];
+  const flushText = () => {
+    if (!textLines.length) return;
+    const text = textLines.splice(0).join('\n');
+    elements.push(<div key={`t-${elements.length}`} className="text-[14.5px] text-[#d1d2d3] leading-[1.6] whitespace-pre-wrap break-words">{renderInline(text)}</div>);
+  };
+  lines.forEach((line, i) => {
+    const img = line.match(/^!\[(.+?)\]\((.+?)\)$/);
+    if (img) { flushText(); elements.push(<ImageCard key={i} name={img[1]} url={img[2]} />); return; }
+    const file = line.match(/^([📎🎬🎵])\s\[(.+?)\]\((.+?)\)$/u);
+    if (file) { flushText(); elements.push(<FileCard key={i} type={file[1]} name={file[2]} url={file[3]} />); return; }
+    textLines.push(line);
+  });
+  flushText();
+  return <div className="space-y-0.5">{elements}</div>;
+}
+
 function timeLabel(d: Date): string {
   const diff = Date.now() - d.getTime();
   if (diff < 60_000) return 'now';
@@ -100,8 +205,75 @@ function getLastMsg(c: Conversation): Message | undefined {
   return c.messages[c.messages.length - 1];
 }
 
+/* ── Inline text renderer ────────────────────────────────────────────────── */
+function renderInline(text: string): React.ReactNode {
+  if (!text) return null;
+
+  // Order of rules matters for proper matching (e.g., ** before *)
+  const rules = [
+    { type: 'bold',   regex: /\*\*(.+?)\*\*/ },
+    { type: 'italic', regex: /_(.+?)_/ },
+    { type: 'strike', regex: /~~(.+?)~~/ },
+    { type: 'code',   regex: /`(.+?)`/ },
+    { type: 'link',   regex: /\[(.+?)\]\((.+?)\)/ }
+  ];
+
+  let firstMatch: { rule: typeof rules[0], start: number, end: number, content: string, extra?: string } | null = null;
+
+  for (const rule of rules) {
+    const match = text.match(rule.regex);
+    if (match && match.index !== undefined) {
+      if (!firstMatch || match.index < firstMatch.start) {
+        firstMatch = {
+          rule,
+          start: match.index,
+          end: match.index + match[0].length,
+          content: match[1],
+          extra: match[2] // for links
+        };
+      }
+    }
+  }
+
+  if (!firstMatch) return text;
+
+  const prefix = text.slice(0, firstMatch.start);
+  const suffix = text.slice(firstMatch.end);
+
+  const key = `${firstMatch.rule.type}-${firstMatch.start}`;
+
+  let element: React.ReactNode;
+  switch (firstMatch.rule.type) {
+    case 'bold':
+      element = <strong key={key} className="text-white font-semibold">{renderInline(firstMatch.content)}</strong>;
+      break;
+    case 'italic':
+      element = <em key={key} className="italic text-[#d1d2d3]">{renderInline(firstMatch.content)}</em>;
+      break;
+    case 'strike':
+      element = <s key={key} className="line-through opacity-60">{renderInline(firstMatch.content)}</s>;
+      break;
+    case 'code':
+      element = <code key={key} className="bg-white/10 text-[#e3b341] px-1.5 py-0.5 rounded text-[13px] font-mono whitespace-nowrap">{firstMatch.content}</code>;
+      break;
+    case 'link':
+      element = <a key={key} href={firstMatch.extra} target="_blank" rel="noopener noreferrer" className="text-[#4a9eff] hover:underline">{renderInline(firstMatch.content)}</a>;
+      break;
+    default:
+      element = firstMatch.content;
+  }
+
+  return (
+    <>
+      {renderInline(prefix)}
+      {element}
+      {renderInline(suffix)}
+    </>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-export function DMPage({ user }: { user: any }) {
+export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; activeWorkspace: any; initialConvId?: string | null }) {
   const { supabase } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -150,13 +322,32 @@ export function DMPage({ user }: { user: any }) {
   }, [supabase]);
 
   const fetchAllUsers = useCallback(async () => {
-    if (!supabase || !user) return [];
-    const { data } = await supabase
-      .from('users')
-      .select('id, display_name, username, email, avatar_gradient, status, role')
-      .neq('id', user.id); // exclude self
-    return data || [];
-  }, [supabase, user]);
+    if (!supabase || !user || !activeWorkspace) return [];
+
+    // Filter by workspace membership. If you have the workspace_members table:
+    try {
+      const { data: members, error: memberError } = await supabase
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', activeWorkspace.id);
+
+      if (memberError || !members || members.length === 0) {
+        return [];
+      }
+
+      const memberIds = members.map(m => m.user_id);
+      const { data } = await supabase
+        .from('users')
+        .select('id, display_name, username, email, avatar_gradient, status, role')
+        .in('id', memberIds)
+        .neq('id', user.id); // exclude self
+        
+      return data || [];
+    } catch (err) {
+      console.error('Isolation error:', err);
+      return [];
+    }
+  }, [supabase, user, activeWorkspace]);
 
   async function startConversation(otherUserId: string) {
     if (!supabase || !user) return;
@@ -241,6 +432,18 @@ export function DMPage({ user }: { user: any }) {
   }, [fetchConversations]);
 
   useEffect(() => {
+    if (initialConvId) {
+      if (initialConvId.startsWith('new-dm-')) {
+        const userId = initialConvId.replace('new-dm-', '');
+        startConversation(userId);
+      } else {
+        setActiveId(initialConvId);
+        fetchMessages(initialConvId);
+      }
+    }
+  }, [initialConvId]);
+
+  useEffect(() => {
     if (activeId && supabase) {
       fetchMessages(activeId);
 
@@ -267,17 +470,10 @@ export function DMPage({ user }: { user: any }) {
   }, [showNewDM, user?.id]);
 
   useEffect(() => {
-    if (!showNewDM || !supabase || !user) return;
-    
-    supabase
-      .from('users')
-      .select('id, display_name, username, email, avatar_gradient, status, role')
-      .neq('id', user.id)
-      .then(({ data, error }) => {
-        if (error) console.error('Error fetching users:', error.message);
-        else setAllUsers(data || []);
-      });
-  }, [showNewDM, supabase, user]);
+    if (supabase && user) {
+      fetchAllUsers().then(setAllUsers);
+    }
+  }, [supabase, user?.id, fetchAllUsers]);
 
   const active = conversations.find(c => c.id === activeId) ?? null;
   const person = active && !active.isGroup ? active.participants[0] : null;
@@ -315,11 +511,20 @@ export function DMPage({ user }: { user: any }) {
   async function handleSend(msg: SentMessage) {
     if (!activeId || !user || !supabase) return;
 
+    let finalContent = msg.formattedText || msg.text;
+    
+    // Handle attachments from RichTextEditor (voice, video, etc.)
+    if (msg.attachmentUrl) {
+      const prefix = msg.attachmentType === 'audio' ? '🎵' : msg.attachmentType === 'video' ? '🎬' : '📎';
+      const label = msg.attachmentName || (msg.attachmentType === 'audio' ? 'Voice Message' : msg.attachmentType === 'video' ? 'Video Message' : 'Attachment');
+      finalContent = `${finalContent}\n${prefix} [${label}](${msg.attachmentUrl})`.trim();
+    }
+
     const tempId = `temp-${Date.now()}`;
     const tempMsg: Message = {
       id: tempId,
       senderId: user.id,
-      text: msg.formattedText || msg.text,
+      text: finalContent,
       timestamp: new Date(),
       status: 'sending',
       reactions: [],
@@ -335,7 +540,7 @@ export function DMPage({ user }: { user: any }) {
       .insert({
         conversation_id: activeId,
         sender_id: user.id,
-        content: msg.formattedText || msg.text,
+        content: finalContent,
       });
 
     if (error) {
@@ -523,7 +728,7 @@ export function DMPage({ user }: { user: any }) {
                 {items.map((msg, idx) => {
                   const isMine = msg.senderId === user.id;
                   const senderP = active.participants.find(p => p.id === msg.senderId);
-                  const sender = isMine ? { name: 'You', avatar: 'YO', color: '#7c3aed' } : (senderP ?? PEOPLE[0]);
+                  const sender = isMine ? { name: 'You', avatar: 'YO', color: '#7c3aed' } : (senderP ?? active.participants[0]);
                   const sameAuthor = idx > 0 && items[idx - 1].senderId === msg.senderId;
                   const replyMsg = msg.replyTo ? active.messages.find(m => m.id === msg.replyTo) : null;
 
@@ -549,7 +754,7 @@ export function DMPage({ user }: { user: any }) {
                         {replyMsg && (
                           <div className={`flex items-center gap-2 mb-1 px-2 py-1 rounded bg-[#18191d] border-l-2 border-[#7c3aed] text-[11px] text-[#6b7280] ${isMine ? 'self-end' : ''}`}>
                             <Reply size={10} className="text-[#a855f7]" />
-                            <span className="truncate max-w-[200px]">{replyMsg.text}</span>
+                             <span className="truncate max-w-[200px]">{renderInline(replyMsg.text)}</span>
                           </div>
                         )}
 
@@ -566,7 +771,7 @@ export function DMPage({ user }: { user: any }) {
                           ) : (
                             <div className={`px-4 py-2.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm
                               ${isMine ? 'bg-[#7c3aed] text-white rounded-tr-none' : 'bg-[#1e2026] text-[#e8eaf0] rounded-tl-none border border-[#2a2c33]'}`}>
-                              {msg.text}
+                               <MessageContent content={msg.text} />
                               {msg.edited && <span className="text-[9px] opacity-40 ml-2">(edited)</span>}
                             </div>
                           )}
@@ -614,18 +819,26 @@ export function DMPage({ user }: { user: any }) {
           )}
 
           {/* Editor */}
-          <RichTextEditor
-            placeholder={`Message ${getConvName(active)}`}
-            people={PEOPLE}
-            replyTo={replyTo ? {
-              id: replyTo.id,
-              senderId: replyTo.senderId,
-              senderName: PEOPLE.find(p => p.id === replyTo.senderId)?.name || 'User',
-              text: replyTo.text,
-            } : null}
-            onClearReply={() => setReplyTo(null)}
-            onSend={handleSend}
-          />
+          <div className="px-4 pb-4">
+            <RichTextEditor
+              placeholder={`Message ${getConvName(active)}`}
+              people={allUsers.map(u => ({
+                id: u.id,
+                name: u.display_name || u.username || 'User',
+                avatar: (u.display_name || u.username || 'U')[0].toUpperCase(),
+                color: u.avatar_gradient || '#7c3aed',
+                status: u.status || 'offline',
+              }))}
+              replyTo={replyTo ? {
+                id: replyTo.id,
+                senderId: replyTo.senderId,
+                senderName: (allUsers.find(u => u.id === replyTo.senderId)?.display_name || 'User'),
+                text: replyTo.text,
+              } : null}
+              onClearReply={() => setReplyTo(null)}
+              onSend={handleSend}
+            />
+          </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#33363f]">

@@ -22,12 +22,17 @@ import { IntegrationsPanel } from '@/components/integrations-panel';
 import ActivityPage from '@/components/activity-panel';
 import { DMPage } from '@/components/dm-panel';
 import { ProfilePage } from '@/components/profile-panel';
+import { OwnerProfilePage } from '@/components/owner-profile-panel';
+import { useRouter } from 'next/navigation';
 import { AddMenu } from '@/components/add-menu';
 interface WorkspaceClientProps {
   user: any;
   channels: any[];
   directMessages: any[];
   files: any[];
+  activeWorkspace?: any;
+  workspaces?: any[];
+  refresh?: () => Promise<void>;
 }
 
 function HuddlesSidebar({ channels, activeHuddles, onStart }: {
@@ -269,9 +274,15 @@ function DmChatView({ activeDm }: { activeDm: any }) {
   );
 }
 
-export function WorkspaceClient({ user, channels: initialChannels, directMessages, files: initialFiles }: WorkspaceClientProps) {
+export function WorkspaceClient({ user, channels: initialChannels, directMessages, files: initialFiles, activeWorkspace, workspaces = [], refresh }: WorkspaceClientProps) {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile'>('home');
   const [channels, setChannels] = useState(initialChannels);
+  
+  useEffect(() => {
+    setChannels(initialChannels);
+  }, [initialChannels]);
+
   const [activeId, setActiveId] = useState(initialChannels[0]?.id ?? '');
   const [activeType, setActiveType] = useState<'channel' | 'dm'>('channel');
   const [activeDm, setActiveDm] = useState<any>(null);
@@ -289,6 +300,23 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
   const supabase = createClient();
+
+  const handleRenameWorkspace = async (newName: string) => {
+    if (!supabase || !activeWorkspace?.id) return;
+    const { error } = await supabase
+      .from('workspaces')
+      .update({ name: newName })
+      .eq('id', activeWorkspace.id);
+
+    if (error) {
+      console.error('Error renaming workspace:', error);
+      return;
+    }
+    
+    if (refresh) {
+      await refresh();
+    }
+  };
 
   const fetchFiles = useCallback(async () => {
     if (!supabase) return;
@@ -340,7 +368,12 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   const handleSelectDm = (dm: any) => { setActiveDm(dm); setActiveId(dm.id); setActiveType('dm'); };
 
   const handleCreateChannel = async (name: string, isPrivate: boolean) => {
-    const { data, error } = await supabase.from('channels').insert({ name, is_private: isPrivate, owner_id: user.id }).select().single();
+    const { data, error } = await supabase.from('channels').insert({ 
+      name, 
+      is_private: isPrivate, 
+      owner_id: user.id,
+      workspace_id: activeWorkspace?.id || null 
+    }).select().single();
     if (!error && data) { setChannels(prev => [...prev, data]); setActiveId(data.id); setActiveType('channel'); setActiveView('home'); }
   };
 
@@ -386,6 +419,10 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
             directMessages={directMessages}
             onCreateChannel={handleCreateChannel}
             onViewChange={setActiveView}
+            activeWorkspace={activeWorkspace}
+            workspaces={workspaces}
+            onRenameWorkspace={handleRenameWorkspace}
+            onWorkspaceSwitch={(id) => router.push(`/workspace?ws=${id}`)}
           />
         );
     }
@@ -395,7 +432,11 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
     if (activeView === 'huddles' && !isHuddleActive) return <HuddleHub channels={channels} user={user} onStart={handleStartHuddle} />;
     if (activeView === 'activity') return <ActivityPage user={user} />;
     if (activeView === 'integrations') return <IntegrationsPanel />;
-    if (activeView === 'profile') return <ProfilePage user={user} />;
+    if (activeView === 'profile') {
+      return (user?.role === 'admin' || user?.role === 'workspace_owner' || user?.role === 'owner') 
+        ? <OwnerProfilePage user={user} activeWorkspace={activeWorkspace} /> 
+        : <ProfilePage user={user} />;
+    }
     if (activeView === 'files') return (
       <div className="flex-1 flex flex-col relative min-h-0">
         {isUploading && (
@@ -410,7 +451,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       </div>
     );
 
-    if (activeView === 'dms') return <DMPage user={user} />;
+    if (activeView === 'dms') return <DMPage user={user} activeWorkspace={activeWorkspace} initialConvId={activeId} />;
 
     // ── Home / channel view ──
     return (
@@ -432,7 +473,12 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
             {activeTab === 'messages' && (
               <>
                 <MessageList channelId={activeChannel.id} />
-                <MessageInput channelId={activeChannel.id} user={user} placeholder={`Message #${activeChannel.name}`} />
+                <MessageInput 
+                  channelId={activeChannel.id} 
+                  user={user} 
+                  workspaceId={activeWorkspace?.id}
+                  placeholder={`Message #${activeChannel.name}`} 
+                />
               </>
             )}
 
@@ -473,6 +519,40 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
     );
   };
 
+  const handleWorkspaceCreated = async (ws: { name: string; emoji: string; slug: string }) => {
+    const supabase = createClient();
+    try {
+      const { data: wsData, error } = await supabase.from('workspaces').insert({
+        name: ws.name,
+        owner_id: user.id
+      }).select().single();
+      
+      if (error || !wsData) throw error || new Error('Failed to create workspace');
+
+      // Create workspace membership
+      await supabase.from('workspace_members').insert({
+        workspace_id: wsData.id,
+        user_id: user.id,
+        role: 'owner'
+      });
+
+      // Create default channel
+      await supabase.from('channels').insert({
+        name: 'general',
+        workspace_id: wsData.id,
+        owner_id: user.id
+      });
+
+      // Ensure user has owner role
+      await supabase.from('users').update({ role: 'owner' }).eq('id', user.id);
+      
+      setIsAddMenuOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Failed to create workspace:', err.message);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-[#1a1d21] overflow-hidden">
       <SideRail 
@@ -484,7 +564,12 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       <main className="flex flex-col flex-1 min-w-0 relative overflow-hidden">
         {renderMain()}
       </main>
-      {isAddMenuOpen && <AddMenu onClose={() => setIsAddMenuOpen(false)} />}
+      {isAddMenuOpen && (
+        <AddMenu
+          onClose={() => setIsAddMenuOpen(false)}
+          onWorkspaceCreated={handleWorkspaceCreated}
+        />
+      )}
       <Toaster />
     </div>
   );

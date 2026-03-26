@@ -47,7 +47,7 @@ const EMOJIS = [
   '🙁','☹️','😮','😲','😳','🥺','😦','😧','😨','😰','😢','😭','😱','😖','😣','😞',
   '😩','😫','🥱','😤','😡','😠','🤬','😈','👍','👎','👏','🙌','🤝','✊','👊','✋',
   '👋','🤙','💪','❤️','🧡','💛','💚','💙','💜','🖤','💔','🔥','⭐','✨','💫','🎉',
-  '🎊','🎈','🏆','🥇','🚀','💡','🔑','🎯','💎','👑','🤝','💯','✅','❌','⚡','🌊',
+  '🎊','🎈','🏆','🥇','🚀','💡','🔑','🎯','💎','👑','💯','✅','❌','⚡','🌊',
 ];
 
 // ── Terminal ───────────────────────────────────────────────────────────────────
@@ -397,7 +397,7 @@ export function RichTextEditor({
 
       {/* Terminal panel */}
       {showTerminal && (
-        <div className="mx-4 mt-3 rounded-xl overflow-hidden border border-[#2a2c33] bg-[#0c0e0e]"
+        <div className="rounded-xl overflow-hidden border border-[#2a2c33] bg-[#0c0e0e]"
           style={{animation:'rteIn 0.15s ease'}}>
           <div className="flex items-center justify-between px-3 py-2 bg-[#16181a] border-b border-[#1e2026]">
             <div className="flex items-center gap-2">
@@ -438,7 +438,7 @@ export function RichTextEditor({
 
       {/* Voice panel */}
       {voiceState!=='idle' && (
-        <div className="mx-4 mt-3 bg-[#18191d] border border-[#2a2c33] rounded-xl overflow-hidden" style={{animation:'rteIn 0.15s ease'}}>
+        <div className="bg-[#18191d] border border-[#2a2c33] rounded-xl overflow-hidden" style={{animation:'rteIn 0.15s ease'}}>
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="flex items-center gap-[2px] h-9 shrink-0">
               {voiceBars.map((h,i)=>(
@@ -469,7 +469,7 @@ export function RichTextEditor({
 
       {/* Video panel */}
       {videoState!=='idle' && (
-        <div className="mx-4 mt-3 bg-[#0c0e0e] border border-[#2a2c33] rounded-xl overflow-hidden" style={{animation:'rteIn 0.15s ease'}}>
+        <div className="bg-[#0c0e0e] border border-[#2a2c33] rounded-xl overflow-hidden" style={{animation:'rteIn 0.15s ease'}}>
           <div className="flex items-center justify-between px-3 py-2 bg-[#16181a] border-b border-[#1e2026]">
             <div className="flex items-center gap-2">
               {videoState==='rec'&&<div className="w-2 h-2 rounded-full bg-[#ef4444] animate-pulse"/>}
@@ -499,7 +499,7 @@ export function RichTextEditor({
       )}
 
       {/* ── MAIN EDITOR BOX ── */}
-      <div className="mx-4 my-3 bg-[#1e2026] border border-[#2a2c33] rounded-xl overflow-visible transition-colors duration-200"
+      <div className="bg-[#1e2026] border border-[#2a2c33] rounded-xl overflow-visible transition-colors duration-200"
         onFocusCapture={e=>(e.currentTarget as HTMLElement).style.borderColor='#7c3aed'}
         onBlurCapture={e =>(e.currentTarget as HTMLElement).style.borderColor='#2a2c33'}>
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkspaceClient } from '@/components/workspace-client';
 import { Loader2 } from "lucide-react";
 
@@ -14,25 +14,94 @@ export default function WorkspacePage() {
     channels: any[];
     directMessages: any[];
     files: any[];
+    activeWorkspace: any;
+    workspaces: any[];
   } | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      const supabase = createClient();
+  const fetchData = React.useCallback(async () => {
+    const supabase = createClient();
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-      if (authError || !user) {
+      if (authError || !authUser) {
         router.push('/');
         return;
       }
+
+      // Fetch full user profile from the database
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      const user = { ...authUser, ...userData };
+
+      // 1. Find all workspaces the user is part of or owns
+      const { data: workspacesData } = await supabase
+        .from('workspaces')
+        .select('*');
+
+       const { data: memberWorkspaces } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id);
+
+      const memberWorkspaceIds = (memberWorkspaces ?? []).map(m => m.workspace_id);
+      
+      const allWorkspaces = (workspacesData ?? []).filter(w => 
+        w.owner_id === user.id || memberWorkspaceIds.includes(w.id)
+      );
+
+      // Determine active workspace: either from URL, or the first one available
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlWsId = urlParams.get('ws');
+
+      let activeWorkspace = null;
+      if (urlWsId) {
+        activeWorkspace = allWorkspaces.find(w => w.id === urlWsId) || null;
+      }
+      if (!activeWorkspace && allWorkspaces.length > 0) {
+        activeWorkspace = allWorkspaces[0];
+      }
+
+      const workspaceId = activeWorkspace?.id;
+
+      // 2. Fetch all member IDs for this workspace
+      const { data: memberRecords } = workspaceId 
+        ? await supabase
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', workspaceId)
+        : { data: [] };
+
+      let memberIds = (memberRecords ?? []).map(m => m.user_id);
+
+      // 3. Fallback: If no members (other than self), fetch ALL users for visibility
+      // This helps in development/testing when users aren't explicitly assigned to workspaces
+      if (memberIds.length <= 1) {
+        const { data: allUsers } = await supabase
+          .from('users')
+          .select('id');
+        memberIds = (allUsers ?? []).map(u => u.id);
+      }
+
+      // 4. Fetch the actual profiles
+      const { data: profiles } = memberIds.length > 0
+        ? await supabase
+            .from('users')
+            .select('id, display_name, username, avatar_gradient, status')
+            .in('id', memberIds)
+        : { data: [] };
 
       const [
         { data: channels, error: channelsError },
         { data: directMessages, error: dmsError },
         { data: files, error: filesError },
       ] = await Promise.all([
-        supabase.from('channels').select('*'),
+        workspaceId 
+          ? supabase.from('channels').select('*').or(`workspace_id.eq.${workspaceId},and(workspace_id.is.null,owner_id.eq.${user.id})`)
+          : supabase.from('channels').select('*').or(`owner_id.eq.${user.id},workspace_id.is.null`),
         supabase.from('direct_message_conversations').select('*')
           .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`),
         supabase.from('files').select('*').eq('owner_id', user.id),
@@ -42,25 +111,40 @@ export default function WorkspacePage() {
       if (dmsError) console.error('DMs error:', dmsError.message);
       if (filesError) console.error('Files error:', filesError.message);
 
-      const formattedDMs = (directMessages ?? []).map((dm: any) => ({
-        id: dm.id,
-        userId: dm.user1_id === user.id ? dm.user2_id : dm.user1_id,
-        name: 'User',
-        avatar: '',
-        type: 'dm',
-      }));
+      // Map profiles to DM sidebar format
+      const formattedDMs = (profiles ?? [])
+        .filter(u => u.id !== user.id) // exclude self
+        .map((u: any) => {
+          // Find existing conversation ID if it exists
+          const existingConv = (directMessages ?? []).find(dm => 
+            (dm.user1_id === user.id && dm.user2_id === u.id) || 
+            (dm.user1_id === u.id && dm.user2_id === user.id)
+          );
+
+          return {
+            id: existingConv?.id || `new-dm-${u.id}`,
+            userId: u.id,
+            name: u.display_name || u.username || 'User',
+            avatar: u.avatar_gradient || '',
+            status: u.status || 'offline',
+            type: 'dm' as const,
+          };
+        });
 
       setData({
         user,
         channels: channels ?? [],
-        directMessages: formattedDMs,
+        directMessages: formattedDMs as any[],
         files: files ?? [],
+        activeWorkspace: activeWorkspace || null,
+        workspaces: allWorkspaces,
       });
       setLoading(false);
-    }
-
-    fetchData();
   }, [router]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading || !data) {
     return (
@@ -85,6 +169,9 @@ export default function WorkspacePage() {
       channels={data.channels}
       directMessages={data.directMessages}
       files={data.files}
+      activeWorkspace={data.activeWorkspace}
+      workspaces={data.workspaces}
+      refresh={fetchData}
     />
   );
 }

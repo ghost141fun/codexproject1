@@ -31,37 +31,63 @@ async function downloadFile(url: string, filename: string) {
 }
 
 /* ── File card ────────────────────────────────────────────────────────────── */
-function FileCard({ name, url }: { name: string; url: string }) {
+function FileCard({ name, url, type }: { name: string; url: string; type?: string }) {
   const [downloading, setDownloading] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  
+  // Prioritize emoji type label from editor, fallback to extension
+  const isAudio = type === '🎵' || (type !== '🎬' && ['mp3', 'wav', 'ogg', 'm4a'].includes(ext));
+  const isVideo = type === '🎬' || (type !== '🎵' && ['mp4', 'mov', 'webm', 'avi'].includes(ext));
+
   const getIcon = () => {
-    if (['mp4', 'mov', 'webm', 'avi'].includes(ext)) return <Film className="w-5 h-5" />;
-    if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) return <Music className="w-5 h-5" />;
+    if (isVideo) return <Film className="w-5 h-5" />;
+    if (isAudio) return <Music className="w-5 h-5" />;
     if (['js', 'ts', 'tsx', 'jsx', 'py', 'json', 'html', 'css', 'sql'].includes(ext)) return <FileCode className="w-5 h-5" />;
     if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext)) return <FileText className="w-5 h-5" />;
     return <File className="w-5 h-5" />;
   };
+
   const getAccent = () => {
-    if (['mp4', 'mov', 'webm'].includes(ext)) return 'from-purple-500/20 border-purple-500/30 text-purple-400';
-    if (['mp3', 'wav', 'ogg'].includes(ext)) return 'from-green-500/20 border-green-500/30 text-green-400';
+    if (isVideo) return 'from-purple-500/20 border-purple-500/30 text-purple-400';
+    if (isAudio) return 'from-green-500/20 border-green-500/30 text-green-400';
     if (['js', 'ts', 'tsx', 'jsx', 'py'].includes(ext)) return 'from-yellow-500/20 border-yellow-500/30 text-yellow-400';
     if (['pdf'].includes(ext)) return 'from-red-500/20 border-red-500/30 text-red-400';
     if (['doc', 'docx'].includes(ext)) return 'from-blue-500/20 border-blue-500/30 text-blue-400';
     return 'from-[#b9babd]/10 border-white/10 text-[#b9babd]';
   };
+
   return (
-    <div className={cn("mt-2 flex items-center gap-3 bg-gradient-to-r to-transparent border rounded-xl px-4 py-3 max-w-sm group transition-all hover:to-white/[0.02]", getAccent())}>
-      <div className={cn("w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0", getAccent().split(' ')[2])}>{getIcon()}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-white truncate">{name}</p>
-        <p className="text-[11px] text-[#5c5f63] uppercase tracking-wider mt-0.5">{ext} file</p>
+    <div className="mt-2 space-y-2 max-w-sm">
+      <div className={cn("flex items-center gap-3 bg-gradient-to-r to-transparent border rounded-xl px-4 py-3 group transition-all hover:to-white/[0.02]", getAccent())}>
+        <div className={cn("w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0", getAccent().split(' ')[2])}>{getIcon()}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-white truncate">{name}</p>
+          <p className="text-[11px] text-[#5c5f63] uppercase tracking-wider mt-0.5">{ext} file</p>
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#b9babd] hover:text-white transition-colors"><ExternalLink className="w-3.5 h-3.5" /></a>
+          <button onClick={async () => { setDownloading(true); await downloadFile(url, name); setDownloading(false); }} disabled={downloading} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#b9babd] hover:text-white transition-colors disabled:opacity-50">
+            {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <a href={url} target="_blank" rel="noopener noreferrer" className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#b9babd] hover:text-white transition-colors"><ExternalLink className="w-3.5 h-3.5" /></a>
-        <button onClick={async () => { setDownloading(true); await downloadFile(url, name); setDownloading(false); }} disabled={downloading} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#b9babd] hover:text-white transition-colors disabled:opacity-50">
-          {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-        </button>
-      </div>
+      
+      {isAudio && (
+        <div className="px-1">
+          <audio controls className="w-full h-8 scale-90 origin-left" style={{ filter: 'invert(1) hue-rotate(180deg) brightness(1.5) contrast(1.2)' }}>
+            <source src={url} type={['mp3', 'wav', 'ogg', 'm4a'].includes(ext) ? `audio/${ext === 'm4a' ? 'mp4' : ext}` : undefined} />
+          </audio>
+        </div>
+      )}
+
+      {isVideo && (
+        <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+          <video controls className="w-full aspect-video">
+            <source src={url} type={['mp4', 'mov', 'webm'].includes(ext) ? `video/${ext === 'mov' ? 'quicktime' : ext}` : undefined} />
+          </video>
+        </div>
+      )}
     </div>
   );
 }
@@ -90,14 +116,69 @@ function ImageCard({ name, url }: { name: string; url: string }) {
 
 /* ── Inline text renderer ────────────────────────────────────────────────── */
 function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*.+?\*\*|`[^`]+`|\[.+?\]\(.+?\))/);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
-    if (part.startsWith('`') && part.endsWith('`')) return <code key={i} className="bg-white/10 text-[#e3b341] px-1.5 py-0.5 rounded text-[13px] font-mono">{part.slice(1, -1)}</code>;
-    const lm = part.match(/^\[(.+?)\]\((.+?)\)$/);
-    if (lm) return <a key={i} href={lm[2]} target="_blank" rel="noopener noreferrer" className="text-[#4a9eff] hover:underline">{lm[1]}</a>;
-    return <span key={i}>{part}</span>;
-  });
+  if (!text) return null;
+
+  // Order of rules matters for proper matching (e.g., ** before *)
+  const rules = [
+    { type: 'bold',   regex: /\*\*(.+?)\*\*/ },
+    { type: 'italic', regex: /_(.+?)_/ },
+    { type: 'strike', regex: /~~(.+?)~~/ },
+    { type: 'code',   regex: /`(.+?)`/ },
+    { type: 'link',   regex: /\[(.+?)\]\((.+?)\)/ }
+  ];
+
+  let firstMatch: { rule: typeof rules[0], start: number, end: number, content: string, extra?: string } | null = null;
+
+  for (const rule of rules) {
+    const match = text.match(rule.regex);
+    if (match && match.index !== undefined) {
+      if (!firstMatch || match.index < firstMatch.start) {
+        firstMatch = {
+          rule,
+          start: match.index,
+          end: match.index + match[0].length,
+          content: match[1],
+          extra: match[2] // for links
+        };
+      }
+    }
+  }
+
+  if (!firstMatch) return text;
+
+  const prefix = text.slice(0, firstMatch.start);
+  const suffix = text.slice(firstMatch.end);
+
+  const key = `${firstMatch.rule.type}-${firstMatch.start}`;
+
+  let element: React.ReactNode;
+  switch (firstMatch.rule.type) {
+    case 'bold':
+      element = <strong key={key} className="text-white font-semibold">{renderInline(firstMatch.content)}</strong>;
+      break;
+    case 'italic':
+      element = <em key={key} className="italic text-[#d1d2d3]">{renderInline(firstMatch.content)}</em>;
+      break;
+    case 'strike':
+      element = <s key={key} className="line-through opacity-60">{renderInline(firstMatch.content)}</s>;
+      break;
+    case 'code':
+      element = <code key={key} className="bg-white/10 text-[#e3b341] px-1.5 py-0.5 rounded text-[13px] font-mono whitespace-nowrap">{firstMatch.content}</code>;
+      break;
+    case 'link':
+      element = <a key={key} href={firstMatch.extra} target="_blank" rel="noopener noreferrer" className="text-[#4a9eff] hover:underline">{renderInline(firstMatch.content)}</a>;
+      break;
+    default:
+      element = firstMatch.content;
+  }
+
+  return (
+    <>
+      {renderInline(prefix)}
+      {element}
+      {renderInline(suffix)}
+    </>
+  );
 }
 
 function MessageContent({ content }: { content: string }) {
@@ -113,7 +194,7 @@ function MessageContent({ content }: { content: string }) {
     const img = line.match(/^!\[(.+?)\]\((.+?)\)$/);
     if (img) { flushText(); elements.push(<ImageCard key={i} name={img[1]} url={img[2]} />); return; }
     const file = line.match(/^([📎🎬🎵])\s\[(.+?)\]\((.+?)\)$/u);
-    if (file) { flushText(); elements.push(<FileCard key={i} name={file[2]} url={file[3]} />); return; }
+    if (file) { flushText(); elements.push(<FileCard key={i} type={file[1]} name={file[2]} url={file[3]} />); return; }
     textLines.push(line);
   });
   flushText();

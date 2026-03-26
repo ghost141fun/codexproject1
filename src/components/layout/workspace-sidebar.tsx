@@ -20,6 +20,12 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Dialog, 
   DialogContent, 
@@ -42,6 +48,10 @@ interface WorkspaceSidebarProps {
   directMessages: DirectMessage[];
   onCreateChannel: (name: string, isPrivate: boolean) => void;
   onViewChange?: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles') => void;
+  activeWorkspace?: any;
+  workspaces?: any[];
+  onRenameWorkspace?: (newName: string) => Promise<void>;
+  onWorkspaceSwitch?: (id: string) => void;
 }
 
 export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ 
@@ -50,13 +60,22 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   channels,
   directMessages,
   onCreateChannel,
-  onViewChange
+  onViewChange,
+  activeWorkspace,
+  workspaces = [],
+  onRenameWorkspace,
+  onWorkspaceSwitch
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [workspaceNameInput, setWorkspaceNameInput] = useState(activeWorkspace?.name || '');
+  const [isRenaming, setIsRenaming] = useState(false);
+
   const { toast } = useToast();
 
   const handleCopyInviteLink = () => {
@@ -77,21 +96,92 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
     setIsDialogOpen(false);
   };
 
+  const handleRenameSubmit = async () => {
+    if (!workspaceNameInput.trim() || !onRenameWorkspace) return;
+    setIsRenaming(true);
+    await onRenameWorkspace(workspaceNameInput);
+    setIsRenaming(false);
+    setIsRenameDialogOpen(false);
+    toast({ title: "Workspace Renamed", description: `Renamed to ${workspaceNameInput}` });
+  };
+
   return (
     <div className="w-64 h-full flex bg-[#19171d] flex-col overflow-hidden border-r border-white/5">
       {/* Workspace Header */}
-      <div className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors group border-b border-white/5">
-        <div className="flex items-center gap-2 truncate">
-          <span className="font-bold text-lg truncate">DevTalk HQ</span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </div>
+      <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group border-b border-white/5">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex flex-1 items-center gap-2 truncate outline-none">
+            <span className="font-bold text-lg truncate text-left">{activeWorkspace?.name || 'DevTalk HQ'}</span>
+            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-[200px] bg-[#222529] border-white/10 text-white">
+            <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5 uppercase tracking-wider">
+              Switch Workspace
+            </div>
+            {workspaces.map((ws) => (
+              <DropdownMenuItem 
+                key={ws.id} 
+                className="flex items-center justify-between cursor-pointer hover:bg-white/10 focus:bg-white/10"
+                onClick={() => onWorkspaceSwitch?.(ws.id)}
+              >
+                <span className="truncate">{ws.name}</span>
+                {ws.id === activeWorkspace?.id && <Check className="w-4 h-4 text-primary shrink-0" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <div className="flex items-center gap-1">
           <button className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white">
             <Settings className="w-4 h-4" />
           </button>
-          <button className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white">
-            <Edit3 className="w-4 h-4" />
-          </button>
+          
+          <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+            <DialogTrigger asChild>
+              <button 
+                className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white"
+                onClick={() => setWorkspaceNameInput(activeWorkspace?.name || 'DevTalk HQ')}
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="bg-[#1a1d21] border-[#222529] text-white sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Rename Workspace</DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Choose a new name for your team workspace.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="workspace-name" className="text-white">Workspace Name</Label>
+                  <Input 
+                    id="workspace-name" 
+                    value={workspaceNameInput}
+                    onChange={(e) => setWorkspaceNameInput(e.target.value)}
+                    className="bg-[#222529] border-white/10 text-white focus-visible:ring-primary"
+                    placeholder="e.g. Acme Corp"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setIsRenameDialogOpen(false)}
+                  className="hover:bg-white/5 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleRenameSubmit}
+                  className="bg-primary text-white hover:bg-primary/90"
+                  disabled={isRenaming || !workspaceNameInput.trim() || workspaceNameInput === activeWorkspace?.name}
+                >
+                  {isRenaming ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </div>
       </div>
 
@@ -229,10 +319,17 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               >
                 <div className="relative">
                   <Avatar className="w-5 h-5 rounded-md">
-                    <AvatarImage src={dm.avatar} />
-                    <AvatarFallback className="rounded-md text-[8px]">{dm.name[0]}</AvatarFallback>
+                    <div 
+                      className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white rounded-md"
+                      style={{ background: dm.avatar || '#6366f1' }}
+                    >
+                      {dm.name[0].toUpperCase()}
+                    </div>
                   </Avatar>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#19171d] bg-green-500" />
+                  <div className={cn(
+                    "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#19171d]",
+                    (dm as any).status === 'online' ? "bg-green-500" : "bg-gray-500"
+                  )} />
                 </div>
                 <span className="truncate">{dm.name}</span>
               </button>

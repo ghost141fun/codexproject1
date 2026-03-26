@@ -7,9 +7,10 @@ import {
   Twitter, Github, Globe, Copy, CheckCheck,
   MessageSquare, Hash, Users, TrendingUp,
   Eye, EyeOff, Upload, Palette,
-  Lock, AlertTriangle, Minus, QrCode, Loader2,
+  Lock, AlertTriangle, Minus, QrCode, Loader2, Download,
 } from 'lucide-react';
 import { useAuth } from '@/database';
+import { useRouter } from 'next/navigation';
 
 type Status    = 'online' | 'away' | 'busy' | 'offline';
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -29,26 +30,7 @@ const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string; 
   offline: { label:'Appear Offline', color:'#6b7280', bg:'rgba(107,114,128,0.15)'            },
 };
 
-const ACTIVITY_DAYS = Array.from({ length: 52 }, (_, week) =>
-  Array.from({ length: 7 }, (_, day) => ({
-    week, day, count: Math.random() > 0.35 ? Math.floor(Math.random() * 12) : 0,
-  }))
-).flat();
-
-const RECENT_ACTIVITY = [
-  { type:'message', text:'Sent 47 messages in #design-review', time:'2h ago',    icon:'💬' },
-  { type:'channel', text:'Joined #q4-planning channel',         time:'5h ago',    icon:'#'  },
-  { type:'file',    text:'Shared sprint-14-handoff.fig',        time:'Yesterday', icon:'📎' },
-  { type:'mention', text:'Mentioned in #backend-infra',         time:'Yesterday', icon:'@'  },
-  { type:'react',   text:'Reacted to 12 messages this week',   time:'3d ago',    icon:'❤️' },
-];
-
-const STATS = [
-  { label:'Messages',    val:'2,847', sub:'this month', icon:MessageSquare, color:'#a855f7' },
-  { label:'Channels',    val:'18',    sub:'active',     icon:Hash,          color:'#3b82f6' },
-  { label:'Workspaces',  val:'3',     sub:'joined',     icon:Users,         color:'#10b981' },
-  { label:'Days Active', val:'94',    sub:'this year',  icon:TrendingUp,    color:'#f59e0b' },
-];
+// Removed mock constants: ACTIVITY_DAYS, RECENT_ACTIVITY, STATS
 
 const GRADIENT_PRESETS = [
   'linear-gradient(135deg, #7c3aed, #3b82f6)',
@@ -230,22 +212,22 @@ export function ProfilePage({ user }: { user: any }) {
   const { supabase } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('profile');
   const [showCard, setShowCard] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
+  const [idCardStatus, setIdCardStatus] = useState<'none' | 'pending' | 'issued'>('none');
   const [requestId, setRequestId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
-    name: user?.display_name || 'Nilufar Rashidova',
-    displayName: user?.display_name || 'Nilufar',
-    username: user?.username || 'nilufar',
-    email: user?.email || 'nilufar@devtalk.dev',
-    bio: user?.bio || 'Frontend engineer obsessed with craft. Building beautiful things at the intersection of design and code. ✨',
-    role: user?.role || 'Frontend Engineer',
+    name: user?.display_name || user?.email?.split('@')[0] || 'Member',
+    displayName: user?.display_name || user?.email?.split('@')[0] || 'Member',
+    username: user?.username || user?.email?.split('@')[0] || 'user',
+    email: user?.email || '',
+    bio: user?.bio || 'No bio yet.',
+    role: user?.role || 'Workspace Member',
     status: (user?.status as Status) || 'online',
-    timezone: user?.timezone || 'UTC+5:30 (India)',
-    website: user?.website || 'https://nilufar.dev',
-    twitter: user?.twitter || '@nilufardev',
-    github: user?.github || 'nilufar',
-    joinedDate: user?.joined_date || 'March 2024',
+    timezone: user?.timezone || 'UTC+0 (London)',
+    website: user?.website || '',
+    twitter: user?.twitter || '',
+    github: user?.github || '',
+    joinedDate: user?.joined_date || new Date().toLocaleDateString(),
     avatarGradient: user?.avatar_gradient || GRADIENT_PRESETS[0],
   });
 
@@ -260,13 +242,21 @@ export function ProfilePage({ user }: { user: any }) {
       .maybeSingle();
 
     if (data) {
-      setRequestSent(true);
+      setIdCardStatus(data.status as 'pending' | 'issued');
       setRequestId(data.id);
     } else {
-      setRequestSent(false);
+      setIdCardStatus('none');
       setRequestId(null);
     }
   }, [user?.id, supabase]);
+
+  const router = useRouter();
+  const handleSignOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      router.push('/login');
+    }
+  };
 
   useEffect(() => {
     checkExistingRequest();
@@ -285,7 +275,7 @@ export function ProfilePage({ user }: { user: any }) {
       .single();
 
     if (!error && data) {
-      setRequestSent(true);
+      setIdCardStatus('pending');
       setRequestId(data.id);
     }
     setIsRequesting(false);
@@ -300,21 +290,37 @@ export function ProfilePage({ user }: { user: any }) {
       .eq('id', requestId);
 
     if (!error) {
-      setRequestSent(false);
+      setIdCardStatus('none');
       setRequestId(null);
     }
     setIsRequesting(false);
   };
 
-  const [editing,   setEditing]   = useState(false);
   const [draft,     setDraft]     = useState<UserProfile>(profile);
   const [copied,    setCopied]    = useState(false);
   const [saved,     setSaved]     = useState(false);
   const [theme,     setTheme]     = useState<ThemeMode>('dark');
   const [showEmail, setShowEmail] = useState(false);
-  const [twoFA,     setTwoFA]     = useState(false);
   const [showPass,  setShowPass]  = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Authentication State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // MFA State
+  const [mfaStatus, setMfaStatus] = useState<'loading' | 'enabled' | 'disabled'>('loading');
+  const [mfaFactorId, setMfaFactorId] = useState('');
+  const [mfaQrCode, setMfaQrCode] = useState('');
+  const [mfaChallengeId, setMfaChallengeId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+  const [showMfaModal, setShowMfaModal] = useState(false);
 
   const [notifs, setNotifs] = useState({
     mentions:true, threads:true, reactions:false, dms:true,
@@ -329,9 +335,194 @@ export function ProfilePage({ user }: { user: any }) {
     sidebarDense:false, messageGrouping:true,
   });
 
-  function saveProfile() {
-    setProfile(draft); setEditing(false); setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const [realStats, setRealStats] = useState({ messages: 0, channels: 0, workspaces: 0, daysActive: 0 });
+  const [realActivity, setRealActivity] = useState<any[]>([]);
+  const [activityDays, setActivityDays] = useState<any[]>(Array.from({ length: 364 }, (_, i) => ({ week: Math.floor(i/7), day: i%7, count: 0 })));
+
+  const fetchUserData = useCallback(async () => {
+    if (!user?.id || !supabase) return;
+    
+    // Stats
+    const [{ count: msgCount }, { count: chanCount }, { count: wsCount }] = await Promise.all([
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('author_id', user.id),
+      supabase.from('channel_memberships').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('workspaces').select('*', { count: 'exact', head: true })
+    ]);
+    
+    // Activity heatmap
+    const { data: allMsgs } = await supabase.from('messages').select('created_at').eq('author_id', user.id);
+    const uniqueDays = new Set<string>();
+    const dayCounts = new Map<string, number>();
+    
+    allMsgs?.forEach((m: any) => {
+      const d = new Date(m.created_at).toISOString().split('T')[0];
+      uniqueDays.add(d);
+      dayCounts.set(d, (dayCounts.get(d) || 0) + 1);
+    });
+    
+    const today = new Date();
+    const actDays = Array.from({ length: 52 }, (_, week) =>
+      Array.from({ length: 7 }, (_, day) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - (52 - week - 1) * 7 - (today.getDay() - day));
+        const dateStr = d.toISOString().split('T')[0];
+        return { week, day, count: dayCounts.get(dateStr) || 0 };
+      })
+    ).flat();
+    
+    setActivityDays(actDays);
+    setRealStats({ 
+      messages: msgCount || 0, 
+      channels: chanCount || 0, 
+      workspaces: wsCount || 0, 
+      daysActive: uniqueDays.size 
+    });
+
+    // Fetch MFA Status
+    const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+    if (!factorsError && factors && factors.totp && factors.totp.length > 0) {
+      const activeTotp = factors.totp.find((f: any) => f.status === 'verified');
+      if (activeTotp) {
+        setMfaStatus('enabled');
+        setMfaFactorId(activeTotp.id);
+      } else {
+        setMfaStatus('disabled');
+      }
+    } else {
+      setMfaStatus('disabled');
+    }
+
+    // Recent Activity
+    const { data: recentMsgs } = await supabase.from('messages').select('created_at, content, channels(name)').eq('author_id', user.id).order('created_at', { ascending: false }).limit(5);
+    
+    if (recentMsgs) {
+      setRealActivity(recentMsgs.map((m: any) => {
+         let timeStr = new Date(m.created_at).toLocaleDateString();
+         const hrDiff = Math.floor((Date.now() - new Date(m.created_at).getTime()) / 3600000);
+         if (hrDiff < 24) timeStr = hrDiff === 0 ? 'Just now' : `${hrDiff}h ago`;
+         else if (hrDiff < 48) timeStr = 'Yesterday';
+
+         const cName = m.channels && !Array.isArray(m.channels) ? m.channels.name : 'channel';
+         return { type: 'message', text: `Sent message in #${cName}`, time: timeStr, icon: '💬' };
+      }));
+    }
+  }, [user?.id, supabase]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
+  async function handleUpdatePassword() {
+    if (!newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+    setPasswordLoading(true);
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    const { error } = await supabase!.auth.updateUser({ password: newPassword });
+    setPasswordLoading(false);
+
+    if (error) {
+      setPasswordError(error.message);
+    } else {
+      setPasswordSuccess('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(''), 3000);
+    }
+  }
+
+  async function handleEnableMfa() {
+    setShowMfaModal(true);
+    setMfaLoading(true);
+    setMfaError('');
+    setMfaCode('');
+
+    const { data: enrollData, error: enrollError } = await supabase!.auth.mfa.enroll({ factorType: 'totp' });
+    if (enrollError || !enrollData) {
+      setMfaError(enrollError?.message || 'Failed to enroll MFA');
+      setMfaLoading(false);
+      return;
+    }
+
+    setMfaFactorId(enrollData.id);
+    setMfaQrCode(enrollData.totp.qr_code);
+
+    const { data: challengeData, error: challengeError } = await supabase!.auth.mfa.challenge({ factorId: enrollData.id });
+    if (challengeError || !challengeData) {
+      setMfaError(challengeError?.message || 'Failed to challenge MFA');
+      setMfaLoading(false);
+      return;
+    }
+
+    setMfaChallengeId(challengeData.id);
+    setMfaLoading(false);
+  }
+
+  async function handleVerifyMfa() {
+    if (!mfaCode || mfaCode.length !== 6) {
+      setMfaError('Please enter a valid 6-digit code.');
+      return;
+    }
+    setMfaLoading(true);
+    setMfaError('');
+
+    const { error } = await supabase!.auth.mfa.verify({
+      factorId: mfaFactorId,
+      challengeId: mfaChallengeId,
+      code: mfaCode
+    });
+
+    setMfaLoading(false);
+
+    if (error) {
+      setMfaError(error.message);
+    } else {
+      setMfaStatus('enabled');
+      setShowMfaModal(false);
+    }
+  }
+
+  async function handleDisableMfa() {
+    if (!mfaFactorId) return;
+    setMfaLoading(true);
+    const { error } = await supabase!.auth.mfa.unenroll({ factorId: mfaFactorId });
+    setMfaLoading(false);
+    if (!error) {
+      setMfaStatus('disabled');
+      setMfaFactorId('');
+    }
+  }
+
+  async function saveProfile() {
+    if (!user?.id || !supabase) return;
+    const { error } = await supabase.from('users').update({
+      display_name: draft.displayName,
+      username: draft.username,
+      bio: draft.bio,
+      role: draft.role,
+      timezone: draft.timezone,
+      website: draft.website,
+      twitter: draft.twitter,
+      github: draft.github,
+      avatar_gradient: draft.avatarGradient,
+      status: draft.status
+    }).eq('id', user.id);
+    
+    if (!error) {
+      setProfile(draft); 
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      console.error('Failed to update profile:', error);
+    }
   }
   function copyUsername() {
     navigator.clipboard?.writeText('@' + profile.username);
@@ -353,7 +544,17 @@ export function ProfilePage({ user }: { user: any }) {
     { key:'privacy',       label:'Privacy',       icon:<Lock size={14}/>    },
   ];
 
-  const currentProfile = editing ? draft : profile;
+  const isDirty = JSON.stringify(profile) !== JSON.stringify(draft);
+  const currentProfile = draft;
+
+  const handleExportSVG = useCallback(() => {
+    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="360"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="color: white; font-family: sans-serif; background: black; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px;">ID Card for ${currentProfile.displayName}</div></foreignObject></svg>`;
+    const svgStr = encodeURIComponent(svgContent);
+    const a = document.createElement('a');
+    a.href = `data:image/svg+xml;utf8,${svgStr}`;
+    a.download = `devtalk-id-${currentProfile.username}.svg`;
+    a.click();
+  }, [currentProfile]);
 
   return (
     <div className="flex h-full bg-[#111214] text-[#e8eaf0] overflow-hidden">
@@ -414,7 +615,12 @@ export function ProfilePage({ user }: { user: any }) {
         <div className="px-4 py-4 border-b border-[#2a2c33]">
           <p className="font-mono text-[9px] uppercase tracking-widest text-[#6b7280] mb-3">Your Stats</p>
           <div className="space-y-2.5">
-            {STATS.map(({ label, val, sub, icon: Icon, color }) => (
+            {[
+              { label:'Messages',    val: realStats.messages.toLocaleString(), sub:'total', icon:MessageSquare, color:'#a855f7' },
+              { label:'Channels',    val: realStats.channels.toString(),    sub:'joined',     icon:Hash,          color:'#3b82f6' },
+              { label:'Workspaces',  val: realStats.workspaces.toString(),     sub:'joined',     icon:Users,         color:'#10b981' },
+              { label:'Days Active', val: realStats.daysActive.toString(),    sub:'this year',  icon:TrendingUp,    color:'#f59e0b' },
+            ].map(({ label, val, sub, icon: Icon, color }) => (
               <div key={label} className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: color+'18' }}>
                   <Icon size={13} style={{ color }}/>
@@ -440,7 +646,7 @@ export function ProfilePage({ user }: { user: any }) {
         </div>
 
         <div className="px-3 py-3 border-t border-[#2a2c33]">
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[#6b7280] hover:bg-[rgba(239,68,68,0.1)] hover:text-[#ef4444] transition-all text-left">
+          <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[#6b7280] hover:bg-[rgba(239,68,68,0.1)] hover:text-[#ef4444] transition-all text-left">
             <LogOut size={14}/> Sign out
           </button>
         </div>
@@ -465,22 +671,18 @@ export function ProfilePage({ user }: { user: any }) {
                     <Check size={11}/> Saved!
                   </span>
                 )}
-                {editing
-                  ? <>
-                      <button onClick={() => { setDraft(profile); setEditing(false); }}
-                        className="flex items-center gap-1.5 bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[12.5px] font-semibold px-4 py-2 rounded-xl transition-all">
-                        <X size={13}/> Cancel
-                      </button>
-                      <button onClick={saveProfile}
-                        className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12.5px] font-semibold px-4 py-2 rounded-xl transition-all">
-                        <Check size={13}/> Save changes
-                      </button>
-                    </>
-                  : <button onClick={() => { setDraft(profile); setEditing(true); }}
-                      className="flex items-center gap-1.5 bg-[#1e2026] border border-[#2a2c33] hover:border-[#7c3aed] text-[#e8eaf0] text-[12.5px] font-semibold px-4 py-2 rounded-xl transition-all">
-                      <Edit3 size={13}/> Edit profile
+                {isDirty && (
+                  <>
+                    <button onClick={() => setDraft(profile)}
+                      className="flex items-center gap-1.5 bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[12.5px] font-semibold px-4 py-2 rounded-xl transition-all">
+                      <X size={13}/> Cancel
                     </button>
-                }
+                    <button onClick={saveProfile}
+                      className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12.5px] font-semibold px-4 py-2 rounded-xl transition-all">
+                      <Check size={13}/> Save changes
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -489,72 +691,96 @@ export function ProfilePage({ user }: { user: any }) {
               <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-6 mb-5" style={{ animation:'cardSectionIn 0.35s ease' }}>
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-5">ID Card</p>
                 <div className="flex flex-col items-center py-8 gap-5">
-                  {/* Lock icon */}
-                  <div style={{
-                    width: 72, height: 72, borderRadius: 20,
-                    background: 'rgba(124,58,237,0.1)',
-                    border: '1px solid rgba(124,58,237,0.2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.8)" strokeWidth="1.5">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                  </div>
+                  {idCardStatus === 'issued' ? (
+                    <>
+                      <IDCardWithLanyard profile={currentProfile} />
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={handleExportSVG}
+                          className="flex items-center gap-1.5 font-mono text-[11px] bg-[#2a2c33] border border-[#33363f] hover:bg-[#33363f] text-[#e8eaf0] px-4 py-2 rounded-xl transition-all"
+                        >
+                          <Download size={13} /> Export SVG
+                        </button>
+                        <button
+                          onClick={() => setShowCard(false)}
+                          className="flex items-center gap-1.5 font-mono text-[11px] bg-[#1e2026] border border-[#2a2c33] hover:border-[#33363f] text-[#6b7280] hover:text-[#e8eaf0] px-4 py-2 rounded-xl transition-all"
+                        >
+                          <X size={13} /> Close
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Lock icon */}
+                      <div style={{
+                        width: 72, height: 72, borderRadius: 20,
+                        background: 'rgba(124,58,237,0.1)',
+                        border: '1px solid rgba(124,58,237,0.2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.8)" strokeWidth="1.5">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                      </div>
 
-                  {/* Text */}
-                  <div className="text-center max-w-[340px]">
-                    <p className="text-[16px] font-bold text-white mb-2">ID Card Not Available</p>
-                    <p className="font-mono text-[12px] text-[#6b7280] leading-relaxed">
-                      Your workspace ID card hasn't been issued yet.
-                      Request one from your workspace owner to get your official DevTalk identity card.
-                    </p>
-                  </div>
+                      {/* Text */}
+                      <div className="text-center max-w-[340px]">
+                        <p className="text-[16px] font-bold text-white mb-2">ID Card Not Available</p>
+                        <p className="font-mono text-[12px] text-[#6b7280] leading-relaxed">
+                          Your workspace ID card hasn't been issued yet.
+                          Request one from your workspace owner to get your official DevTalk identity card.
+                        </p>
+                      </div>
 
-                  {/* Pending badge if request sent */}
-                  {requestSent && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.25)]" style={{ animation:'fadeIn 0.3s ease' }}>
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse" />
-                      <span className="font-mono text-[11px] text-[#f59e0b]">Request sent · Awaiting approval</span>
-                    </div>
+                      {/* Pending badge if request sent */}
+                      {idCardStatus === 'pending' && (
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.25)]" style={{ animation:'fadeIn 0.3s ease' }}>
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse" />
+                          <span className="font-mono text-[11px] text-[#f59e0b]">Request sent · Awaiting approval</span>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      <div className="flex gap-2">
+                        {idCardStatus === 'none'
+                          ? <button
+                              onClick={handleRequestIDCard}
+                              disabled={isRequesting}
+                              className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50"
+                            >
+                              {isRequesting ? <Loader2 size={14} className="animate-spin" /> : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 9.81a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/>
+                                </svg>
+                              )}
+                              Request ID Card
+                            </button>
+                          : <div className="flex gap-2">
+                              <button
+                                onClick={handleCancelRequest}
+                                disabled={isRequesting}
+                                className="flex items-center gap-2 bg-[#1e2026] hover:bg-[#2a2c33] text-[#e8eaf0] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50 border border-[#2a2c33] hover:border-[#33363f]"
+                              >
+                                Cancel request
+                              </button>
+                              <button
+                                onClick={() => setShowCard(false)}
+                                className="bg-[#1e2026] hover:bg-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[13px] font-semibold px-4 py-2.5 rounded-xl transition-all border border-[#1e2026] hover:border-[#33363f] flex items-center gap-1.5"
+                              >
+                                <X size={14}/> Dismiss
+                              </button>
+                            </div>
+                        }
+                      </div>
+                      
+                      {idCardStatus === 'none' && (
+                        <p className="font-mono text-[10px] text-[#6b7280] text-center max-w-[300px] mt-4">
+                          Workspace owners can issue ID cards from the workspace settings panel.
+                        </p>
+                      )}
+                    </>
                   )}
-
-                  {/* Action buttons */}
-                  <div className="flex gap-2">
-                    {!requestSent
-                      ? <button
-                          onClick={handleRequestIDCard}
-                          disabled={isRequesting}
-                          className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50"
-                        >
-                          {isRequesting ? <Loader2 size={14} className="animate-spin" /> : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 9.81a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/>
-                            </svg>
-                          )}
-                          Request ID Card
-                        </button>
-                      : <button
-                          onClick={handleCancelRequest}
-                          disabled={isRequesting}
-                          className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50"
-                        >
-                          {isRequesting ? <Loader2 size={14} className="animate-spin" /> : null}
-                          Cancel request
-                        </button>
-                    }
-                    <button
-                      onClick={() => setShowCard(false)}
-                      className="flex items-center gap-2 bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all"
-                    >
-                      <X size={13}/> Dismiss
-                    </button>
-                  </div>
-
-                  {/* Info note */}
-                  <p className="font-mono text-[10px] text-[#33363f] text-center max-w-[300px]">
-                    Workspace owners can issue ID cards from the workspace settings panel.
-                  </p>
                 </div>
               </div>
             )}
@@ -588,7 +814,7 @@ export function ProfilePage({ user }: { user: any }) {
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-3">Avatar gradient</p>
                 <div className="flex gap-2 flex-wrap">
                   {GRADIENT_PRESETS.map((g, i) => (
-                    <button key={i} onClick={() => editing && setDraft(p => ({ ...p, avatarGradient:g }))}
+                    <button key={i} onClick={() => setDraft(p => ({ ...p, avatarGradient:g }))}
                       className={['w-8 h-8 rounded-lg transition-all',
                         currentProfile.avatarGradient === g ? 'ring-2 ring-[#7c3aed] ring-offset-1 ring-offset-[#18191d] scale-110' : 'hover:scale-105'].join(' ')}
                       style={{ background: g }}/>
@@ -611,30 +837,26 @@ export function ProfilePage({ user }: { user: any }) {
                   <div className="flex items-center">
                     {prefix && <span className="font-mono text-[13px] text-[#6b7280] bg-[#111214] border border-r-0 border-[#2a2c33] rounded-l-lg px-3 h-[38px] flex items-center">{prefix}</span>}
                     <input type="text"
-                      value={currentProfile[key as keyof UserProfile]}
-                      onChange={e => editing && setDraft(p => ({ ...p, [key]:e.target.value }))}
-                      readOnly={!editing} placeholder={ph}
-                      className={['flex-1 bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 outline-none transition-colors h-[38px]',
-                        prefix ? 'rounded-r-lg' : 'rounded-lg',
-                        editing ? 'focus:border-[#7c3aed] cursor-text' : 'cursor-default text-[#9ca3af]'].join(' ')}/>
+                      value={currentProfile[key as keyof UserProfile] || ''}
+                      onChange={e => setDraft(p => ({ ...p, [key]:e.target.value }))}
+                      placeholder={ph}
+                      className={['flex-1 bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 outline-none transition-colors h-[38px] cursor-text',
+                        prefix ? 'rounded-r-lg' : 'rounded-lg'].join(' ')}/>
                   </div>
                 </div>
               ))}
               <div>
                 <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">Bio</label>
-                <textarea value={currentProfile.bio}
-                  onChange={e => editing && setDraft(p => ({ ...p, bio:e.target.value }))}
-                  readOnly={!editing} rows={3} placeholder="Tell your team about yourself..."
-                  className={['w-full bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 py-2.5 rounded-lg outline-none resize-none transition-colors',
-                    editing ? 'focus:border-[#7c3aed] cursor-text' : 'cursor-default text-[#9ca3af]'].join(' ')}/>
+                <textarea value={currentProfile.bio || ''}
+                  onChange={e => setDraft(p => ({ ...p, bio:e.target.value }))}
+                  rows={3} placeholder="Tell your team about yourself..."
+                  className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 py-2.5 rounded-lg outline-none resize-none transition-colors cursor-text"/>
               </div>
               <div>
                 <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">Timezone</label>
                 <select value={currentProfile.timezone}
-                  onChange={e => editing && setDraft(p => ({ ...p, timezone:e.target.value }))}
-                  disabled={!editing}
-                  className={['w-full bg-[#111214] border border-[#2a2c33] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors',
-                    editing ? 'focus:border-[#7c3aed] cursor-pointer' : 'cursor-default text-[#9ca3af]'].join(' ')}>
+                  onChange={e => setDraft(p => ({ ...p, timezone:e.target.value }))}
+                  className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors cursor-pointer">
                   {TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -647,36 +869,49 @@ export function ProfilePage({ user }: { user: any }) {
                 { label:'Website', key:'website', icon:<Globe size={14} className="text-[#6b7280]"/>,    prefix:'https://' },
                 { label:'Twitter', key:'twitter', icon:<Twitter size={14} className="text-[#1da1f2]"/>,  prefix:'@'        },
                 { label:'GitHub',  key:'github',  icon:<Github size={14} className="text-[#6b7280]"/>,   prefix:'github.com/' },
-              ].map(({ label, key, icon, prefix }) => (
-                <div key={key}>
-                  <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">{label}</label>
-                  <div className="flex items-center border border-[#2a2c33] rounded-lg overflow-hidden bg-[#111214] focus-within:border-[#7c3aed] transition-colors">
-                    <span className="flex items-center gap-2 px-3 h-[38px] border-r border-[#2a2c33] bg-[#18191d] shrink-0">
-                      {icon}
-                      <span className="font-mono text-[11px] text-[#6b7280]">{prefix}</span>
-                    </span>
-                    <input type="text"
-                      value={currentProfile[key as keyof UserProfile].replace(prefix,'')}
-                      onChange={e => editing && setDraft(p => ({ ...p, [key]: prefix+e.target.value }))}
-                      readOnly={!editing}
-                      placeholder={label.toLowerCase()+' handle'}
-                      className="flex-1 bg-transparent border-none outline-none font-mono text-[13px] text-[#e8eaf0] px-3 h-[38px] placeholder-[#33363f]"/>
+              ].map(({ label, key, icon, prefix }) => {
+                const rawVal = (currentProfile[key as keyof UserProfile] as string) || '';
+                const displayVal = rawVal.startsWith(prefix) ? rawVal.substring(prefix.length) : rawVal;
+
+                return (
+                  <div key={key}>
+                    <label className="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#6b7280] mb-1.5">{label}</label>
+                    <div className="flex items-center border border-[#2a2c33] rounded-lg overflow-hidden bg-[#111214] focus-within:border-[#7c3aed] transition-colors">
+                      <span className="flex items-center gap-2 px-3 h-[38px] border-r border-[#2a2c33] bg-[#18191d] shrink-0">
+                        {icon}
+                        <span className="font-mono text-[11px] text-[#6b7280]">{prefix}</span>
+                      </span>
+                      <input type="text"
+                        value={displayVal}
+                        onChange={e => {
+                          const inputVal = e.target.value;
+                          let savedVal = inputVal;
+                          if (inputVal && !inputVal.startsWith(prefix)) {
+                            savedVal = prefix + inputVal;
+                          } else if (!inputVal) {
+                            savedVal = '';
+                          }
+                          setDraft(p => ({ ...p, [key]: savedVal }));
+                        }}
+                        placeholder={label.toLowerCase()+' handle'}
+                        className="flex-1 bg-transparent border-none outline-none font-mono text-[13px] text-[#e8eaf0] px-3 h-[38px] placeholder-[#33363f] cursor-text"/>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Activity heatmap */}
             <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5 mb-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280]">Activity this year</p>
-                <span className="font-mono text-[10px] text-[#6b7280]">{ACTIVITY_DAYS.filter(d=>d.count>0).length} active days</span>
+                <span className="font-mono text-[10px] text-[#6b7280]">{activityDays.filter(d=>d.count>0).length} active days</span>
               </div>
               <div className="flex gap-[3px] overflow-x-auto pb-1">
                 {Array.from({ length:52 }, (_, w) => (
                   <div key={w} className="flex flex-col gap-[3px]">
                     {Array.from({ length:7 }, (_, d) => {
-                      const cell = ACTIVITY_DAYS.find(a=>a.week===w&&a.day===d);
+                      const cell = activityDays.find(a=>a.week===w&&a.day===d);
                       return <div key={d} className="w-2.5 h-2.5 rounded-[2px] hover:ring-1 hover:ring-[#7c3aed] cursor-pointer transition-all"
                         style={{ background: getActivityColor(cell?.count??0) }} title={(cell?.count??0)+' messages'}/>;
                     })}
@@ -694,7 +929,9 @@ export function ProfilePage({ user }: { user: any }) {
             <div className="bg-[#18191d] border border-[#2a2c33] rounded-2xl p-5">
               <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-4">Recent activity</p>
               <div className="space-y-3">
-                {RECENT_ACTIVITY.map((a, i) => (
+                {realActivity.length === 0 ? (
+                  <p className="text-[12px] text-[#6b7280]">No recent activity to show.</p>
+                ) : realActivity.map((a, i) => (
                   <div key={i} className="flex items-center gap-3 py-2 border-b border-[#1e2026] last:border-0">
                     <div className="w-8 h-8 rounded-lg bg-[#1e2026] flex items-center justify-center text-[15px] shrink-0">{a.icon}</div>
                     <div className="flex-1 min-w-0"><p className="text-[13px] truncate">{a.text}</p></div>
@@ -723,17 +960,30 @@ export function ProfilePage({ user }: { user: any }) {
               </div>
             </Section>
             <Section title="Password">
-              <div className="space-y-2.5">
-                {['Current password','New password','Confirm new password'].map(label => (
-                  <input key={label} type={showPass ? 'text' : 'password'} placeholder={label}
-                    className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors placeholder-[#33363f]"/>
-                ))}
+              <div className="space-y-2.5 relative">
+                <input type={showPass ? 'text' : 'password'} placeholder="Current password"
+                  value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                  className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors placeholder-[#33363f]" />
+                <input type={showPass ? 'text' : 'password'} placeholder="New password"
+                  value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors placeholder-[#33363f]" />
+                <input type={showPass ? 'text' : 'password'} placeholder="Confirm new password"
+                  value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                  className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[38px] rounded-lg outline-none transition-colors placeholder-[#33363f]" />
+
+                {passwordError && <p className="text-red-500 text-[11px] font-mono mt-1">{passwordError}</p>}
+                {passwordSuccess && <p className="text-[#10b981] text-[11px] font-mono mt-1">{passwordSuccess}</p>}
+
                 <div className="flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Toggle value={showPass} onChange={setShowPass}/>
                     <span className="font-mono text-[11px] text-[#6b7280]">Show passwords</span>
                   </label>
-                  <button className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all">
+                  <button 
+                    onClick={handleUpdatePassword} 
+                    disabled={passwordLoading}
+                    className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#a855f7] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all">
+                    {passwordLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                     Update password
                   </button>
                 </div>
@@ -742,15 +992,54 @@ export function ProfilePage({ user }: { user: any }) {
             <Section title="Two-factor authentication">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[13px] font-semibold">{twoFA ? '2FA is enabled' : '2FA is disabled'}</p>
-                  <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">{twoFA ? 'Your account is protected.' : 'Add an extra layer of security.'}</p>
+                  <p className="text-[13px] font-semibold">
+                    {mfaStatus === 'loading' ? 'Loading MFA Status...' : mfaStatus === 'enabled' ? '2FA is enabled' : '2FA is disabled'}
+                  </p>
+                  <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">
+                    {mfaStatus === 'loading' ? 'Checking your security settings...' : mfaStatus === 'enabled' ? 'Your account is protected.' : 'Add an extra layer of security.'}
+                  </p>
                 </div>
-                <button onClick={() => setTwoFA(v=>!v)}
-                  className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all',
-                    twoFA ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white'].join(' ')}>
-                  <Shield size={13}/> {twoFA ? 'Disable' : 'Enable 2FA'}
+                <button 
+                  onClick={mfaStatus === 'enabled' ? handleDisableMfa : handleEnableMfa}
+                  disabled={mfaStatus === 'loading' || mfaLoading}
+                  className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all disabled:opacity-50',
+                    mfaStatus === 'enabled' ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white'].join(' ')}>
+                  {mfaLoading ? <Loader2 size={13} className="animate-spin"/> : <Shield size={13}/>} 
+                  {mfaStatus === 'enabled' ? 'Disable 2FA' : 'Enable 2FA'}
                 </button>
               </div>
+
+              {showMfaModal && mfaStatus !== 'enabled' && (
+                <div className="mt-4 p-5 bg-[#111214] border border-[#2a2c33] rounded-xl relative" style={{ animation: 'fadeIn 0.3s ease' }}>
+                  <button onClick={() => setShowMfaModal(false)} className="absolute top-3 right-3 text-[#6b7280] hover:text-[#e8eaf0]">
+                    <X size={14} />
+                  </button>
+                  <h3 className="text-[14px] font-semibold mb-2">Configure Authenticator App</h3>
+                  <p className="text-[12px] text-[#9ca3af] mb-4">Scan the QR code below with your favorite authenticator app (e.g. Google Authenticator, Authy, 1Password) and enter the 6-digit code to verify.</p>
+                  
+                  <div className="flex flex-col items-center gap-4">
+                    {mfaQrCode ? (
+                      <div className="bg-white p-2 text-black rounded-lg" dangerouslySetInnerHTML={{ __html: mfaQrCode }} />
+                    ) : (
+                      <div className="w-[150px] h-[150px] bg-[#1a1b20] animate-pulse rounded-lg flex items-center justify-center">
+                        <Loader2 size={24} className="animate-spin text-[#6b7280]" />
+                      </div>
+                    )}
+                    <div className="w-full max-w-[220px] space-y-3 mt-2">
+                       <input type="text" placeholder="000 000" maxLength={6}
+                        value={mfaCode} onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                        className="w-full text-center tracking-[0.4em] bg-[#1a1b20] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[16px] px-3 h-[42px] rounded-lg outline-none transition-colors placeholder-[#33363f]"/>
+                       
+                       {mfaError && <p className="text-[#ef4444] text-[11px] font-mono text-center leading-tight">{mfaError}</p>}
+                       
+                       <button onClick={handleVerifyMfa} disabled={mfaCode.length !== 6 || mfaLoading}
+                         className="w-full flex justify-center items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12.5px] font-semibold h-[40px] rounded-lg transition-all disabled:opacity-50">
+                         {mfaLoading && <Loader2 size={14} className="animate-spin" />} Verify and Enable
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </Section>
             <div className="mt-4 bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.2)] rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-4"><AlertTriangle size={15} className="text-[#ef4444]"/><p className="font-mono text-[10px] uppercase tracking-widest text-[#ef4444]">Danger zone</p></div>

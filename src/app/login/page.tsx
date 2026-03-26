@@ -130,25 +130,42 @@ export default function LoginPage() {
 
     const { user } = authData;
 
-    const { error: workspaceError } = await supabase
+    const { data: wsData, error: workspaceError } = await supabase
       .from('workspaces')
-      .insert({ name: workspaceName.trim(), owner_id: user.id });
+      .insert({ name: workspaceName.trim(), owner_id: user.id })
+      .select()
+      .single();
 
-    if (workspaceError) {
+    if (workspaceError || !wsData) {
       setIsLoading(false);
       toast({
         variant: 'destructive',
         title: 'Workspace creation failed',
-        description: workspaceError.message,
+        description: workspaceError?.message || 'Failed to initialize workspace data.',
       });
       return;
     }
+
+    // Create workspace membership
+    await supabase.from('workspace_members').insert({
+      workspace_id: wsData.id,
+      user_id: user.id,
+      role: 'owner'
+    });
+
+    // Create default channel
+    await supabase.from('channels').insert({
+      name: 'general',
+      workspace_id: wsData.id,
+      owner_id: user.id
+    });
 
     const { error: profileError } = await supabase.from('users').upsert({
       id: user.id,
       email: user.email,
       display_name: displayName || email.split('@')[0],
       username: email.split('@')[0],
+      role: 'owner',
     });
 
     if (profileError) {

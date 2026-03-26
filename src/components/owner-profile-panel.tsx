@@ -11,6 +11,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/database';
+import { useRouter } from 'next/navigation';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Status = 'online' | 'away' | 'busy' | 'offline';
@@ -66,15 +67,6 @@ const TIMEZONES = [
   'UTC+5:30 (India)', 'UTC+8 (Beijing)', 'UTC+9 (Tokyo)',
 ];
 
-const MEMBERS: Member[] = [
-  { id: 'm1', name: 'Priya Nair', avatar: 'PN', color: '#10b981', email: 'priya@devtalk.dev', role: 'admin', status: 'online', department: 'Engineering', joined: 'Feb 2024', lastSeen: 'Now' },
-  { id: 'm2', name: 'Meera Das', avatar: 'MD', color: '#f59e0b', email: 'meera@devtalk.dev', role: 'member', status: 'away', department: 'Design', joined: 'Mar 2024', lastSeen: '2h ago' },
-  { id: 'm3', name: 'Ravi Kumar', avatar: 'RK', color: '#3b82f6', email: 'ravi@devtalk.dev', role: 'member', status: 'busy', department: 'DevOps', joined: 'Mar 2024', lastSeen: 'Now' },
-  { id: 'm4', name: 'Sneha Rao', avatar: 'SR', color: '#ec4899', email: 'sneha@devtalk.dev', role: 'member', status: 'offline', department: 'Frontend', joined: 'Apr 2024', lastSeen: '1d ago' },
-  { id: 'm5', name: 'Kabir Singh', avatar: 'KS', color: '#06b6d4', email: 'kabir@devtalk.dev', role: 'guest', status: 'online', department: 'External', joined: 'May 2024', lastSeen: '3h ago' },
-  { id: 'm6', name: 'Divya Menon', avatar: 'DM', color: '#8b5cf6', email: 'divya@devtalk.dev', role: 'member', status: 'online', department: 'QA', joined: 'Jun 2024', lastSeen: 'Now' },
-];
-
 const ACTIVITY_DAYS = Array.from({ length: 52 }, (_, week) =>
   Array.from({ length: 7 }, (_, day) => ({
     week, day, count: Math.random() > 0.35 ? Math.floor(Math.random() * 12) : 0,
@@ -87,15 +79,6 @@ interface Channel {
   muted: boolean; pinned: boolean; topic: string;
   description: string;
 }
-
-const INITIAL_CHANNELS: Channel[] = [
-  { id: 'c1', name: 'general', type: 'public', members: 24, msgs: 2100, unread: 3, muted: false, pinned: true, topic: '🎉 Q4 planning is live!', description: 'Company-wide announcements and updates' },
-  { id: 'c2', name: 'engineering', type: 'public', members: 12, msgs: 1240, unread: 12, muted: false, pinned: false, topic: 'Current sprint: Authentication refactor', description: 'Engineering team discussions and reviews' },
-  { id: 'c3', name: 'design-review', type: 'public', members: 8, msgs: 580, unread: 0, muted: false, pinned: false, topic: 'Figma handoff for v2.4 due Friday', description: 'Share and critique design work' },
-  { id: 'c4', name: 'q4-planning', type: 'private', members: 5, msgs: 320, unread: 2, muted: false, pinned: false, topic: 'OKR review \u2014 Thursday 3pm', description: 'Q4 OKR strategy (restricted)' },
-  { id: 'c5', name: 'backend-infra', type: 'public', members: 7, msgs: 890, unread: 5, muted: true, pinned: false, topic: 'Postgres migration scheduled for Sunday 2am', description: 'Backend and infrastructure topics' },
-  { id: 'c6', name: 'announcements', type: 'public', members: 24, msgs: 430, unread: 1, muted: false, pinned: true, topic: '', description: 'Important workspace-wide announcements' },
-];
 
 function heatColor(n: number) {
   if (n === 0) return '#1e2026';
@@ -178,19 +161,31 @@ function OwnerTabIcon({ name }: { name: string }) {
   return <Star size={14} />;
 }
 
-export function OwnerProfilePage() {
+export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeWorkspace: any }) {
   const { supabase } = useAuth();
   const [activeTab, setActiveTab] = useState<OwnerTab>('profile');
   const [profile, setProfile] = useState<OwnerProfile>({
-    displayName: 'Arjun Sharma', fullName: 'Arjun Sharma', username: 'arjun',
-    email: 'arjun@devtalk.dev', bio: 'Founded DevTalk HQ. Product thinker, team builder, relentless optimizer. Obsessed with async-first communication.',
-    role: 'Founder & Product Lead', status: 'online',
-    timezone: 'UTC+5:30 (India)',
-    website: 'https://arjun.dev', twitter: '@arjunbuilds', github: 'arjunsharma',
-    joinedDate: 'March 2024', avatarGradient: GRADIENT_PRESETS[0], avatarUrl: '',
-    workspaceName: 'DevTalk HQ', workspaceSlug: 'devtalk-hq', workspacePlan: 'pro',
-    workspaceDescription: 'Main company workspace for the entire DevTalk team.',
-    workspaceEmoji: '🏢', workspaceMemberCount: 24, workspaceCreated: 'March 2024',
+    displayName: user?.display_name || user?.email?.split('@')[0] || 'Owner',
+    fullName: user?.display_name || user?.email?.split('@')[0] || 'Owner',
+    username: user?.username || user?.email?.split('@')[0] || 'owner',
+    email: user?.email || '',
+    bio: user?.bio || 'Workspace Owner',
+    role: user?.role || 'Owner',
+    status: (user?.status as Status) || 'online',
+    timezone: user?.timezone || 'UTC+0 (London)',
+    website: user?.website || '',
+    twitter: user?.twitter || '',
+    github: user?.github || '',
+    joinedDate: user?.joined_date || new Date().toLocaleDateString(),
+    avatarGradient: user?.avatar_gradient || GRADIENT_PRESETS[0],
+    avatarUrl: '',
+    workspaceName: activeWorkspace?.name || 'My Workspace',
+    workspaceSlug: activeWorkspace?.name?.toLowerCase().replace(/\s+/g, '-') || 'workspace',
+    workspacePlan: 'free',
+    workspaceDescription: activeWorkspace?.description || 'Active workspace',
+    workspaceEmoji: '🏢',
+    workspaceMemberCount: 1,
+    workspaceCreated: activeWorkspace?.created_at ? new Date(activeWorkspace.created_at).toLocaleDateString() : 'Today',
   });
 
   const [editing, setEditing] = useState(false);
@@ -201,41 +196,82 @@ export function OwnerProfilePage() {
   const [twoFA, setTwoFA] = useState(true);
   const [showEmail, setShowEmail] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>('dark');
-  const [members, setMembers] = useState<Member[]>(MEMBERS);
+  const [members, setMembers] = useState<Member[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<MemberRole>('member');
   const [memberSearch, setMemberSearch] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // ID Card Requests State
+  const [idRequests, setIdRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
   const fetchMembers = useCallback(async () => {
-    if (!supabase) return;
-    const { data } = await supabase.from('users').select('*');
-    if (data) {
-      setMembers(data.map((u: any) => ({
-        id: u.id,
-        name: u.display_name || u.username || 'Anonymous',
-        avatar: (u.display_name || u.username || 'U')[0].toUpperCase(),
-        color: u.avatar_gradient || GRADIENT_PRESETS[Math.floor(Math.random() * GRADIENT_PRESETS.length)],
-        email: u.email || '',
-        role: 'member' as MemberRole, // Assuming default role for now
-        status: (u.status || 'offline') as Status,
-        department: u.role || 'Contributor',
-        joined: u.joined_date ? new Date(u.joined_date).toLocaleDateString() : 'N/A',
-        lastSeen: 'Member',
-      })));
+    if (!supabase || !activeWorkspace) return;
+
+    try {
+      // First fetch user IDs belonging to this workspace
+      const { data: memberRecords, error: memberError } = await supabase
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', activeWorkspace.id);
+
+      if (memberError || !memberRecords) {
+        console.error('Error fetching workspace members:', memberError);
+        return;
+      }
+
+      const memberIds = memberRecords.map(m => m.user_id);
+      if (memberIds.length === 0) {
+        setMembers([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', memberIds);
+
+      if (data) {
+        setMembers(data.map((u: any) => ({
+          id: u.id,
+          name: u.display_name || u.username || 'Anonymous',
+          avatar: (u.display_name || u.username || 'U')[0].toUpperCase(),
+          color: u.avatar_gradient || GRADIENT_PRESETS[Math.floor(Math.random() * GRADIENT_PRESETS.length)],
+          email: u.email || '',
+          role: (u.role === 'owner' || u.role === 'workspace_owner') ? 'admin' : 'member' as MemberRole,
+          status: (u.status || 'offline') as Status,
+          department: u.role || 'Contributor',
+          joined: u.joined_date ? new Date(u.joined_date).toLocaleDateString() : 'N/A',
+          lastSeen: 'Member',
+        })));
+      }
+    } catch (err) {
+      console.error('Fetch members error:', err);
     }
-  }, [supabase]);
+  }, [supabase, activeWorkspace]);
+
+  const router = useRouter();
+  const handleSignOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      router.push('/login');
+    }
+  };
 
   const fetchChannels = useCallback(async () => {
-    if (!supabase) return;
-    const { data } = await supabase.from('channels').select('*');
+    if (!supabase || !activeWorkspace) return;
+    const { data } = await supabase
+      .from('channels')
+      .select('*')
+      .eq('workspace_id', activeWorkspace.id);
     if (data) {
       setChannels(data.map((c: any) => ({
         id: c.id,
         name: c.name,
         type: c.is_private ? 'private' : 'public',
-        members: 0, // Need to join channel_memberships for this
-        msgs: 0, // Need to join messages for this
+        members: 0, 
+        msgs: 0, 
         unread: 0,
         muted: false,
         pinned: false,
@@ -243,14 +279,47 @@ export function OwnerProfilePage() {
         description: c.description || '',
       })));
     }
-  }, [supabase]);
+  }, [supabase, activeWorkspace]);
+
+  const fetchIdRequests = useCallback(async () => {
+    if (!supabase || !activeWorkspace) return;
+    setLoadingRequests(true);
+    const { data, error } = await supabase
+      .from('id_card_requests')
+      .select(`
+        id, status, user_id, created_at,
+        users ( id, display_name, username, email, avatar_gradient, status )
+      `)
+      .eq('status', 'pending')
+      .eq('workspace_id', activeWorkspace.id);
+    
+    if (!error && data) {
+      setIdRequests(data);
+    }
+    setLoadingRequests(false);
+  }, [supabase, activeWorkspace]);
 
   useEffect(() => {
     fetchMembers();
     fetchChannels();
-  }, [fetchMembers, fetchChannels]);
+    fetchIdRequests();
+  }, [fetchMembers, fetchChannels, fetchIdRequests]);
 
-  const [channels, setChannels] = useState<Channel[]>(INITIAL_CHANNELS);
+  async function issueIdCard(requestId: string) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('id_card_requests')
+      .update({ status: 'issued' })
+      .eq('id', requestId);
+    if (!error) {
+      setIdRequests(prev => prev.filter(r => r.id !== requestId));
+      showToast('ID card issued successfully!');
+    } else {
+      showToast('Failed to issue ID card: ' + error.message);
+    }
+  }
+
+  const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [channelModal, setChannelModal] = useState<Channel | null>(null);
   const [showNewChannel, setShowNewChannel] = useState(false);
@@ -452,7 +521,7 @@ export function OwnerProfilePage() {
         </div>
 
         <div className="px-3 py-3 border-t border-[#2a2c33]">
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[#6b7280] hover:bg-[rgba(239,68,68,0.1)] hover:text-[#ef4444] transition-all text-left"><LogOut size={14} /> Sign out</button>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[#6b7280] hover:bg-[rgba(239,68,68,0.1)] hover:text-[#ef4444] transition-all text-left"><LogOut size={14} /> Sign out</button>
         </div>
       </div>
 
@@ -743,6 +812,36 @@ export function OwnerProfilePage() {
                 ))}
               </div>
             </Section>
+
+            {idRequests.length > 0 && (
+              <Section title="ID Card Requests">
+                <div className="space-y-0.5 mb-6">
+                  {idRequests.map(req => {
+                    // Normalize joined users (handles array vs object returns in Supabase JS based on schema config)
+                    const u = Array.isArray(req.users) ? req.users[0] : req.users; 
+                    if (!u) return null;
+                    const avatarStr = (u.display_name || u.username || 'U')[0].toUpperCase();
+                    const color = u.avatar_gradient || GRADIENT_PRESETS[0];
+                    return (
+                      <div key={req.id} className="flex items-center gap-3 px-3 py-3 bg-[#18191d] border border-[rgba(245,158,11,0.2)] rounded-xl relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-[#f59e0b]" />
+                        <div className="relative shrink-0 ml-2">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold text-white shadow-md" style={{ background: color }}>{avatarStr}</div>
+                          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#18191d]" style={{ background: STATUS_CONFIG[(u.status || 'offline') as Status]?.color || '#6b7280' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-bold text-[#e8eaf0]">{u.display_name || u.username}</p>
+                          <p className="font-mono text-[11px] text-[#8b92a5] truncate">{u.email} · Requested an ID card</p>
+                        </div>
+                        <button onClick={() => issueIdCard(req.id)} disabled={loadingRequests} className="flex items-center gap-1.5 bg-[#f59e0b] hover:bg-[#d97706] text-[#0e0f11] text-[12px] font-bold px-4 h-9 rounded-lg transition-all shadow-sm">
+                          <Check size={14} color="#0e0f11" strokeWidth={3} /> Issue ID
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
 
             <Section title="All members">
               <div className="flex items-center gap-2 bg-[#111214] border border-[#2a2c33] rounded-lg px-3 py-2 mb-4 focus-within:border-[#7c3aed] transition-colors">
