@@ -536,7 +536,7 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
                 <h2 className="text-[20px] font-bold tracking-tight flex items-center gap-2.5">Profile
                   <span className="flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full bg-[rgba(245,158,11,0.15)] text-[#f59e0b] border border-[rgba(245,158,11,0.3)]"><Crown size={9} /> Owner</span>
                 </h2>
-                <p className="font-mono text-[11.5px] text-[#6b7280] mt-0.5">How others see you across DevTalk</p>
+                <p className="font-mono text-[11.5px] text-[#6b7280] mt-0.5">How others see you across Codex Teams</p>
               </div>
               <div className="flex items-center gap-2">
                 {saved && (<span className="flex items-center gap-1.5 font-mono text-[11px] text-[#10b981] px-3 py-1.5 bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.25)] rounded-lg" style={{ animation: 'fadeIn 0.2s ease' }}><Check size={11} /> Saved!</span>)}

@@ -207,9 +207,9 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex items-center gap-2 mb-12">
           <div className="w-8 h-8 bg-[#00d4b4] rounded flex items-center justify-center">
-            <span className="text-[#020d0f] font-bold text-lg leading-none">D</span>
+            <span className="text-[#020d0f] font-bold text-lg leading-none">C</span>
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">devtalk</span>
+          <span className="text-2xl font-black tracking-tight text-white">codex teams</span>
         </div>
 
         <div className="w-full flex flex-col items-center text-center">

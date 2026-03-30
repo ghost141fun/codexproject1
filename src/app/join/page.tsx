@@ -44,7 +44,7 @@ function JoinContent() {
           <div className="space-y-3">
             <h1 className="text-3xl font-black text-white tracking-tight">You've been invited</h1>
             <p className="text-[#b9babd] text-base leading-relaxed">
-              Join <span className="text-white font-bold">DevTalk HQ</span> to collaborate with your team on projects and engineering discussions.
+              Join <span className="text-white font-bold">Codex Teams</span> to collaborate with your team on projects and engineering discussions.
             </p>
           </div>
 

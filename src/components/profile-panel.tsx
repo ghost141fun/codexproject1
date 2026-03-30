@@ -385,7 +385,7 @@ export function ProfilePage({ user }: { user: any }) {
       setTimeout(() => {
         const id = `pm_${Date.now()}`;
         setPaymentMethods(prev => [...prev, { id, type: 'UPI', brand: 'upi', vpa: formUpi, isDefault: prev.length === 0 }]);
-        if (formPhone) sendSMS(formPhone, `DevTalk: Your UPI ID ${formUpi} has been successfully verified and linked.`);
+        if (formPhone) sendSMS(formPhone, `Codex Teams: Your UPI ID ${formUpi} has been successfully verified and linked.`);
         resetAddForm();
       }, 500);
     }, 3400);
@@ -413,24 +413,43 @@ export function ProfilePage({ user }: { user: any }) {
 
   const handleRazorpayCheckout = async () => {
     try {
-      const res = await fetch('/api/razorpay/create-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: 100, currency: 'INR' }) });
+      const res = await fetch('/api/razorpay/create-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: 1, currency: 'INR' }) });
       const order = await res.json();
       if (order.error) { alert(`Error: ${order.error}`); return; }
       if (order.demo) {
+        // Trigger verification for demo mode too
+        await fetch('/api/razorpay/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ razorpay_order_id: order.id, plan: upgradingToPlan || 'pro' })
+        });
         const id = `pm_${Date.now()}`;
         setPaymentMethods(prev => [...prev, { id, type: 'Razorpay', brand: 'razorpay', paymentId: `pay_demo_${Date.now()}`, email: 'razorpay@demo', isDefault: prev.length === 0 }]);
-        if (formPhone) sendSMS(formPhone, `DevTalk: Payment checkout successful via Razorpay (Demo Mode).`);
-        resetAddForm(); return;
+        if (formPhone) sendSMS(formPhone, `Codex Teams: Payment checkout successful via Razorpay (Demo Mode).`);
+        resetAddForm();
+        setTimeout(() => window.location.reload(), 1500);
+        return;
       }
       const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_XXXXXXXXXXXXXX';
       const options = {
-        key: keyId, amount: order.amount, currency: order.currency, name: 'DevTalk',
+        key: keyId, amount: order.amount, currency: order.currency, name: 'Codex Teams',
         description: 'Payment Method Verification', order_id: order.id,
-        handler: (response: any) => {
-          const id = `pm_${Date.now()}`;
-          setPaymentMethods(prev => [...prev, { id, type: 'Razorpay', brand: 'razorpay', paymentId: response.razorpay_payment_id, email: 'razorpay@verified', isDefault: prev.length === 0 }]);
-          if (formPhone) sendSMS(formPhone, `DevTalk: Payment checkout successful via Razorpay (ID: ${response.razorpay_payment_id}).`);
-          resetAddForm();
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch('/api/razorpay/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...response, plan: upgradingToPlan || 'pro' })
+            });
+            const vData = await verifyRes.json();
+            if (vData.status === 'ok') {
+              const id = `pm_${Date.now()}`;
+              setPaymentMethods(prev => [...prev, { id, type: 'Razorpay', brand: 'razorpay', paymentId: response.razorpay_payment_id, email: 'razorpay@verified', isDefault: prev.length === 0 }]);
+              if (formPhone) sendSMS(formPhone, `Codex Teams: Payment verified! Subscription activated.`);
+              resetAddForm();
+              setTimeout(() => window.location.reload(), 1500);
+            } else { alert('Verification failed: ' + vData.message); }
+          } catch (e) { alert('Payment verification error.'); }
         },
         prefill: { name: 'User', email: 'user@devtalk.com', contact: formPhone },
         theme: { color: '#7c3aed' },
@@ -563,7 +582,7 @@ export function ProfilePage({ user }: { user: any }) {
             <div className="flex items-center justify-between mb-7">
               <div>
                 <h2 className="text-[20px] font-bold tracking-tight">Profile</h2>
-                <p className="font-mono text-[11.5px] text-[#6b7280] mt-0.5">How others see you across DevTalk</p>
+                <p className="font-mono text-[11.5px] text-[#6b7280] mt-0.5">How others see you across Codex Teams</p>
               </div>
               <div className="flex items-center gap-2">
                 {saved && <span className="flex items-center gap-1.5 font-mono text-[11px] text-[#10b981] px-3 py-1.5 bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.25)] rounded-lg"><Check size={11} /> Saved!</span>}
@@ -601,7 +620,7 @@ export function ProfilePage({ user }: { user: any }) {
                       <div className="text-center max-w-[340px]">
                         <p className="text-[16px] font-bold text-white mb-2">ID Card Not Available</p>
                         <p className="font-mono text-[12px] text-[#6b7280] leading-relaxed">
-                          Your workspace ID card hasn't been issued yet. Request one from your workspace owner to get your official DevTalk identity card.
+                          Your workspace ID card hasn't been issued yet. Request one from your workspace owner to get your official Codex Teams identity card.
                         </p>
                       </div>
 

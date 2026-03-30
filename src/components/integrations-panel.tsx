@@ -41,11 +41,11 @@ interface ProdFeature {
 // ── Productivity feature definitions ──────────────────────────────────────────
 const PROD_FEATURES: Record<string, ProdFeature[]> = {
   'Microsoft Excel': [
-    { icon: <Upload size={14}/>,          title: 'Auto-push reports',       desc: 'Automatically push DevTalk summaries to your workbook daily.',        settingKey:'autoPush',      type:'toggle', default:false },
+    { icon: <Upload size={14}/>,          title: 'Auto-push reports',       desc: 'Automatically push Codex Teams summaries to your workbook daily.',        settingKey:'autoPush',      type:'toggle', default:false },
     { icon: <Download size={14}/>,        title: 'Import on connect',       desc: 'Pull latest rows from your sheet when a channel is opened.',           settingKey:'importOnLoad',  type:'toggle', default:true  },
-    { icon: <RefreshCw size={14}/>,       title: 'Sync interval',           desc: 'How often to sync data between DevTalk and Excel.',                    settingKey:'syncInterval',  type:'select', options:['5 min','15 min','30 min','1 hour'], default:'15 min' },
+    { icon: <RefreshCw size={14}/>,       title: 'Sync interval',           desc: 'How often to sync data between Codex Teams and Excel.',                    settingKey:'syncInterval',  type:'select', options:['5 min','15 min','30 min','1 hour'], default:'15 min' },
     { icon: <Bell size={14}/>,            title: 'Change notifications',    desc: 'Notify the channel when the workbook is edited by a collaborator.',    settingKey:'changeNotifs',  type:'toggle', default:true  },
-    { icon: <Shield size={14}/>,          title: 'Read-only mode',          desc: 'Prevent DevTalk from writing back to the workbook.',                   settingKey:'readOnly',      type:'toggle', default:false },
+    { icon: <Shield size={14}/>,          title: 'Read-only mode',          desc: 'Prevent Codex Teams from writing back to the workbook.',                   settingKey:'readOnly',      type:'toggle', default:false },
     { icon: <FileSpreadsheet size={14}/>, title: 'Embed sheet previews',    desc: 'Show a live table preview when a workbook is linked in a message.',    settingKey:'embedPreview',  type:'toggle', default:true  },
   ],
   'Figma': [
@@ -64,7 +64,7 @@ const PROD_FEATURES: Record<string, ProdFeature[]> = {
   ],
   'Google Calendar': [
     { icon: <Calendar size={14}/>,        title: 'Meeting reminders',       desc: 'Post a message 10 minutes before a calendar event starts.',            settingKey:'meetingReminders',type:'toggle', default:true  },
-    { icon: <Plus size={14}/>,            title: 'Create from messages',    desc: 'Turn any DevTalk message into a calendar event with /event.',          settingKey:'createFromMsg', type:'toggle', default:true  },
+    { icon: <Plus size={14}/>,            title: 'Create from messages',    desc: 'Turn any Codex Teams message into a calendar event with /event.',          settingKey:'createFromMsg', type:'toggle', default:true  },
     { icon: <RefreshCw size={14}/>,       title: 'Sync frequency',          desc: 'How often to refresh your calendar feed.',                             settingKey:'syncFreq',      type:'select', options:['1 min','5 min','15 min'], default:'5 min' },
     { icon: <Bell size={14}/>,            title: 'Daily agenda digest',     desc: 'Post your day\'s meetings to a private DM every morning.',             settingKey:'dailyDigest',   type:'toggle', default:false },
     { icon: <Link2 size={14}/>,           title: 'Auto-join links',         desc: 'Detect Google Meet / Zoom links and surface a join button.',           settingKey:'autoJoin',      type:'toggle', default:true  },
@@ -73,7 +73,7 @@ const PROD_FEATURES: Record<string, ProdFeature[]> = {
     { icon: <CheckSquare size={14}/>,     title: 'Task creation shortcuts', desc: 'Use /task in any channel to create an Asana task instantly.',          settingKey:'taskShortcut',  type:'toggle', default:true  },
     { icon: <Bell size={14}/>,            title: 'Task update alerts',      desc: 'Notify the channel when an Asana task is completed or reassigned.',    settingKey:'taskAlerts',    type:'toggle', default:true  },
     { icon: <Link2 size={14}/>,           title: 'URL unfurl',              desc: 'Expand Asana task URLs into rich previews with status and assignee.',  settingKey:'urlUnfurl',     type:'toggle', default:true  },
-    { icon: <RefreshCw size={14}/>,       title: 'Project sync',            desc: 'Mirror a DevTalk channel to an Asana project.',                       settingKey:'projectSync',   type:'toggle', default:false },
+    { icon: <RefreshCw size={14}/>,       title: 'Project sync',            desc: 'Mirror a Codex Teams channel to an Asana project.',                       settingKey:'projectSync',   type:'toggle', default:false },
     { icon: <Calendar size={14}/>,        title: 'Due date reminders',      desc: 'DM assignees 24 hours before a task is due.',                         settingKey:'dueDateDm',     type:'toggle', default:true  },
   ],
   'Grammarly': [
@@ -86,7 +86,7 @@ const PROD_FEATURES: Record<string, ProdFeature[]> = {
   'Microsoft To Do': [
     { icon: <Plus size={14}/>,            title: 'Message to task',         desc: 'Right-click any message to instantly create a To Do task.',            settingKey:'msgToTask',     type:'toggle', default:true  },
     { icon: <Bell size={14}/>,            title: 'Due reminders',           desc: 'Send a DM when a task assigned to you is due.',                        settingKey:'dueReminder',   type:'toggle', default:true  },
-    { icon: <RefreshCw size={14}/>,       title: 'Sync interval',           desc: 'How often to sync your To Do lists with DevTalk.',                     settingKey:'syncInterval',  type:'select', options:['Real-time','5 min','30 min'], default:'Real-time' },
+    { icon: <RefreshCw size={14}/>,       title: 'Sync interval',           desc: 'How often to sync your To Do lists with Codex Teams.',                     settingKey:'syncInterval',  type:'select', options:['Real-time','5 min','30 min'], default:'Real-time' },
     { icon: <CheckSquare size={14}/>,     title: 'Completion notifications',desc: 'Notify the channel when a shared task is completed.',                  settingKey:'completeNotif', type:'toggle', default:false },
     { icon: <Link2 size={14}/>,           title: 'Shared list access',      desc: 'Allow channel members to view and edit linked To Do lists.',           settingKey:'sharedAccess',  type:'toggle', default:true  },
   ],
@@ -95,7 +95,7 @@ const PROD_FEATURES: Record<string, ProdFeature[]> = {
     { icon: <Bell size={14}/>,            title: 'Edit notifications',      desc: 'Post a message when a collaborator edits a linked board.',             settingKey:'editNotifs',    type:'toggle', default:false },
     { icon: <Plus size={14}/>,            title: 'Create board shortcut',   desc: 'Use /miro in any channel to create a new board instantly.',            settingKey:'createShortcut',type:'toggle', default:true  },
     { icon: <Palette size={14}/>,         title: 'Embed resolution',        desc: 'Quality of the embedded board thumbnail.',                             settingKey:'embedRes',      type:'select', options:['Low','Medium','High'], default:'Medium' },
-    { icon: <Shield size={14}/>,          title: 'View-only embeds',        desc: 'Prevent editing directly from the DevTalk embed.',                     settingKey:'viewOnlyEmbed', type:'toggle', default:true  },
+    { icon: <Shield size={14}/>,          title: 'View-only embeds',        desc: 'Prevent editing directly from the Codex Teams embed.',                     settingKey:'viewOnlyEmbed', type:'toggle', default:true  },
   ],
 };
 
@@ -104,7 +104,7 @@ const DEFAULT_PROD_FEATURES: ProdFeature[] = [
   { icon: <Bell size={14}/>,     title: 'Notifications',    desc: 'Receive alerts for important events from this integration.',  settingKey:'notifications', type:'toggle', default:true  },
   { icon: <RefreshCw size={14}/>,title: 'Auto-sync',        desc: 'Keep data in sync automatically at a regular interval.',      settingKey:'autoSync',      type:'toggle', default:false },
   { icon: <Link2 size={14}/>,    title: 'URL unfurling',    desc: 'Expand links from this service into rich previews.',          settingKey:'urlUnfurl',     type:'toggle', default:true  },
-  { icon: <Shield size={14}/>,   title: 'Read-only mode',   desc: 'Prevent DevTalk from writing data back to this service.',     settingKey:'readOnly',      type:'toggle', default:false },
+  { icon: <Shield size={14}/>,   title: 'Read-only mode',   desc: 'Prevent Codex Teams from writing data back to this service.',     settingKey:'readOnly',      type:'toggle', default:false },
 ];
 
 // ── Built-in integrations ──────────────────────────────────────────────────────
@@ -122,13 +122,13 @@ const INITIAL_INTEGRATIONS: Integration[] = [
   { id:11, name:'Twilio',           emoji:'\u{1F4F1}', bg:'#f22f46', category:'communication', connected:false, desc:'Send SMS, calls, and WhatsApp messages programmatically.',                                                                         tags:['sms','calls'],                   fields:[{label:'Account SID',placeholder:'ACxxxxxxxxxxxxxxxx'},{label:'Auth Token',placeholder:''}],                                                                                                                  glow:'rgba(242,47,70,0.25)'    },
   { id:12, name:'AWS S3',           emoji:'\u{1FAA3}', bg:'#232f3e', category:'storage',       connected:false, desc:'Store and retrieve objects from S3 buckets.',                                                                                      tags:['cloud','files'],                 fields:[{label:'Access Key ID',placeholder:'AKIAXXXXXXXXXXXXXXXX'},{label:'Secret Access Key',placeholder:''},{label:'Bucket',placeholder:'my-bucket'}],                                                               glow:'rgba(35,47,62,0.35)'     },
   // ── Productivity ──
-  { id:13, name:'Microsoft Excel',  emoji:'\u{1F4D7}', bg:'#1D6F42', category:'productivity',  connected:false, desc:'Import, export, and sync Excel spreadsheets. Auto-generate reports and push live data from DevTalk directly into your workbooks.',  tags:['spreadsheet','reports','xlsx'],  fields:[{label:'Microsoft Account Email',placeholder:'you@company.com'},{label:'OneDrive Folder Path',placeholder:'/Documents/Reports'},{label:'Target Workbook',placeholder:'devtalk-data.xlsx'},{label:'Sheet Name',placeholder:'Sheet1'}],        glow:'rgba(29,111,66,0.4)'     },
-  { id:14, name:'Figma',            emoji:'\u{1F3A8}', bg:'#1E1E1E', category:'productivity',  connected:false, desc:'Link Figma files, share design previews, inspect components, and post prototype comments inside any DevTalk channel.',             tags:['design','ui/ux','prototypes'],   fields:[{label:'Personal Access Token',placeholder:'figd_xxxxxxxxxxxx'},{label:'Team ID',placeholder:'your-figma-team-id'}],                                                                                           glow:'rgba(162,89,255,0.35)'   },
+  { id:13, name:'Microsoft Excel',  emoji:'\u{1F4D7}', bg:'#1D6F42', category:'productivity',  connected:false, desc:'Import, export, and sync Excel spreadsheets. Auto-generate reports and push live data from Codex Teams directly into your workbooks.',  tags:['spreadsheet','reports','xlsx'],  fields:[{label:'Microsoft Account Email',placeholder:'you@company.com'},{label:'OneDrive Folder Path',placeholder:'/Documents/Reports'},{label:'Target Workbook',placeholder:'devtalk-data.xlsx'},{label:'Sheet Name',placeholder:'Sheet1'}],        glow:'rgba(29,111,66,0.4)'     },
+  { id:14, name:'Figma',            emoji:'\u{1F3A8}', bg:'#1E1E1E', category:'productivity',  connected:false, desc:'Link Figma files, share design previews, inspect components, and post prototype comments inside any Codex Teams channel.',             tags:['design','ui/ux','prototypes'],   fields:[{label:'Personal Access Token',placeholder:'figd_xxxxxxxxxxxx'},{label:'Team ID',placeholder:'your-figma-team-id'}],                                                                                           glow:'rgba(162,89,255,0.35)'   },
   { id:15, name:'Loom',             emoji:'\u{1F3A5}', bg:'#625DF5', category:'productivity',  connected:false, desc:'Share Loom recordings inline with instant previews, auto-transcripts, and AI-generated chapter summaries.',                        tags:['video','async','recordings'],    fields:[{label:'API Key',placeholder:'your-loom-api-key'}],                                                                                                                                                        glow:'rgba(98,93,245,0.35)'    },
-  { id:16, name:'Google Calendar',  emoji:'\u{1F4C5}', bg:'#4285F4', category:'productivity',  connected:false, desc:'Create events, set reminders, and sync meetings from DevTalk channels directly to your Google Calendar.',                          tags:['calendar','meetings','events'],  fields:[{label:'OAuth Client ID',placeholder:'xxxx.apps.googleusercontent.com'},{label:'OAuth Client Secret',placeholder:'GOCSPX-...'}],                                                                           glow:'rgba(66,133,244,0.35)'   },
-  { id:17, name:'Asana',            emoji:'\u{1F5C2}\uFE0F',bg:'#F06A6A',category:'productivity',connected:false,desc:'Create tasks, assign owners, set due dates, and track project progress without leaving DevTalk.',                                tags:['tasks','projects','teams'],      fields:[{label:'Personal Access Token',placeholder:'1/xxxxxxxxxxxxxxxxxx'},{label:'Workspace ID',placeholder:'your-workspace-id'}],                                                                                  glow:'rgba(240,106,106,0.35)'  },
-  { id:18, name:'Grammarly',        emoji:'\u270D\uFE0F',bg:'#15C39A', category:'productivity', connected:false, desc:'Instantly check grammar, tone, and clarity for all messages written in DevTalk before you hit send.',                             tags:['writing','grammar','ai'],        fields:[{label:'API Key',placeholder:'grammarly-api-key'}],                                                                                                                                                        glow:'rgba(21,195,154,0.35)'   },
-  { id:19, name:'Microsoft To Do',  emoji:'\u2705',    bg:'#2564CF', category:'productivity',  connected:false, desc:'Turn DevTalk messages into To Do tasks instantly. Sync lists, set reminders, and track personal and team to-dos.',                 tags:['tasks','todo','microsoft'],      fields:[{label:'Microsoft Account Email',placeholder:'you@outlook.com'},{label:'Default List',placeholder:'DevTalk Tasks'}],                                                                                       glow:'rgba(37,100,207,0.35)'   },
+  { id:16, name:'Google Calendar',  emoji:'\u{1F4C5}', bg:'#4285F4', category:'productivity',  connected:false, desc:'Create events, set reminders, and sync meetings from Codex Teams channels directly to your Google Calendar.',                          tags:['calendar','meetings','events'],  fields:[{label:'OAuth Client ID',placeholder:'xxxx.apps.googleusercontent.com'},{label:'OAuth Client Secret',placeholder:'GOCSPX-...'}],                                                                           glow:'rgba(66,133,244,0.35)'   },
+  { id:17, name:'Asana',            emoji:'\u{1F5C2}\uFE0F',bg:'#F06A6A',category:'productivity',connected:false,desc:'Create tasks, assign owners, set due dates, and track project progress without leaving Codex Teams.',                                tags:['tasks','projects','teams'],      fields:[{label:'Personal Access Token',placeholder:'1/xxxxxxxxxxxxxxxxxx'},{label:'Workspace ID',placeholder:'your-workspace-id'}],                                                                                  glow:'rgba(240,106,106,0.35)'  },
+  { id:18, name:'Grammarly',        emoji:'\u270D\uFE0F',bg:'#15C39A', category:'productivity', connected:false, desc:'Instantly check grammar, tone, and clarity for all messages written in Codex Teams before you hit send.',                             tags:['writing','grammar','ai'],        fields:[{label:'API Key',placeholder:'grammarly-api-key'}],                                                                                                                                                        glow:'rgba(21,195,154,0.35)'   },
+  { id:19, name:'Microsoft To Do',  emoji:'\u2705',    bg:'#2564CF', category:'productivity',  connected:false, desc:'Turn Codex Teams messages into To Do tasks instantly. Sync lists, set reminders, and track personal and team to-dos.',                 tags:['tasks','todo','microsoft'],      fields:[{label:'Microsoft Account Email',placeholder:'you@outlook.com'},{label:'Default List',placeholder:'Codex Teams Tasks'}],                                                                                       glow:'rgba(37,100,207,0.35)'   },
   { id:20, name:'Miro',             emoji:'\u{1F5BC}\uFE0F',bg:'#FFD02F',category:'productivity',connected:false,desc:'Embed Miro boards and whiteboards inline in channels. Brainstorm, diagram, and plan visually with your team.',                  tags:['whiteboard','diagrams','visual'],fields:[{label:'Access Token',placeholder:'your-miro-access-token'},{label:'Team ID',placeholder:'your-miro-team-id'}],                                                                      glow:'rgba(255,208,47,0.22)'   },
 ];
 
@@ -136,7 +136,7 @@ const INITIAL_INTEGRATIONS: Integration[] = [
 const CUSTOM_TEMPLATES: CustomTemplate[] = [
   {
     name:'GitHub', emoji:'🐙', bg:'#161b22', category:'devtools', featured:true, badge:'Popular',
-    desc:'Connect GitHub to sync repos, automate CI/CD pipelines, review PRs, and post commit activity directly into DevTalk channels.',
+    desc:'Connect GitHub to sync repos, automate CI/CD pipelines, review PRs, and post commit activity directly into Codex Teams channels.',
     tags:['git','ci/cd','repos','webhooks'],
     fields:[
       {label:'Personal Access Token', placeholder:'ghp_xxxxxxxxxxxxxxxxxxxx'},
@@ -148,7 +148,7 @@ const CUSTOM_TEMPLATES: CustomTemplate[] = [
   },
   {
     name:'Microsoft Excel', emoji:'📗', bg:'#1D6F42', category:'productivity', featured:true, badge:'New',
-    desc:'Import, export, and sync Excel spreadsheets. Auto-generate reports and push live data from DevTalk directly into your workbooks.',
+    desc:'Import, export, and sync Excel spreadsheets. Auto-generate reports and push live data from Codex Teams directly into your workbooks.',
     tags:['spreadsheet','reports','data','xlsx'],
     fields:[
       {label:'Microsoft Account Email', placeholder:'you@company.com'},
@@ -160,7 +160,7 @@ const CUSTOM_TEMPLATES: CustomTemplate[] = [
   },
   {
     name:'Linear', emoji:'🔷', bg:'#5E6AD2', category:'devtools', badge:'Trending',
-    desc:'Sync Linear issues, cycles, and project milestones with your DevTalk workspace for seamless engineering updates.',
+    desc:'Sync Linear issues, cycles, and project milestones with your Codex Teams workspace for seamless engineering updates.',
     tags:['issues','sprints','product'],
     fields:[
       {label:'API Key', placeholder:'lin_api_xxxxxxxxxxxx'},
@@ -170,7 +170,7 @@ const CUSTOM_TEMPLATES: CustomTemplate[] = [
   },
   {
     name:'Figma', emoji:'🎨', bg:'#1E1E1E', category:'productivity', badge:'Design',
-    desc:'Link Figma files, share design previews, inspect components, and post prototype comments inside any DevTalk channel.',
+    desc:'Link Figma files, share design previews, inspect components, and post prototype comments inside any Codex Teams channel.',
     tags:['design','prototypes','ui/ux'],
     fields:[
       {label:'Personal Access Token', placeholder:'figd_xxxxxxxxxxxx'},
@@ -180,7 +180,7 @@ const CUSTOM_TEMPLATES: CustomTemplate[] = [
   },
   {
     name:'PagerDuty', emoji:'🚨', bg:'#06AC38', category:'communication',
-    desc:'Route incident alerts to DevTalk channels instantly with one-click acknowledge, resolve, and escalation actions.',
+    desc:'Route incident alerts to Codex Teams channels instantly with one-click acknowledge, resolve, and escalation actions.',
     tags:['incidents','alerts','on-call'],
     fields:[
       {label:'API Key', placeholder:'your-pagerduty-api-key'},
@@ -190,7 +190,7 @@ const CUSTOM_TEMPLATES: CustomTemplate[] = [
   },
   {
     name:'Airtable', emoji:'🟦', bg:'#FCB400', category:'storage',
-    desc:'Read and write Airtable bases, trigger automations, and display live records inside DevTalk messages.',
+    desc:'Read and write Airtable bases, trigger automations, and display live records inside Codex Teams messages.',
     tags:['database','no-code','sheets'],
     fields:[
       {label:'API Key', placeholder:'keyXXXXXXXXXXXXXX'},
@@ -200,7 +200,7 @@ const CUSTOM_TEMPLATES: CustomTemplate[] = [
   },
   {
     name:'Zoom', emoji:'📹', bg:'#2D8CFF', category:'communication',
-    desc:'Create and join Zoom meetings instantly from any DevTalk channel or DM with automatic calendar invites.',
+    desc:'Create and join Zoom meetings instantly from any Codex Teams channel or DM with automatic calendar invites.',
     tags:['video','meetings','calls'],
     fields:[
       {label:'OAuth Client ID', placeholder:'your-zoom-client-id'},
@@ -609,7 +609,7 @@ export function IntegrationsPanel() {
               ))}
               <div className="flex items-start gap-2 mt-4 p-3 bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.2)] rounded-lg">
                 <Zap size={13} className="text-[#a855f7] shrink-0 mt-0.5" />
-                <p className="font-mono text-[10.5px] text-[#9ca3af] leading-relaxed">Credentials are stored securely. DevTalk requests only the minimum required permissions.</p>
+                <p className="font-mono text-[10.5px] text-[#9ca3af] leading-relaxed">Credentials are stored securely. Codex Teams requests only the minimum required permissions.</p>
               </div>
             </div>
             <div className="flex gap-2 justify-end px-6 py-4 border-t border-[#2a2c33] bg-[#111214] shrink-0">

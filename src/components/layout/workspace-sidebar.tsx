@@ -111,7 +111,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
       <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group border-b border-white/5">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex flex-1 items-center gap-2 truncate outline-none">
-            <span className="font-bold text-lg truncate text-left">{activeWorkspace?.name || 'DevTalk HQ'}</span>
+            <span className="font-bold text-lg truncate text-left">{activeWorkspace?.name || 'Codex Teams'}</span>
             <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-[200px] bg-[#222529] border-white/10 text-white">
@@ -139,7 +139,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             <DialogTrigger asChild>
               <button 
                 className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white"
-                onClick={() => setWorkspaceNameInput(activeWorkspace?.name || 'DevTalk HQ')}
+                onClick={() => setWorkspaceNameInput(activeWorkspace?.name || 'Codex Teams')}
               >
                 <Edit3 className="w-4 h-4" />
               </button>
@@ -345,7 +345,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <UserPlus className="w-5 h-5 text-primary" />
               </div>
-              Invite to DevTalk HQ
+              Invite to Codex Teams
             </DialogTitle>
             <DialogDescription className="text-muted-foreground/80 mt-2">
               Share this link with your team members to invite them to this workspace.

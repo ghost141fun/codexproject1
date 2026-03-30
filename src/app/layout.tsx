@@ -3,7 +3,7 @@ import './globals.css';
 import { DatabaseClientProvider } from '@/database/client-provider';
 
 export const metadata: Metadata = {
-  title: 'DevTalk | Collaborative Engineering Workspace',
+  title: 'Codex Teams | Collaborative Engineering Workspace',
   description: 'Real-time messaging for developers with AI-powered summaries.',
 };
 
