@@ -87,7 +87,7 @@ function slugify(s: string) {
 export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembersInvited }: {
   onClose?:            () => void;
   onChannelCreated?:   (ch: WorkspaceChannel) => void;
-  onWorkspaceCreated?: (ws: { name:string; emoji:string; slug:string }) => void;
+  onWorkspaceCreated?: (ws: { name:string; emoji:string; slug:string; image?: string | null }) => void;
   onMembersInvited?:   (emails: string[]) => void;
 }) {
   const [view,         setView]         = useState<View>('menu');
@@ -121,9 +121,11 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
   const [wsStep,       setWsStep]       = useState<1|2|3>(1);
   const [wsName,       setWsName]       = useState('');
   const [wsEmoji,      setWsEmoji]      = useState('🏢');
+  const [wsImage,      setWsImage]      = useState<string | null>(null);
   const [wsTemplate,   setWsTemplate]   = useState('blank');
-  const [wsCreated,    setWsCreated]    = useState<{name:string;emoji:string;slug:string}|null>(null);
+  const [wsCreated,    setWsCreated]    = useState<{name:string;emoji:string;slug:string;image?:string|null}|null>(null);
   const [wsLoading,    setWsLoading]    = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -214,17 +216,37 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
     showToast('Invite link copied!');
   }
 
-  // ── Create workspace ────────────────────────────────────────────────────────
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Image must be under 2MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setWsImage(reader.result as string);
+        showToast('Logo uploaded!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   function createWorkspace() {
     if (!wsName.trim()) return;
     setWsLoading(true);
     setTimeout(() => {
-      const ws = { name:wsName, emoji:wsEmoji, slug:slugify(wsName) };
+      const ws = { 
+        name:wsName, 
+        emoji:wsEmoji, 
+        slug:slugify(wsName),
+        image: wsImage,
+      };
       setWsCreated(ws);
       setWsLoading(false);
       setView('workspace-success');
       onWorkspaceCreated?.(ws);
-      showToast(wsEmoji + ' ' + wsName + ' workspace created!');
+      showToast('Workspace created!');
     }, 1100);
   }
 
@@ -795,12 +817,28 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
 
               {/* Emoji picker */}
               <div className="flex items-center gap-3">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleImageUpload}
+                />
                 <div className="text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-[rgba(124,58,237,0.12)] flex items-center justify-center text-3xl cursor-pointer hover:scale-105 transition-transform border border-[rgba(124,58,237,0.2)] hover:border-[rgba(124,58,237,0.4)]"
-                    onClick={() => setWsEmoji(WS_EMOJI_LIST[Math.floor(Math.random()*WS_EMOJI_LIST.length)])}>
-                    {wsEmoji}
+                  <div 
+                    className="w-16 h-16 rounded-2xl bg-[rgba(124,58,237,0.12)] flex items-center justify-center text-3xl cursor-pointer hover:scale-105 transition-transform border border-[rgba(124,58,237,0.2)] hover:border-[rgba(124,58,237,0.4)] overflow-hidden group relative"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {wsImage ? (
+                      <img src={wsImage} alt="Workspace Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      wsEmoji
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Upload size={18} className="text-white" />
+                    </div>
                   </div>
-                  <p className="font-mono text-[9px] text-[#33363f] mt-1">click to change</p>
+                  <p className="font-mono text-[9px] text-[#33363f] mt-1">click to upload</p>
                 </div>
                 <div className="flex-1">
                   <Label>Workspace name</Label>
@@ -821,11 +859,20 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
               <div>
                 <p className="font-mono text-[10px] text-[#6b7280] mb-2">Or pick one:</p>
                 <div className="flex flex-wrap gap-1.5">
+                  {wsImage && (
+                    <button 
+                      onClick={() => setWsImage(null)}
+                      className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e2026] hover:bg-[#ef4444]/20 border border-transparent hover:border-[#ef4444]/40 transition-all text-[#6b7280] hover:text-[#ef4444]"
+                      title="Remove custom logo"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                  )}
                   {WS_EMOJI_LIST.map(e => (
-                    <button key={e} onClick={() => setWsEmoji(e)}
+                    <button key={e} onClick={() => { setWsEmoji(e); setWsImage(null); }}
                       className={[
                         'w-9 h-9 rounded-lg text-xl transition-all hover:scale-110',
-                        wsEmoji===e ? 'ring-2 ring-[#7c3aed] bg-[rgba(124,58,237,0.15)]' : 'bg-[#1e2026] hover:bg-[#2a2c33]',
+                        (wsEmoji===e && !wsImage) ? 'ring-2 ring-[#7c3aed] bg-[rgba(124,58,237,0.15)]' : 'bg-[#1e2026] hover:bg-[#2a2c33]',
                       ].join(' ')}>
                       {e}
                     </button>
@@ -887,9 +934,13 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
           <ModalHeader title="Workspace created" onClose={close}/>
           <div className="px-6 py-8 text-center">
             <div className="relative w-24 h-24 mx-auto mb-5">
-              <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-xl"
+              <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-xl overflow-hidden"
                 style={{ background:'rgba(124,58,237,0.15)', border:'1px solid rgba(124,58,237,0.3)' }}>
-                {wsCreated.emoji}
+                {wsCreated.image ? (
+                  <img src={wsCreated.image} alt="Workspace Logo" className="w-full h-full object-cover" />
+                ) : (
+                  wsCreated.emoji
+                )}
               </div>
               <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-[#10b981] flex items-center justify-center border-2 border-[#16171b]">
                 <Check size={14} className="text-white" strokeWidth={3}/>

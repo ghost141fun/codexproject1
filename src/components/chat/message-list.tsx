@@ -10,7 +10,7 @@ import {
   Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from '@/database';
+import { useAuth, useUser } from '@/database';
 import { useToast } from '@/hooks/use-toast';
 
 interface MessageListProps {
@@ -202,11 +202,22 @@ function MessageContent({ content }: { content: string }) {
 }
 
 /* ── Emoji reactions ─────────────────────────────────────────────────────── */
-const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '🚀', '✅', '😮', '👀'];
+const QUICK_EMOJIS = [
+  '👍', '❤️', '😂', '🔥', '🚀', '✅', '😮', '👀', '💯', '🙌', 
+  '🎉', '✨', '👏', '🙏', '😭', '🥺', '😎', '🤔', '😊', '🥰',
+  '😍', '🤩', '😘', '🤷', '🤦', '😅', '🤣', '😁', '🤗', '😋',
+  '🙃', '🥲', '🤫', '🤪', '🤬', '😡', '😱', '🤯', '🥳', '😴',
+  '🤢', '🤮', '🥶', '🥵', '😵', '😷', '🤒', '🤕', '🥱', '🤐',
+  '💪', '✌️', '🤞', '🤙', '👋', '🤝', '👊', '🤜', '🤛', '🧠',
+  '🫀', '🫁', '👁️', '👅', '👄', '💋', '🩸', '🦷', '🦴', '💀',
+  '👻', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼',
+  '😽', '🙀', '😿', '😾', '🙈', '🙉', '🙊', '🐵', '🐒', '🦍',
+  '🐶', '🐕', '🦮', '🐩', '🐺', '🦊', '🦝', '🐱', '🐈', '🦁'
+];
 
 function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onClose: () => void }) {
   return (
-    <div className="absolute bottom-full right-0 mb-1 bg-[#222529] border border-white/10 rounded-xl p-2 shadow-xl z-50 flex gap-1">
+    <div className="absolute bottom-full right-0 mb-1 bg-[#222529] border border-white/10 rounded-xl p-2 shadow-xl z-50 grid grid-cols-8 sm:grid-cols-10 gap-1 w-[260px] sm:w-[320px] max-h-48 overflow-y-auto custom-scrollbar">
       {QUICK_EMOJIS.map(e => (
         <button key={e} onClick={() => { onSelect(e); onClose(); }}
           className="text-lg w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors">
@@ -332,23 +343,19 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [users, setUsers] = useState<Record<string, any>>({});
   const [reactions, setReactions] = useState<Record<string, Record<string, string[]>>>({});
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
-  const [currentUserId, setCurrentUserId] = useState('');
+  const { user } = useUser();
+  const currentUserId = user?.id || '';
   const { toast } = useToast();
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 
-  useEffect(() => {
-    if (supabase) {
-      supabase.auth.getUser().then(({ data }) => { if (data.user) setCurrentUserId(data.user.id); });
-    }
-  }, [supabase]);
 
   useEffect(() => {
     const fetchMessages = async () => {
-      if (!supabase) return;
+      if (!supabase || !channelId) return;
       const { data, error } = await supabase.from('messages').select('*').eq('channel_id', channelId).order('created_at', { ascending: true });
-      if (error) console.error('Error fetching messages:', error);
+      if (error) console.error('Error fetching messages:', error.message, error);
       else setMessages(data || []);
     };
     fetchMessages();
@@ -373,7 +380,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
           // Fetch sender user data if not cached
           supabase
             .from('users')
-            .select('id, display_name, profile_picture_url, username')
+            .select('id, display_name, avatar_url, profile_picture_url, username')
             .eq('id', newMsg.author_id)
             .single()
             .then(({ data }) => {
@@ -406,7 +413,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
     const fetchUsers = async () => {
       if (!supabase || messages.length === 0) return;
       const userIds = [...new Set(messages.map(m => m.author_id))];
-      const { data, error } = await supabase.from('users').select('id, display_name, profile_picture_url, username').in('id', userIds);
+      const { data, error } = await supabase.from('users').select('id, display_name, avatar_url, profile_picture_url, username').in('id', userIds);
       if (error) console.error('Error fetching users:', error.message);
       else {
         const map = (data || []).reduce((acc, u) => { acc[u.id] = u; return acc; }, {} as Record<string, any>);
@@ -503,7 +510,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                   <div className="w-9 shrink-0 mt-0.5">
                     {!isGrouped ? (
                       <Avatar className="w-9 h-9 rounded-lg cursor-pointer hover:opacity-80 transition-opacity">
-                        <AvatarImage src={user?.profile_picture_url} />
+                        <AvatarImage src={user?.avatar_url || user?.profile_picture_url} />
                         <AvatarFallback className="rounded-lg bg-[#4a154b] text-white text-sm font-bold">
                           {(user?.display_name || user?.username || '?')[0].toUpperCase()}
                         </AvatarFallback>

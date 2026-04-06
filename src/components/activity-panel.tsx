@@ -218,7 +218,17 @@ export default function ActivityPage({ user }: { user: any }) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching notifications:', error);
+      // Table may not exist yet — fall back to seed data
+      console.warn('Notifications table not available, using seed data');
+      setActivities(seedActivities());
+      setIsLoading(false);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      // No notifications yet — show seed data for demo
+      setActivities(seedActivities());
+      setIsLoading(false);
       return;
     }
 
@@ -236,7 +246,7 @@ export default function ActivityPage({ user }: { user: any }) {
         avatar: (n.actor?.display_name || 'S')[0].toUpperCase(),
         color: n.actor?.avatar_gradient || '#6b7280'
       },
-      channel: n.channel_id, // We'd need another join for channel name if we wanted it
+      channel: n.channel_id,
       meta: n.meta
     }));
 

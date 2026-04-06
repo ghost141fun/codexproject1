@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
 import { 
   Hash, 
@@ -9,7 +9,7 @@ import {
   ChevronDown, 
   Settings, 
   Edit3,
-  Radio,
+  Headphones,
   FolderOpen,
   CheckSquare,
   MessageSquare,
@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Channel, DirectMessage } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useDraftCount } from '@/hooks/use-drafts';
 
 interface WorkspaceSidebarProps {
   activeId: string;
@@ -47,7 +48,7 @@ interface WorkspaceSidebarProps {
   channels: Channel[];
   directMessages: DirectMessage[];
   onCreateChannel: (name: string, isPrivate: boolean) => void;
-  onViewChange?: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles') => void;
+  onViewChange?: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'drafts') => void;
   activeWorkspace?: any;
   workspaces?: any[];
   onRenameWorkspace?: (newName: string) => Promise<void>;
@@ -75,8 +76,14 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [workspaceNameInput, setWorkspaceNameInput] = useState(activeWorkspace?.name || '');
   const [isRenaming, setIsRenaming] = useState(false);
-
+  const draftCount = useDraftCount();
   const { toast } = useToast();
+  
+  useEffect(() => {
+    if (activeWorkspace?.name) {
+      setWorkspaceNameInput(activeWorkspace.name);
+    }
+  }, [activeWorkspace?.name]);
 
   const handleCopyInviteLink = () => {
     const link = `${window.location.origin}/join?id=hq-123`;
@@ -111,7 +118,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
       <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group border-b border-white/5">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex flex-1 items-center gap-2 truncate outline-none">
-            <span className="font-bold text-lg truncate text-left">{activeWorkspace?.name || 'Codex Teams'}</span>
+            <span className="font-bold text-lg truncate text-left">{activeWorkspace?.name || (workspaces.length > 0 ? 'Loading...' : 'Codex Teams')}</span>
             <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-[200px] bg-[#222529] border-white/10 text-white">
@@ -139,7 +146,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             <DialogTrigger asChild>
               <button 
                 className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white"
-                onClick={() => setWorkspaceNameInput(activeWorkspace?.name || 'Codex Teams')}
+                onClick={() => setWorkspaceNameInput(activeWorkspace?.name || '')}
               >
                 <Edit3 className="w-4 h-4" />
               </button>
@@ -203,7 +210,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               onClick={() => onViewChange?.('huddles')}
               className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors text-left"
             >
-              <Radio className="w-4 h-4" />
+              <Headphones className="w-4 h-4" />
               <span>Huddles</span>
             </button>
             <button 
@@ -212,6 +219,20 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             >
               <FolderOpen className="w-4 h-4" />
               <span>Files</span>
+            </button>
+            <button 
+              onClick={() => onViewChange?.('drafts')}
+              className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <Edit3 className="w-4 h-4" />
+                <span>Drafts & Sent</span>
+              </div>
+              {draftCount > 0 && (
+                <span className="bg-[#7c3aed] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                  {draftCount}
+                </span>
+              )}
             </button>
             <button className="flex items-center gap-3 w-full px-3 py-1.5 rounded-md text-sm text-[#d1d2d3] hover:bg-white/10 transition-colors text-left">
               <CheckSquare className="w-4 h-4" />
@@ -345,7 +366,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <UserPlus className="w-5 h-5 text-primary" />
               </div>
-              Invite to Codex Teams
+              Invite to {activeWorkspace?.name || 'Workspace'}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground/80 mt-2">
               Share this link with your team members to invite them to this workspace.

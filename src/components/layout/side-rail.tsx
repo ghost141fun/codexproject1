@@ -1,19 +1,27 @@
 "use client";
 
 import React from 'react';
-import { Home, MessageSquare, Bell, FileText, Radio, Plus, LogOut, Blocks } from 'lucide-react';
+import { Home, MessageSquare, Bell, FileText, Headphones, Plus, LogOut, Blocks, Edit3 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser, useAuth } from '@/database';
 import { useRouter } from 'next/navigation';
 
 interface SideRailProps {
-  activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile';
-  onViewChange: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile') => void;
+  activeView: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile' | 'drafts';
+  onViewChange: (view: 'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile' | 'drafts') => void;
   onOpenAddMenu: () => void;
+  activeWorkspace?: any;
+  workspaces?: any[];
 }
 
-export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange, onOpenAddMenu }) => {
+export const SideRail: React.FC<SideRailProps> = ({ 
+  activeView, 
+  onViewChange, 
+  onOpenAddMenu, 
+  activeWorkspace,
+  workspaces = [] 
+}) => {
   const { user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
@@ -23,7 +31,7 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange, on
     { id: 'dms', icon: MessageSquare, label: 'DMs' },
     { id: 'activity', icon: Bell, label: 'Activity' },
     { id: 'files', icon: FileText, label: 'Files' },
-    { id: 'huddles', icon: Radio, label: 'Huddles' },
+    { id: 'huddles', icon: Headphones, label: 'Huddles' },
     { id: 'integrations', icon: Blocks, label: 'Integrations' },
   ];
 
@@ -43,12 +51,20 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange, on
   const displayName = getDisplayName();
 
   return (
-    <div className="w-[70px] bg-[#121016] flex flex-col items-center py-4 gap-6 shrink-0 border-r border-white/5">
+    <div className="w-[70px] h-full bg-[#121016] flex flex-col items-center py-4 shrink-0 border-r border-white/5">
       <div
-        className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-bold text-lg text-white mb-2 shadow-lg shadow-primary/20 cursor-pointer hover:scale-105 transition-transform"
+        className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-bold text-lg text-white mb-2 shadow-lg shadow-primary/20 cursor-pointer hover:scale-105 transition-transform overflow-hidden"
         onClick={() => onViewChange('home')}
       >
-        DT
+        {activeWorkspace?.logo_url ? (
+          activeWorkspace.logo_url.startsWith('data:') ? (
+            <img src={activeWorkspace.logo_url} alt={activeWorkspace.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-2xl">{activeWorkspace.logo_url}</span>
+          )
+        ) : (
+          <span>{activeWorkspace?.name?.substring(0, 2).toUpperCase() || 'DT'}</span>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">
@@ -75,6 +91,64 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange, on
         ))}
       </div>
 
+      <div className="w-8 h-px bg-white/10 shrink-0" />
+
+      {/* Workspaces List with Custom Scrollbar */}
+      <div className="flex-1 w-full flex flex-col items-center gap-4 overflow-y-auto min-h-0 py-2 custom-scrollbar">
+        {workspaces.map((ws) => {
+          const isActive = ws.id === activeWorkspace?.id;
+          return (
+            <button
+              key={ws.id}
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('ws', ws.id);
+                window.location.href = url.toString();
+              }}
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-lg transition-all hover:scale-105 active:scale-95 group relative overflow-hidden",
+                isActive ? "ring-2 ring-primary bg-primary/20" : "bg-[#1e1a24] hover:bg-white/10"
+              )}
+              title={ws.name}
+            >
+              {isActive && (
+                <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+              )}
+              {ws.logo_url ? (
+                ws.logo_url.startsWith('data:') ? (
+                  <img src={ws.logo_url} alt={ws.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl">{ws.logo_url}</span>
+                )
+              ) : (
+                <span>{ws.name.substring(0, 2).toUpperCase()}</span>
+              )}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+            </button>
+          );
+        })}
+      </div>
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(168, 85, 247, 0.4);
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+        }
+      `}</style>
+
       <div className="mt-auto flex flex-col items-center gap-4">
         <button
           onClick={handleSignOut}
@@ -97,7 +171,7 @@ export const SideRail: React.FC<SideRailProps> = ({ activeView, onViewChange, on
             activeView === 'profile' ? "border-primary ring-2" : "border-white/10"
           )}
         >
-          <AvatarImage src={`https://picsum.photos/seed/${user?.id || 'user'}/100/100`} />
+          <AvatarImage src={user?.avatar_url || ''} />
           <AvatarFallback className="rounded-lg bg-primary/20 text-primary">
             {displayName[0].toUpperCase()}
           </AvatarFallback>

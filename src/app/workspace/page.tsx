@@ -43,14 +43,14 @@ export default function WorkspacePage() {
         .select('*');
 
        const { data: memberWorkspaces } = await supabase
-        .from('workspace_members')
+        .from('workspace_memberships')
         .select('workspace_id')
         .eq('user_id', user.id);
 
       const memberWorkspaceIds = (memberWorkspaces ?? []).map(m => m.workspace_id);
       
       const allWorkspaces = (workspacesData ?? []).filter(w => 
-        w.owner_id === user.id || memberWorkspaceIds.includes(w.id)
+        String(w.owner_id) === String(user.id) || memberWorkspaceIds.includes(w.id)
       );
 
       // Determine active workspace: either from URL, or the first one available
@@ -70,27 +70,20 @@ export default function WorkspacePage() {
       // 2. Fetch all member IDs for this workspace
       const { data: memberRecords } = workspaceId 
         ? await supabase
-            .from('workspace_members')
+            .from('workspace_memberships')
             .select('user_id')
             .eq('workspace_id', workspaceId)
         : { data: [] };
 
       let memberIds = (memberRecords ?? []).map(m => m.user_id);
 
-      // 3. Fallback: If no members (other than self), fetch ALL users for visibility
-      // This helps in development/testing when users aren't explicitly assigned to workspaces
-      if (memberIds.length <= 1) {
-        const { data: allUsers } = await supabase
-          .from('users')
-          .select('id');
-        memberIds = (allUsers ?? []).map(u => u.id);
-      }
+
 
       // 4. Fetch the actual profiles
       const { data: profiles } = memberIds.length > 0
         ? await supabase
             .from('users')
-            .select('id, display_name, username, avatar_gradient, status')
+            .select('id, display_name, username, avatar_gradient, avatar_url, profile_picture_url, status')
             .in('id', memberIds)
         : { data: [] };
 
@@ -100,11 +93,17 @@ export default function WorkspacePage() {
         { data: files, error: filesError },
       ] = await Promise.all([
         workspaceId 
-          ? supabase.from('channels').select('*').or(`workspace_id.eq.${workspaceId},and(workspace_id.is.null,owner_id.eq.${user.id})`)
-          : supabase.from('channels').select('*').or(`owner_id.eq.${user.id},workspace_id.is.null`),
-        supabase.from('direct_message_conversations').select('*')
-          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`),
-        supabase.from('files').select('*').eq('owner_id', user.id),
+          ? supabase.from('channels').select('*').or(`workspace_id.eq.${workspaceId},and(workspace_id.is.null,created_by.eq.${user.id})`)
+          : supabase.from('channels').select('*').or(`created_by.eq.${user.id},workspace_id.is.null`),
+        workspaceId
+          ? supabase.from('direct_message_conversations').select('*')
+              .eq('workspace_id', workspaceId)
+              .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+          : supabase.from('direct_message_conversations').select('*')
+              .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`),
+        workspaceId
+          ? supabase.from('files').select('*').eq('workspace_id', workspaceId)
+          : supabase.from('files').select('*').eq('owner_id', user.id),
       ]);
 
       if (channelsError) console.error('Channels error:', channelsError.message);
@@ -125,7 +124,7 @@ export default function WorkspacePage() {
             id: existingConv?.id || `new-dm-${u.id}`,
             userId: u.id,
             name: u.display_name || u.username || 'User',
-            avatar: u.avatar_gradient || '',
+            avatar: u.avatar_url || u.profile_picture_url || u.avatar_gradient || '',
             status: u.status || 'offline',
             type: 'dm' as const,
           };

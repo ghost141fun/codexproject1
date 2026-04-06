@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/database';
 import { useRouter } from 'next/navigation';
+import PrivacySettings from './privacy-settings';
+import NotificationSettings from './notification-settings';
+import AppearanceSettings from './appearance-settings';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Status = 'online' | 'away' | 'busy' | 'offline';
@@ -34,6 +37,7 @@ interface UserProfile {
   github: string;
   joinedDate: string;
   avatarGradient: string;
+  avatarUrl: string;
 }
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -63,7 +67,7 @@ const TIMEZONES = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-export function ProfilePage({ user }: { user: any }) {
+export function ProfilePage({ user, refresh }: { user: any; refresh?: () => Promise<void>; }) {
   const { supabase } = useAuth();
   const router = useRouter();
 
@@ -82,6 +86,7 @@ export function ProfilePage({ user }: { user: any }) {
     github: user?.github || '',
     joinedDate: user?.joined_date || new Date().toLocaleDateString(),
     avatarGradient: user?.avatar_gradient || GRADIENT_PRESETS[0],
+    avatarUrl: user?.avatar_url || '',
   });
 
   const [editing, setEditing] = useState(false);
@@ -329,9 +334,11 @@ export function ProfilePage({ user }: { user: any }) {
       github: draft.github,
       avatar_gradient: draft.avatarGradient,
       status: draft.status,
+      avatar_url: draft.avatarUrl,
     }).eq('id', user.id);
 
     if (!error) {
+      if (refresh) await refresh();
       setProfile(draft); setEditing(false); setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } else {
@@ -489,15 +496,20 @@ export function ProfilePage({ user }: { user: any }) {
       {/* ── Left panel ── */}
       <div className="w-[260px] shrink-0 border-r border-[#2a2c33] flex flex-col bg-[#0e0f11]">
         <div className="px-5 pt-7 pb-5 border-b border-[#2a2c33]">
-          <div className="relative w-fit mb-4">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-2xl" style={{ background: profile.avatarGradient }}>
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <circle cx="20" cy="20" r="10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
-                <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
-                <line x1="20" y1="4" x2="20" y2="36" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
-                <line x1="4" y1="20" x2="36" y2="20" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
-                <circle cx="20" cy="20" r="3" fill="rgba(255,255,255,0.85)" />
-              </svg>
+          <div className="relative w-fit mb-4 group">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-2xl overflow-hidden" 
+              style={{ background: profile.avatarUrl ? '#111' : profile.avatarGradient }}>
+              {profile.avatarUrl ? (
+                <img src={profile.avatarUrl} className="w-full h-full object-cover" alt="" />
+              ) : (
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <circle cx="20" cy="20" r="10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+                  <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
+                  <line x1="20" y1="4" x2="20" y2="36" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                  <line x1="4" y1="20" x2="36" y2="20" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                  <circle cx="20" cy="20" r="3" fill="rgba(255,255,255,0.85)" />
+                </svg>
+              )}
             </div>
             <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#0e0f11]" style={{ background: STATUS_CONFIG[profile.status].color }}>
               {profile.status === 'busy' && <Minus size={9} className="text-white" strokeWidth={3} />}
@@ -505,7 +517,18 @@ export function ProfilePage({ user }: { user: any }) {
             <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/0 hover:bg-black/50 rounded-2xl flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-200">
               <Camera size={18} className="text-white" />
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" 
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setDraft(p => ({ ...p, avatarUrl: reader.result as string }));
+                  };
+                  reader.readAsDataURL(f);
+                }
+              }}
+            />
           </div>
 
           <p className="text-[15px] font-bold leading-tight">{profile.displayName || profile.name}</p>
@@ -667,15 +690,20 @@ export function ProfilePage({ user }: { user: any }) {
             <Section title="Avatar">
               <div className="flex items-center gap-5">
                 <div className="relative">
-                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-xl" style={{ background: editing ? draft.avatarGradient : profile.avatarGradient }}>
-                    <Users size={32} className="text-white opacity-40" />
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-xl overflow-hidden" 
+                    style={{ background: (editing ? draft.avatarUrl : profile.avatarUrl) ? '#111' : (editing ? draft.avatarGradient : profile.avatarGradient) }}>
+                    {(editing ? draft.avatarUrl : profile.avatarUrl) ? (
+                      <img src={editing ? draft.avatarUrl : profile.avatarUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <Users size={32} className="text-white opacity-40" />
+                    )}
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#18191d]" style={{ background: STATUS_CONFIG[profile.status].color }} />
                 </div>
                 <div className="flex-1">
                   <div className="flex gap-2 mb-3">
                     <button onClick={() => fileInputRef.current?.click()} className="bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"><Upload size={12} /> Upload photo</button>
-                    <button className="bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"><Trash2 size={12} /> Remove</button>
+                    <button onClick={() => setDraft(p => ({ ...p, avatarUrl: '' }))} className="bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"><Trash2 size={12} /> Remove</button>
                   </div>
                   <p className="font-mono text-[10.5px] text-[#6b7280]">JPG, PNG or GIF · Max 4MB</p>
                 </div>
@@ -892,6 +920,27 @@ export function ProfilePage({ user }: { user: any }) {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ════ NOTIFICATIONS TAB ════ */}
+        {activeTab === 'notifications' && (
+          <div className="max-w-[680px] mx-auto px-8 py-4">
+            <NotificationSettings />
+          </div>
+        )}
+
+        {/* ════ APPEARANCE TAB ════ */}
+        {activeTab === 'appearance' && (
+          <div className="max-w-[680px] mx-auto px-8 py-4">
+            <AppearanceSettings />
+          </div>
+        )}
+
+        {/* ════ PRIVACY TAB ════ */}
+        {activeTab === 'privacy' && (
+          <div className="max-w-[680px] mx-auto px-8 py-4">
+            <PrivacySettings />
           </div>
         )}
 

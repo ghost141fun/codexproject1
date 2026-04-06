@@ -28,8 +28,8 @@ export function useUser(): { user: User | null; isUserLoading: boolean } {
     const { supabase } = initializeDatabase();
     if (!supabase) { setIsUserLoading(false); return; }
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setIsUserLoading(false);
     });
 

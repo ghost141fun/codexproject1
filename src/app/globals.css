@@ -25,6 +25,28 @@
     --ring: 271 91% 65%;
     --radius: 0.5rem;
   }
+
+  .light-mode {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 271 91% 65%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 271 91% 65%;
+  }
 }
 
 @layer base {
@@ -32,16 +54,116 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased;
+    @apply bg-background text-foreground font-body antialiased transition-colors duration-300;
   }
 }
 
-.scrollbar-hide::-webkit-scrollbar {
+/* Global Light Mode Overrides for hardcoded components */
+.light-mode .bg-\[\#111214\], 
+.light-mode .bg-\[\#0e0f11\],
+.light-mode .bg-\[\#111\],
+.light-mode .bg-\[\#121316\],
+.light-mode .bg-\[\#1a1c21\],
+.light-mode .bg-\[\#19171d\],
+.light-mode .bg-\[\#1a1d21\],
+.light-mode .bg-\[\#222529\],
+.light-mode .bg-\[\#121016\],
+.light-mode .bg-black {
+  background-color: #ffffff !important;
+}
+
+.light-mode .bg-\[\#18191d\],
+.light-mode .bg-\[\#1e2026\],
+.light-mode .bg-\[\#1a1b20\],
+.light-mode .bg-\[\#2a2c33\],
+.light-mode .bg-\[\#1c1d21\] {
+  background-color: #f1f5f9 !important;
+}
+
+.light-mode .border-\[\#2a2c33\],
+.light-mode .border-\[\#1e2026\],
+.light-mode .border-\[\#33363f\],
+.light-mode .border-white\/10,
+.light-mode .border-white\/5 {
+  border-color: #e2e8f0 !important;
+}
+
+.light-mode .text-\[\#e8eaf0\],
+.light-mode .text-\[\#d1d2d3\],
+.light-mode .text-white,
+.light-mode .text-slate-200,
+.light-mode .text-gray-200 {
+  color: #1e293b !important;
+}
+
+.light-mode .text-\[\#9ca3af\],
+.light-mode .text-\[\#6b7280\],
+.light-mode .text-\[\#8b92a5\],
+.light-mode .text-slate-400,
+.light-mode .text-gray-400 {
+  color: #475569 !important;
+}
+
+.light-mode .bg-white\/5,
+.light-mode .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.light-mode .hover\:bg-\[\#18191d\]:hover,
+.light-mode .hover\:bg-\[\#1e2026\]:hover,
+.light-mode .hover\:bg-white\/10:hover,
+.light-mode .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.light-mode select,
+.light-mode input,
+.light-mode textarea {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light-mode .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-.scrollbar-hide {
+.light-mode .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Global Custom Scrollbar */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--background); 
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1; 
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; 
+}
+
+.light-mode *::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+}
+.light-mode *::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2c33 #111214;
+}
+
+.light-mode {
+  scrollbar-color: #cbd5e1 #ffffff;
 }
 
 @keyframes blob {
@@ -91,4 +213,4 @@
 
 .animation-delay-8000 {
   animation-delay: 8s;
-}
+}

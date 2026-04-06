@@ -147,17 +147,17 @@ export default function LoginPage() {
     }
 
     // Create workspace membership
-    await supabase.from('workspace_members').insert({
+    await supabase.from('workspace_memberships').insert({
       workspace_id: wsData.id,
       user_id: user.id,
-      role: 'owner'
+      role: 'creator'
     });
 
     // Create default channel
     await supabase.from('channels').insert({
       name: 'general',
       workspace_id: wsData.id,
-      owner_id: user.id
+      created_by: user.id
     });
 
     const { error: profileError } = await supabase.from('users').upsert({

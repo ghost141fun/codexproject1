@@ -296,9 +296,9 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
     if (!supabase) return;
 
     const { data, error } = await supabase
-      .from('direct_messages')
+      .from('messages')
       .select('*')
-      .eq('conversation_id', convId)
+      .eq('dm_id', convId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -308,7 +308,7 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
 
     const formatted: Message[] = (data || []).map((m: any) => ({
       id: m.id,
-      senderId: m.sender_id,
+      senderId: m.author_id,
       text: m.content,
       timestamp: new Date(m.created_at),
       status: 'sent',
@@ -327,7 +327,7 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
     // Filter by workspace membership. If you have the workspace_members table:
     try {
       const { data: members, error: memberError } = await supabase
-        .from('workspace_members')
+        .from('workspace_memberships')
         .select('user_id')
         .eq('workspace_id', activeWorkspace.id);
 
@@ -382,7 +382,7 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
   }
 
   const fetchConversations = useCallback(async () => {
-    if (!user || !supabase) return;
+    if (!user?.id || !supabase) return;
 
     const { data, error } = await supabase
       .from('direct_message_conversations')
@@ -452,8 +452,8 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
-          table: 'direct_messages',
-          filter: `conversation_id=eq.${activeId}`
+          table: 'messages',
+          filter: `dm_id=eq.${activeId}`
         }, () => {
           fetchMessages(activeId);
         })
@@ -536,10 +536,10 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
     ));
 
     const { error } = await supabase
-      .from('direct_messages')
+      .from('messages')
       .insert({
-        conversation_id: activeId,
-        sender_id: user.id,
+        dm_id: activeId,
+        author_id: user.id,
         content: finalContent,
       });
 
@@ -835,6 +835,8 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
                 senderName: (allUsers.find(u => u.id === replyTo.senderId)?.display_name || 'User'),
                 text: replyTo.text,
               } : null}
+              draftId={active.id}
+              draftType="dm"
               onClearReply={() => setReplyTo(null)}
               onSend={handleSend}
             />

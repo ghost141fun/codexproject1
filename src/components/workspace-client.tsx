@@ -12,7 +12,7 @@ import { HuddleMeeting } from "@/components/chat/huddle-meeting";
 import { Toaster } from "@/components/ui/toaster";
 import { createClient } from '@/lib/supabase/client';
 import {
-  Radio, Bell, FileText, MessageSquare,
+  Headphones, Bell, FileText, MessageSquare,
   Image as ImageIcon, Code, File, Loader2,
   Download, Trash2, ExternalLink, Blocks,
   Hash, Pin
@@ -25,6 +25,7 @@ import { ProfilePage } from '@/components/profile-panel';
 import { OwnerProfilePage } from '@/components/owner-profile-panel';
 import { useRouter } from 'next/navigation';
 import { AddMenu } from '@/components/add-menu';
+import { DraftsPanel } from '@/components/drafts-panel';
 interface WorkspaceClientProps {
   user: any;
   channels: any[];
@@ -48,7 +49,7 @@ function HuddlesSidebar({ channels, activeHuddles, onStart }: {
       <div className="px-3 pt-3 pb-2 shrink-0">
         <button onClick={() => onStart(channels[0]?.id ?? '', channels[0]?.name ?? 'general')}
           className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#6c42c4] hover:bg-[#7c52d4] text-white font-semibold text-[14px] transition-colors">
-          <Radio className="w-4 h-4" /> Start Huddle
+          <Headphones className="w-4 h-4" /> Start Huddle
         </button>
       </div>
       {activeHuddles.length > 0 && (
@@ -79,7 +80,7 @@ function HuddleHub({ channels, user, onStart }: { channels: any[]; user: any; on
           <p className="text-[#b9babd] text-[14px] mb-6">Connect with your team instantly through voice and video.<br />No scheduling required.</p>
           <button onClick={() => onStart(channels[0]?.id ?? '', channels[0]?.name ?? 'general')}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#6c42c4] hover:bg-[#7c52d4] text-white font-semibold text-[14px] transition-colors">
-            <Radio className="w-4 h-4" /> Start Workspace Huddle
+            <Headphones className="w-4 h-4" /> Start Workspace Huddle
           </button>
         </div>
         <div>
@@ -89,15 +90,15 @@ function HuddleHub({ channels, user, onStart }: { channels: any[]; user: any; on
               <div key={channel.id} className="rounded-2xl bg-[#222529] border border-white/[0.07] p-5 flex flex-col gap-4">
                 <div className="flex items-start justify-between">
                   <div className="w-10 h-10 rounded-xl bg-[#6c42c4]/20 flex items-center justify-center">
-                    <Radio className="w-5 h-5 text-[#9b6dff]" />
+                    <Headphones className="w-5 h-5 text-[#9b6dff]" />
                   </div>
                   <Avatar className="w-7 h-7 border-2 border-[#222529]">
-                    <AvatarImage src={`https://picsum.photos/seed/${user?.id}/100/100`} />
+                    <AvatarImage src={user?.avatar_url || ''} />
                     <AvatarFallback className="text-[10px] bg-[#4a154b] text-white">
-                      {(user?.email || 'U')[0].toUpperCase()}
+                      {(user?.display_name || user?.username || 'U')[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                </div>
+鼓                </div>
                 <div>
                   <p className="text-[15px] font-bold text-white">#{channel.name}</p>
                   <p className="text-[12px] text-[#b9babd] mt-0.5">Last active 2h ago</p>
@@ -276,7 +277,7 @@ function DmChatView({ activeDm }: { activeDm: any }) {
 
 export function WorkspaceClient({ user, channels: initialChannels, directMessages, files: initialFiles, activeWorkspace, workspaces = [], refresh }: WorkspaceClientProps) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'dms' | 'activity' | 'files' | 'huddles' | 'integrations' | 'profile' | 'drafts'>('home');
   const [channels, setChannels] = useState(initialChannels);
   
   useEffect(() => {
@@ -371,7 +372,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
     const { data, error } = await supabase.from('channels').insert({ 
       name, 
       is_private: isPrivate, 
-      owner_id: user.id,
+      created_by: user.id,
       workspace_id: activeWorkspace?.id || null 
     }).select().single();
     if (!error && data) { setChannels(prev => [...prev, data]); setActiveId(data.id); setActiveType('channel'); setActiveView('home'); }
@@ -429,13 +430,15 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   };
 
   const renderMain = () => {
+    if (activeView === 'drafts') return <DraftsPanel user={user} channels={channels} directMessages={directMessages} onSelect={handleSelectChannel} />;
     if (activeView === 'huddles' && !isHuddleActive) return <HuddleHub channels={channels} user={user} onStart={handleStartHuddle} />;
     if (activeView === 'activity') return <ActivityPage user={user} />;
     if (activeView === 'integrations') return <IntegrationsPanel />;
     if (activeView === 'profile') {
-      return (user?.role === 'admin' || user?.role === 'workspace_owner' || user?.role === 'owner') 
-        ? <OwnerProfilePage user={user} activeWorkspace={activeWorkspace} /> 
-        : <ProfilePage user={user} />;
+      const isOwner = user?.role === 'admin' || user?.role === 'workspace_owner' || user?.role === 'owner' || activeWorkspace?.owner_id === user?.id;
+      return isOwner
+        ? <OwnerProfilePage user={user} activeWorkspace={activeWorkspace} refresh={refresh} /> 
+        : <ProfilePage user={user} refresh={refresh} />;
     }
     if (activeView === 'files') return (
       <div className="flex-1 flex flex-col relative min-h-0">
@@ -519,35 +522,36 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
     );
   };
 
-  const handleWorkspaceCreated = async (ws: { name: string; emoji: string; slug: string }) => {
+  const handleWorkspaceCreated = async (ws: { name: string; emoji: string; slug: string; image?: string | null }) => {
     const supabase = createClient();
     try {
       const { data: wsData, error } = await supabase.from('workspaces').insert({
         name: ws.name,
-        owner_id: user.id
+        owner_id: user.id,
+        logo_url: ws.image || ws.emoji
       }).select().single();
       
       if (error || !wsData) throw error || new Error('Failed to create workspace');
 
       // Create workspace membership
-      await supabase.from('workspace_members').insert({
+      await supabase.from('workspace_memberships').insert({
         workspace_id: wsData.id,
         user_id: user.id,
-        role: 'owner'
+        role: 'creator'
       });
 
       // Create default channel
       await supabase.from('channels').insert({
         name: 'general',
         workspace_id: wsData.id,
-        owner_id: user.id
+        created_by: user.id
       });
 
       // Ensure user has owner role
       await supabase.from('users').update({ role: 'owner' }).eq('id', user.id);
       
       setIsAddMenuOpen(false);
-      window.location.reload();
+      window.location.href = `/workspace?ws=${wsData.id}`;
     } catch (err: any) {
       console.error('Failed to create workspace:', err.message);
     }
@@ -559,6 +563,8 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
         activeView={activeView} 
         onViewChange={setActiveView} 
         onOpenAddMenu={() => setIsAddMenuOpen(true)}
+        activeWorkspace={activeWorkspace}
+        workspaces={workspaces}
       />
       {renderSidebar()}
       <main className="flex flex-col flex-1 min-w-0 relative overflow-hidden">

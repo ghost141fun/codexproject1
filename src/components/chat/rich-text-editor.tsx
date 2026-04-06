@@ -5,6 +5,8 @@ import {
   Plus, Send, Smile, Video, Mic, AtSign, ChevronDown,
   X, Reply, Trash2, Paperclip, Image, Check, RefreshCw,
 } from 'lucide-react';
+import { useAuth, useUser } from '@/database';
+import { useDrafts } from '@/hooks/use-drafts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type UserStatus  = 'online' | 'away' | 'busy' | 'offline';
@@ -31,6 +33,8 @@ export interface RichTextEditorProps {
   placeholder?:  string;
   people?:       Person[];
   replyTo?:      ReplyTarget | null;
+  draftId?:      string;
+  draftType?:    'channel'|'dm';
   onClearReply?: () => void;
   onSend?:       (msg: SentMessage) => void;
 }
@@ -86,9 +90,16 @@ export function RichTextEditor({
   placeholder = 'Message...',
   people      = [],
   replyTo     = null,
+  draftId,
+  draftType,
   onClearReply,
   onSend,
 }: RichTextEditorProps) {
+
+  const { supabase } = useAuth();
+  const { user } = useUser();
+  const { saveDraft, removeDraft } = useDrafts();
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
   const [text,        setText]        = useState('');
   const [formats,     setFormats]     = useState<Set<FormatType>>(new Set());
@@ -155,6 +166,31 @@ export function RichTextEditor({
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  // Sync Drafts
+  useEffect(() => {
+    if (!draftId || !draftType) {
+      setInitialLoaded(true);
+      return;
+    }
+    if (supabase && user) {
+      supabase.from('drafts').select('content').match({ user_id: user.id, context_id: draftId }).single().then(({ data }) => {
+        if (data && data.content && !text) {
+          setText(data.content);
+          prevText.current = data.content;
+        }
+        setInitialLoaded(true);
+      });
+    }
+  }, [draftId, draftType, supabase, user]);
+
+  const prevText = useRef(text);
+  useEffect(() => {
+    if (initialLoaded && draftId && draftType && text !== prevText.current) {
+      prevText.current = text;
+      saveDraft(draftId, draftType, text);
+    }
+  }, [text, initialLoaded, draftId, draftType, saveDraft]);
 
   // Auto-resize
   useEffect(() => {
@@ -291,6 +327,7 @@ export function RichTextEditor({
       onSend?.(msg); setSendState('sent');
       setTimeout(()=>setSendState('idle'),1600);
     },150);
+    if (draftId) removeDraft(draftId);
     setText(''); setFormats(new Set()); setInlineFmts([]);
     setIsList(null); setIsCode(false); setIsQuote(false); setIsBlock(false);
     onClearReply?.();

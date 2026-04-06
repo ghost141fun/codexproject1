@@ -8,15 +8,19 @@ import {
   Settings, Eye, EyeOff, Upload, Lock, AlertTriangle,
   Star, ArrowRight, Plus, Crown, Building2,
   UserPlus, RefreshCw, Mail, Download,
-  ExternalLink,
+  ExternalLink, Palette,
 } from 'lucide-react';
 import { useAuth } from '@/database';
 import { useRouter } from 'next/navigation';
+import { Billing } from './Billing';
+import PrivacySettings from './privacy-settings';
+import NotificationSettings from './notification-settings';
+import AppearanceSettings from './appearance-settings';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Status = 'online' | 'away' | 'busy' | 'offline';
 type ThemeMode = 'dark' | 'light' | 'system';
-type OwnerTab = 'profile' | 'workspace' | 'members' | 'account' | 'billing';
+type OwnerTab = 'profile' | 'workspace' | 'members' | 'notifications' | 'appearance' | 'privacy' | 'account' | 'billing';
 type MemberRole = 'admin' | 'member' | 'guest';
 
 interface OwnerProfile {
@@ -149,6 +153,9 @@ const OWNER_TABS = [
   { key: 'profile' as const, label: 'Profile', iconName: 'edit' },
   { key: 'workspace' as const, label: 'My Workspace', iconName: 'building' },
   { key: 'members' as const, label: 'Members', iconName: 'users' },
+  { key: 'notifications' as const, label: 'Notifications', iconName: 'bell' },
+  { key: 'appearance' as const, label: 'Appearance', iconName: 'palette' },
+  { key: 'privacy' as const, label: 'Privacy & Safety', iconName: 'lock' },
   { key: 'account' as const, label: 'Account', iconName: 'shield' },
   { key: 'billing' as const, label: 'Plan & Billing', iconName: 'star' },
 ];
@@ -157,11 +164,14 @@ function OwnerTabIcon({ name }: { name: string }) {
   if (name === 'edit') return <Edit3 size={14} />;
   if (name === 'building') return <Building2 size={14} />;
   if (name === 'users') return <Users size={14} />;
+  if (name === 'bell') return <Bell size={14} />;
+  if (name === 'palette') return <Palette size={14} />;
+  if (name === 'lock') return <Lock size={14} />;
   if (name === 'shield') return <Shield size={14} />;
   return <Star size={14} />;
 }
 
-export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeWorkspace: any }) {
+export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any; activeWorkspace: any; refresh?: () => Promise<void>; }) {
   const { supabase } = useAuth();
   const [activeTab, setActiveTab] = useState<OwnerTab>('profile');
   const [profile, setProfile] = useState<OwnerProfile>({
@@ -178,7 +188,7 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
     github: user?.github || '',
     joinedDate: user?.joined_date || new Date().toLocaleDateString(),
     avatarGradient: user?.avatar_gradient || GRADIENT_PRESETS[0],
-    avatarUrl: '',
+    avatarUrl: user?.avatar_url || '',
     workspaceName: activeWorkspace?.name || 'My Workspace',
     workspaceSlug: activeWorkspace?.name?.toLowerCase().replace(/\s+/g, '-') || 'workspace',
     workspacePlan: 'free',
@@ -193,13 +203,15 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [twoFA, setTwoFA] = useState(true);
+  const [twoFA, setTwoFA] = useState<boolean>(user?.user_metadata?.two_factor_enabled ?? false);
+  const [isToggling2FA, setIsToggling2FA] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [members, setMembers] = useState<Member[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<MemberRole>('member');
   const [memberSearch, setMemberSearch] = useState('');
+  const [msgCount, setMsgCount] = useState<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ID Card Requests State
@@ -212,7 +224,7 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
     try {
       // First fetch user IDs belonging to this workspace
       const { data: memberRecords, error: memberError } = await supabase
-        .from('workspace_members')
+        .from('workspace_memberships')
         .select('user_id')
         .eq('workspace_id', activeWorkspace.id);
 
@@ -299,11 +311,39 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
     setLoadingRequests(false);
   }, [supabase, activeWorkspace]);
 
+  const fetchMessageCount = useCallback(async () => {
+    if (!supabase || !activeWorkspace) return;
+
+    try {
+      // 1. Fetch count from channels in this workspace
+      const { count: channelMsgs, error: channelError } = await supabase
+        .from('messages')
+        .select('*, channels!inner(workspace_id)', { count: 'exact', head: true })
+        .eq('channels.workspace_id', activeWorkspace.id);
+
+      if (channelError) console.error('Error fetching channel message count:', channelError);
+
+      // 2. Fetch count from DMs in this workspace
+      const { count: dmMsgs, error: dmError } = await supabase
+        .from('messages')
+        .select('*, direct_message_conversations!inner(workspace_id)', { count: 'exact', head: true })
+        .eq('direct_message_conversations.workspace_id', activeWorkspace.id);
+
+      if (dmError) console.error('Error fetching DM message count:', dmError);
+
+      const total = (channelMsgs ?? 0) + (dmMsgs ?? 0);
+      setMsgCount(total);
+    } catch (err) {
+      console.error('Fetch message count error:', err);
+    }
+  }, [supabase, activeWorkspace]);
+
   useEffect(() => {
     fetchMembers();
     fetchChannels();
     fetchIdRequests();
-  }, [fetchMembers, fetchChannels, fetchIdRequests]);
+    fetchMessageCount();
+  }, [fetchMembers, fetchChannels, fetchIdRequests, fetchMessageCount]);
 
   async function issueIdCard(requestId: string) {
     if (!supabase) return;
@@ -336,10 +376,37 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 2600); }
 
-  function saveProfile() {
-    setProfile(draft); setEditing(false); setSaved(true);
-    showToast('Profile saved!');
-    setTimeout(() => setSaved(false), 2000);
+  async function saveProfile() {
+    if (!supabase || !user?.id) return;
+    
+    try {
+      const { error } = await supabase.from('users').update({
+        display_name: draft.displayName,
+        username: draft.username,
+        bio: draft.bio,
+        role: draft.role,
+        timezone: draft.timezone,
+        website: draft.website,
+        twitter: draft.twitter,
+        github: draft.github,
+        avatar_gradient: draft.avatarGradient,
+        status: draft.status,
+        avatar_url: draft.avatarUrl
+      }).eq('id', user.id);
+
+      if (error) {
+        showToast('Failed to save profile: ' + error.message);
+      } else {
+        setProfile(draft);
+        setEditing(false);
+        setSaved(true);
+        if (refresh) await refresh();
+        showToast('Profile saved!');
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } catch (err: any) {
+      showToast('An unexpected error occurred');
+    }
   }
 
   function copyHandle() {
@@ -431,6 +498,29 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
     !memberSearch || m.name.toLowerCase().includes(memberSearch.toLowerCase()) || m.email.includes(memberSearch)
   );
 
+  const handleToggle2FA = async () => {
+    if (!supabase) return;
+    setIsToggling2FA(true);
+    const nextValue = !twoFA;
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { two_factor_enabled: nextValue }
+      });
+
+      if (error) {
+        showToast('Failed to update 2FA: ' + error.message);
+      } else {
+        setTwoFA(nextValue);
+        showToast(nextValue ? '2FA enabled successfully!' : '2FA disabled successfully');
+      }
+    } catch (err) {
+      showToast('An error occurred while updating 2FA');
+    } finally {
+      setIsToggling2FA(false);
+    }
+  };
+
   const TABS = OWNER_TABS;
 
   // Component continues in next append...
@@ -471,7 +561,18 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
             <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#f59e0b] border-2 border-[#0e0f11] flex items-center justify-center shadow-lg"><Crown size={11} className="text-white" /></div>
             <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full border-2 border-[#0e0f11]" style={{ background: STATUS_CONFIG[profile.status].color }} />
             <button onClick={() => fileRef.current?.click()} className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/55 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"><Camera size={18} className="text-white" /></button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setDraft(p => ({ ...p, avatarUrl: URL.createObjectURL(f) })); }} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" 
+              onChange={e => { 
+                const f = e.target.files?.[0]; 
+                if (f) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setDraft(p => ({ ...p, avatarUrl: reader.result as string }));
+                  };
+                  reader.readAsDataURL(f);
+                }
+              }} 
+            />
           </div>
 
           <p className="text-[15px] font-bold leading-tight">{profile.displayName}</p>
@@ -500,7 +601,7 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
             { icon: Building2, label: 'Workspaces', val: '1 owned', color: '#f59e0b' },
             { icon: Users, label: 'Members', val: members.length + ' total', color: '#10b981' },
             { icon: Hash, label: 'Channels', val: String(channels.length) + ' active', color: '#3b82f6' },
-            { icon: MessageSquare, label: 'Messages', val: '14,820', color: '#a855f7' },
+            { icon: MessageSquare, label: 'Messages', val: msgCount.toLocaleString(), color: '#a855f7' },
           ].map(({ icon: Icon, label, val, color }) => (
             <div key={label} className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: color + '15' }}><Icon size={13} style={{ color }} /></div>
@@ -665,7 +766,7 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
                 {[
                   { label: 'Members', val: members.length, color: '#10b981', icon: Users },
                   { label: 'Channels', val: channels.length, color: '#3b82f6', icon: Hash },
-                  { label: 'Messages', val: '14.8K', color: '#a855f7', icon: MessageSquare },
+                  { label: 'Messages', val: msgCount.toLocaleString(), color: '#a855f7', icon: MessageSquare },
                 ].map(({ label, val, color, icon: Icon }) => (
                   <div key={label} className="flex items-center gap-3 p-3.5 bg-[#111214] border border-[#2a2c33] rounded-xl">
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: color + '18' }}><Icon size={16} style={{ color }} /></div>
@@ -906,14 +1007,16 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
             <Section title="Two-factor authentication">
               <div className="flex items-center justify-between mb-3">
                 <div><p className="text-[13px] font-semibold">{twoFA ? '2FA is enabled' : '2FA is disabled'}</p><p className="font-mono text-[11px] text-[#6b7280] mt-0.5">{twoFA ? 'Authenticator app connected.' : 'Strongly recommended for workspace owners.'}</p></div>
-                <button onClick={() => { setTwoFA(v => !v); showToast(twoFA ? '2FA disabled' : '2FA enabled'); }} className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all', twoFA ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white'].join(' ')}><Shield size={13} />{twoFA ? 'Disable' : 'Enable 2FA'}</button>
+                <button 
+                  onClick={handleToggle2FA} 
+                  disabled={isToggling2FA}
+                  className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all', twoFA ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white', isToggling2FA ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
+                >
+                  <Shield size={13} />
+                  {isToggling2FA ? 'Updating...' : (twoFA ? 'Disable' : 'Enable 2FA')}
+                </button>
               </div>
               {twoFA && (<div className="flex items-center gap-2 p-3 bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.2)] rounded-xl"><Check size={13} className="text-[#10b981] shrink-0" /><p className="font-mono text-[11px] text-[#10b981]">Authenticator app connected \u00b7 Last used 2h ago</p></div>)}
-            </Section>
-            <Section title="Privacy">
-              <NotifRow label="Show online status" desc="Others can see when you are online" value={privacy.showStatus} onChange={v => setPrivacy(p => ({ ...p, showStatus: v }))} />
-              <NotifRow label="Send read receipts" desc="Others see when you read their messages" value={privacy.readReceipts} onChange={v => setPrivacy(p => ({ ...p, readReceipts: v }))} />
-              <NotifRow label="Show activity feed" desc="Team can see your recent messages" value={privacy.showActivity} onChange={v => setPrivacy(p => ({ ...p, showActivity: v }))} />
             </Section>
             <div className="bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.2)] rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-4"><AlertTriangle size={14} className="text-[#ef4444]" /><p className="font-mono text-[10px] uppercase tracking-widest text-[#ef4444]">Danger zone</p></div>
@@ -925,55 +1028,31 @@ export function OwnerProfilePage({ user, activeWorkspace }: { user: any; activeW
           </div>
         )}
 
+        {/* NOTIFICATIONS TAB */}
+        {activeTab === 'notifications' && (
+          <div className="max-w-[680px] mx-auto px-8 py-4">
+            <NotificationSettings />
+          </div>
+        )}
+
+        {/* APPEARANCE TAB */}
+        {activeTab === 'appearance' && (
+          <div className="max-w-[680px] mx-auto px-8 py-4">
+            <AppearanceSettings />
+          </div>
+        )}
+
+        {/* PRIVACY TAB */}
+        {activeTab === 'privacy' && (
+          <div className="max-w-[680px] mx-auto px-8 py-4">
+            <PrivacySettings />
+          </div>
+        )}
+
         {/* BILLING TAB */}
         {activeTab === 'billing' && (
-          <div className="max-w-[620px] mx-auto px-8 py-8">
-            <h2 className="text-[20px] font-bold tracking-tight mb-1">Plan & Billing</h2>
-            <p className="font-mono text-[11.5px] text-[#6b7280] mb-7">Manage your {profile.workspaceName} subscription</p>
-            <Section title="Current plan">
-              <div className="flex items-center gap-4 p-4 bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.2)] rounded-xl mb-5">
-                <div className="w-12 h-12 rounded-xl bg-[rgba(124,58,237,0.18)] flex items-center justify-center shrink-0"><Star size={22} className="text-[#a855f7]" /></div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-0.5"><p className="text-[16px] font-bold">Pro Plan</p><span className="font-mono text-[9px] px-1.5 py-0.5 rounded-full bg-[rgba(16,185,129,0.15)] text-[#10b981] border border-[rgba(16,185,129,0.3)]">Active</span></div>
-                  <p className="font-mono text-[11.5px] text-[#6b7280]">$12/user/month \u00b7 {members.length} users \u00b7 Monthly billing</p>
-                  <p className="font-mono text-[10.5px] text-[#33363f] mt-0.5">Next billing: April 15, 2025</p>
-                </div>
-                <div className="text-right shrink-0"><p className="text-[22px] font-extrabold text-[#a855f7]">${members.length * 12}</p><p className="font-mono text-[10px] text-[#6b7280]">/ month</p></div>
-              </div>
-              {[
-                { label: 'Messages', val: 14820, max: 999999, display: '14,820', color: '#a855f7' },
-                { label: 'Storage', val: 42, max: 100, display: '42 / 100GB', color: '#3b82f6' },
-                { label: 'Members', val: members.length, max: 999, display: members.length + ' users', color: '#10b981' },
-                { label: 'Integrations', val: 12, max: 999, display: '12 active', color: '#f59e0b' },
-              ].map(u => (
-                <div key={u.label} className="mb-4">
-                  <div className="flex items-center justify-between mb-1.5"><span className="font-mono text-[11.5px] text-[#9ca3af]">{u.label}</span><span className="font-mono text-[11.5px] font-bold" style={{ color: u.color }}>{u.display}</span></div>
-                  <div className="h-1.5 rounded-full bg-[#1e2026] overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.min((u.val / u.max) * 100, 100) + '%', background: u.color }} /></div>
-                </div>
-              ))}
-            </Section>
-            <Section title="Billing actions">
-              <div className="space-y-2">
-                {[
-                  { icon: <Download size={14} />, label: 'Download invoices', sub: 'PDF invoices for all past payments' },
-                  { icon: <RefreshCw size={14} />, label: 'Change billing cycle', sub: 'Switch between monthly and annual' },
-                  { icon: <ExternalLink size={14} />, label: 'Manage payment', sub: 'Update credit card or bank details' },
-                  { icon: <Users size={14} />, label: 'Add / remove seats', sub: 'Adjust paid user licences' },
-                ].map(a => (
-                  <button key={a.label} onClick={() => showToast(a.label + ' \u2014 coming soon!')} className="w-full flex items-center gap-3 px-4 py-3.5 bg-[#111214] border border-[#2a2c33] hover:border-[#33363f] rounded-xl transition-all text-left">
-                    <div className="w-8 h-8 rounded-lg bg-[rgba(124,58,237,0.12)] flex items-center justify-center text-[#a855f7] shrink-0">{a.icon}</div>
-                    <div className="flex-1"><p className="text-[13px] font-semibold">{a.label}</p><p className="font-mono text-[10.5px] text-[#6b7280]">{a.sub}</p></div>
-                    <ChevronRight size={14} className="text-[#6b7280]" />
-                  </button>
-                ))}
-              </div>
-            </Section>
-            <div className="bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.2)] rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3"><AlertTriangle size={14} className="text-[#ef4444]" /><p className="font-mono text-[10px] uppercase tracking-widest text-[#ef4444]">Danger zone</p></div>
-              <p className="text-[13px] font-semibold mb-0.5">Cancel subscription</p>
-              <p className="font-mono text-[11.5px] text-[#6b7280] mb-3">Your workspace reverts to Free at end of billing period.</p>
-              <button onClick={() => showToast('Cancellation requires email confirmation')} className="flex items-center gap-1.5 bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.3)] text-[#ef4444] text-[12.5px] font-semibold px-4 py-2 rounded-xl hover:bg-[rgba(239,68,68,0.18)] transition-all">Cancel Pro plan</button>
-            </div>
+          <div className="w-full max-w-[940px] mx-auto px-4">
+             <Billing user={user} />
           </div>
         )}
       </div>

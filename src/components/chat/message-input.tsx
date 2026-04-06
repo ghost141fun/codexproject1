@@ -29,7 +29,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       if (workspaceId) {
         // 1. Get member IDs for the current workspace
         const { data: memberRecords } = await supabase
-          .from('workspace_members')
+          .from('workspace_memberships')
           .select('user_id')
           .eq('workspace_id', workspaceId);
         
@@ -161,6 +161,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <RichTextEditor
         placeholder={placeholder}
         people={members}
+        draftId={channelId}
+        draftType="channel"
         onSend={handleSend}
       />
     </div>
