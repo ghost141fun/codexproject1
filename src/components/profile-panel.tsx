@@ -67,7 +67,7 @@ const TIMEZONES = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-export function ProfilePage({ user, refresh }: { user: any; refresh?: () => Promise<void>; }) {
+export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; activeWorkspace?: any; refresh?: () => Promise<void>; }) {
   const { supabase } = useAuth();
   const router = useRouter();
 
@@ -103,6 +103,7 @@ export function ProfilePage({ user, refresh }: { user: any; refresh?: () => Prom
   const [idCardStatus, setIdCardStatus] = useState<'none' | 'pending' | 'issued'>('none');
   const [requestId, setRequestId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [idCardIssuedAt, setIdCardIssuedAt] = useState<string | null>(null);
 
   // ── Billing state ──────────────────────────────────────────────────────────
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'business' | 'enterprise'>('free');
@@ -174,21 +175,24 @@ export function ProfilePage({ user, refresh }: { user: any; refresh?: () => Prom
 
   // ── Database Interactions ─────────────────────────────────────────────────
   const checkExistingRequest = useCallback(async () => {
-    if (!user?.id || !supabase) return;
+    if (!user?.id || !supabase || !activeWorkspace?.id) return;
     const { data } = await supabase
       .from('id_card_requests')
-      .select('id, status')
+      .select('id, status, created_at')
       .eq('user_id', user.id)
+      .eq('workspace_id', activeWorkspace.id)
       .maybeSingle();
 
     if (data) {
       setIdCardStatus(data.status as 'pending' | 'issued');
       setRequestId(data.id);
+      setIdCardIssuedAt(data.status === 'issued' ? data.created_at : null);
     } else {
       setIdCardStatus('none');
       setRequestId(null);
+      setIdCardIssuedAt(null);
     }
-  }, [user?.id, supabase]);
+  }, [user?.id, supabase, activeWorkspace?.id]);
 
   const fetchUserData = useCallback(async () => {
     if (!user?.id || !supabase) return;
@@ -261,13 +265,14 @@ export function ProfilePage({ user, refresh }: { user: any; refresh?: () => Prom
   };
 
   const handleRequestIDCard = async () => {
-    if (!user?.id || !supabase) return;
+    if (!user?.id || !supabase || !activeWorkspace?.id) return;
     setIsRequesting(true);
     const { data, error } = await supabase
       .from('id_card_requests')
-      .insert({ user_id: user.id, status: 'pending' })
+      .insert({ user_id: user.id, workspace_id: activeWorkspace.id, status: 'pending' })
       .select().single();
     if (!error && data) { setIdCardStatus('pending'); setRequestId(data.id); }
+    else if (error) { console.error('Failed to request ID card:', error.message); }
     setIsRequesting(false);
   };
 
@@ -626,11 +631,87 @@ export function ProfilePage({ user, refresh }: { user: any; refresh?: () => Prom
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-5">ID Card</p>
                 <div className="flex flex-col items-center py-8 gap-5">
                   {idCardStatus === 'issued' ? (
-                    <div className="flex gap-2 mt-4">
-                      <button onClick={() => setShowCard(false)} className="flex items-center gap-1.5 font-mono text-[11px] bg-[#1e2026] border border-[#2a2c33] hover:border-[#33363f] text-[#6b7280] hover:text-[#e8eaf0] px-4 py-2 rounded-xl transition-all">
-                        <X size={13} /> Close
-                      </button>
-                    </div>
+                    <>
+                      {/* ── Rendered ID Card ── */}
+                      <div className="w-full max-w-[380px] rounded-2xl overflow-hidden border border-[#7c3aed]/30 shadow-[0_0_40px_rgba(124,58,237,0.15)]" style={{ background: 'linear-gradient(145deg, #1a1028 0%, #0e0f14 50%, #0d1117 100%)' }}>
+                        {/* Top accent bar */}
+                        <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #7c3aed, #a855f7, #ec4899)' }} />
+                        
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-md bg-[#7c3aed] flex items-center justify-center">
+                              <Shield size={12} className="text-white" />
+                            </div>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#a855f7] font-bold">{activeWorkspace?.name || 'Codex Teams'}</span>
+                          </div>
+                          <span className="font-mono text-[9px] uppercase tracking-widest text-[#33363f]">ID Card</span>
+                        </div>
+
+                        {/* Body */}
+                        <div className="flex gap-4 px-5 py-4">
+                          {/* Avatar */}
+                          <div className="shrink-0">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-[#7c3aed]/30 shadow-lg" style={{ background: profile.avatarUrl ? '#111' : profile.avatarGradient }}>
+                              {profile.avatarUrl ? (
+                                <img src={profile.avatarUrl} className="w-full h-full object-cover" alt="" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold">
+                                  {(profile.displayName || 'U')[0].toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[17px] font-bold text-white truncate">{profile.displayName}</p>
+                            <p className="font-mono text-[11px] text-[#a855f7] mt-0.5">@{profile.username}</p>
+                            <p className="font-mono text-[10px] text-[#6b7280] mt-1">{profile.role || 'Member'}</p>
+                          </div>
+                        </div>
+
+                        {/* Details grid */}
+                        <div className="grid grid-cols-2 gap-px mx-5 mb-4 rounded-lg overflow-hidden border border-[#2a2c33]">
+                          <div className="bg-[#111214] px-3 py-2">
+                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Email</p>
+                            <p className="font-mono text-[10px] text-[#8b92a5] truncate">{profile.email}</p>
+                          </div>
+                          <div className="bg-[#111214] px-3 py-2">
+                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Status</p>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_CONFIG[profile.status]?.color || '#6b7280' }} />
+                              <p className="font-mono text-[10px] text-[#8b92a5]">{STATUS_CONFIG[profile.status]?.label || 'Offline'}</p>
+                            </div>
+                          </div>
+                          <div className="bg-[#111214] px-3 py-2">
+                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Workspace</p>
+                            <p className="font-mono text-[10px] text-[#8b92a5] truncate">{activeWorkspace?.name || 'N/A'}</p>
+                          </div>
+                          <div className="bg-[#111214] px-3 py-2">
+                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Issued</p>
+                            <p className="font-mono text-[10px] text-[#8b92a5]">{idCardIssuedAt ? new Date(idCardIssuedAt).toLocaleDateString() : 'N/A'}</p>
+                          </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between px-5 py-3 border-t border-[#1e2026]">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                            <span className="font-mono text-[9px] text-emerald-500 uppercase tracking-widest font-bold">Verified</span>
+                          </div>
+                          <div className="font-mono text-[8px] text-[#33363f] tracking-wider">
+                            ID-{requestId?.slice(0,8).toUpperCase()}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mt-4">
+                        <button onClick={() => setShowCard(false)} className="flex items-center gap-1.5 font-mono text-[11px] bg-[#1e2026] border border-[#2a2c33] hover:border-[#33363f] text-[#6b7280] hover:text-[#e8eaf0] px-4 py-2 rounded-xl transition-all">
+                          <X size={13} /> Close
+                        </button>
+                      </div>
+                    </>
                   ) : (
                     <>
                       <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

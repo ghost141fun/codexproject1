@@ -86,7 +86,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   }, [activeWorkspace?.name]);
 
   const handleCopyInviteLink = () => {
-    const link = `${window.location.origin}/join?id=hq-123`;
+    const link = `${window.location.origin}/join?id=${activeWorkspace?.id || 'unknown'}`;
     navigator.clipboard.writeText(link);
     setInviteCopied(true);
     toast({
@@ -383,7 +383,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                   </div>
                   <Input 
                     readOnly 
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join?id=hq-123`} 
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join?id=${activeWorkspace?.id || ''}`} 
                     className="pl-10 bg-black/40 border-white/10 h-12 text-sm text-[#d1d2d3] rounded-xl focus-visible:ring-0 focus-visible:border-white/20 select-all cursor-default"
                   />
                 </div>

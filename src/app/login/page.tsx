@@ -7,11 +7,14 @@ import { useAuth } from '@/database';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 type Step = 'email' | 'password' | 'workspace';
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const inviteWorkspaceId = searchParams.get('invite');
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,10 +22,19 @@ export default function LoginPage() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSignUp, setIsSignUp] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [inviteWorkspaceName, setInviteWorkspaceName] = useState('');
   const { supabase } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Fetch invited workspace name for display
+  useEffect(() => {
+    if (inviteWorkspaceId && supabase) {
+      supabase.from('workspaces').select('name').eq('id', inviteWorkspaceId).maybeSingle()
+        .then(({ data }) => { if (data) setInviteWorkspaceName(data.name); });
+    }
+  }, [inviteWorkspaceId, supabase]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -93,14 +105,80 @@ export default function LoginPage() {
 
     if (!isSignUp) {
       setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
       setIsLoading(false);
       if (error) { toast({ variant: 'destructive', title: 'Sign in failed', description: error.message }); return; }
-      toast({ title: 'Welcome back!', description: 'Signing you into the workspace...' });
-      router.push('/workspace');
+      
+      // If signing in via invite link, auto-join the workspace
+      if (inviteWorkspaceId && authData.user) {
+        await supabase.from('workspace_memberships').upsert({
+          workspace_id: inviteWorkspaceId,
+          user_id: authData.user.id,
+          role: 'member'
+        }, { onConflict: 'workspace_id,user_id' }).select();
+        
+        // Ensure user profile exists
+        await supabase.from('users').upsert({
+          id: authData.user.id,
+          email: authData.user.email,
+          display_name: authData.user.user_metadata?.display_name || email.split('@')[0],
+          username: email.split('@')[0],
+          role: 'member',
+        }, { onConflict: 'id' });
+        
+        toast({ title: 'Welcome!', description: `You've joined ${inviteWorkspaceName || 'the workspace'}!` });
+        router.push(`/workspace?ws=${inviteWorkspaceId}`);
+      } else {
+        toast({ title: 'Welcome back!', description: 'Signing you into the workspace...' });
+        router.push('/workspace');
+      }
     } else {
-      setStep('workspace');
+      // If invited, skip workspace step
+      if (inviteWorkspaceId) {
+        await handleInviteSignUp();
+      } else {
+        setStep('workspace');
+      }
     }
+  };
+
+  const handleInviteSignUp = async () => {
+    if (!supabase) return;
+    setIsLoading(true);
+
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: displayName || email.split('@')[0] } },
+    });
+
+    if (signUpError || !authData.user) {
+      setIsLoading(false);
+      toast({ variant: 'destructive', title: 'Sign up failed', description: signUpError?.message || 'Could not create user.' });
+      return;
+    }
+
+    const { user } = authData;
+
+    // Create user profile
+    await supabase.from('users').upsert({
+      id: user.id,
+      email: user.email,
+      display_name: displayName || email.split('@')[0],
+      username: email.split('@')[0],
+      role: 'member',
+    }, { onConflict: 'id' });
+
+    // Join the invited workspace
+    await supabase.from('workspace_memberships').insert({
+      workspace_id: inviteWorkspaceId,
+      user_id: user.id,
+      role: 'member'
+    });
+
+    setIsLoading(false);
+    toast({ title: 'Account created!', description: `Welcome to ${inviteWorkspaceName || 'the workspace'}!` });
+    router.push(`/workspace?ws=${inviteWorkspaceId}`);
   };
 
   const handleWorkspaceSubmit = async (e: React.FormEvent) => {
@@ -218,8 +296,14 @@ export default function LoginPage() {
           {step === 'email' && (
             <>
               <h1 className="text-[48px] font-bold tracking-tight leading-[1.1] mb-2 text-white">
-                First, enter your email
+                {inviteWorkspaceId ? 'Join your team' : 'First, enter your email'}
               </h1>
+              <p className="text-[18px] text-white/60 mb-8">
+                {inviteWorkspaceId && inviteWorkspaceName
+                  ? <>You've been invited to <span className="font-bold text-[#00d4b4]">{inviteWorkspaceName}</span>. Sign up to join.</>
+                  : <>We suggest using the <span className="font-bold text-white/90">email address you use at work.</span></>
+                }
+              </p>
               <p className="text-[18px] text-white/60 mb-8">
                 We suggest using the <span className="font-bold text-white/90">email address you use at work.</span>
               </p>
@@ -334,3 +418,16 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#020d0f] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#00d4b4] animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  );
+}
+

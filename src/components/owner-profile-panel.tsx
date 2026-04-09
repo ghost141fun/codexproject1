@@ -7,7 +7,7 @@ import {
   Copy, CheckCheck, MessageSquare, Hash, Users, TrendingUp,
   Settings, Eye, EyeOff, Upload, Lock, AlertTriangle,
   Star, ArrowRight, Plus, Crown, Building2,
-  UserPlus, RefreshCw, Mail, Download,
+  UserPlus, RefreshCw, Mail, Download, CreditCard, Loader2,
   ExternalLink, Palette,
 } from 'lucide-react';
 import { useAuth } from '@/database';
@@ -20,7 +20,7 @@ import AppearanceSettings from './appearance-settings';
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Status = 'online' | 'away' | 'busy' | 'offline';
 type ThemeMode = 'dark' | 'light' | 'system';
-type OwnerTab = 'profile' | 'workspace' | 'members' | 'notifications' | 'appearance' | 'privacy' | 'account' | 'billing';
+type OwnerTab = 'profile' | 'workspace' | 'members' | 'notifications' | 'id_requests' | 'appearance' | 'privacy' | 'account' | 'billing';
 type MemberRole = 'admin' | 'member' | 'guest';
 
 interface OwnerProfile {
@@ -154,6 +154,7 @@ const OWNER_TABS = [
   { key: 'workspace' as const, label: 'My Workspace', iconName: 'building' },
   { key: 'members' as const, label: 'Members', iconName: 'users' },
   { key: 'notifications' as const, label: 'Notifications', iconName: 'bell' },
+  { key: 'id_requests' as const, label: 'ID Card Requests', iconName: 'creditcard' },
   { key: 'appearance' as const, label: 'Appearance', iconName: 'palette' },
   { key: 'privacy' as const, label: 'Privacy & Safety', iconName: 'lock' },
   { key: 'account' as const, label: 'Account', iconName: 'shield' },
@@ -165,6 +166,7 @@ function OwnerTabIcon({ name }: { name: string }) {
   if (name === 'building') return <Building2 size={14} />;
   if (name === 'users') return <Users size={14} />;
   if (name === 'bell') return <Bell size={14} />;
+  if (name === 'creditcard') return <CreditCard size={14} />;
   if (name === 'palette') return <Palette size={14} />;
   if (name === 'lock') return <Lock size={14} />;
   if (name === 'shield') return <Shield size={14} />;
@@ -203,8 +205,18 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [twoFA, setTwoFA] = useState<boolean>(user?.user_metadata?.two_factor_enabled ?? false);
+  const [twoFA, setTwoFA] = useState<boolean>(false);
   const [isToggling2FA, setIsToggling2FA] = useState(false);
+  // Real MFA state
+  const [mfaStatus, setMfaStatus] = useState<'loading' | 'enabled' | 'disabled'>('loading');
+  const [mfaFactorId, setMfaFactorId] = useState('');
+  const [mfaQrCode, setMfaQrCode] = useState('');
+  const [mfaUri, setMfaUri] = useState('');
+  const [mfaChallengeId, setMfaChallengeId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [members, setMembers] = useState<Member[]>([]);
@@ -359,6 +371,20 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
     }
   }
 
+  async function rejectIdCard(requestId: string) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('id_card_requests')
+      .delete()
+      .eq('id', requestId);
+    if (!error) {
+      setIdRequests(prev => prev.filter(r => r.id !== requestId));
+      showToast('ID card request rejected.');
+    } else {
+      showToast('Failed to reject request: ' + error.message);
+    }
+  }
+
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [channelModal, setChannelModal] = useState<Channel | null>(null);
@@ -499,27 +525,101 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
   );
 
   const handleToggle2FA = async () => {
-    if (!supabase) return;
-    setIsToggling2FA(true);
-    const nextValue = !twoFA;
-    
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: { two_factor_enabled: nextValue }
-      });
-
-      if (error) {
-        showToast('Failed to update 2FA: ' + error.message);
-      } else {
-        setTwoFA(nextValue);
-        showToast(nextValue ? '2FA enabled successfully!' : '2FA disabled successfully');
-      }
-    } catch (err) {
-      showToast('An error occurred while updating 2FA');
-    } finally {
-      setIsToggling2FA(false);
+    // This is now a wrapper — enable opens the setup flow, disable calls unenroll
+    if (mfaStatus === 'enabled') {
+      await handleDisableMfa();
+    } else {
+      await handleEnableMfa();
     }
   };
+
+  async function handleEnableMfa() {
+    setShowMfaSetup(true); setMfaLoading(true); setMfaError(''); setMfaCode('');
+    try {
+      const { data: enrollData, error: enrollError } = await supabase!.auth.mfa.enroll({ factorType: 'totp' });
+      if (enrollError || !enrollData) { 
+        setMfaError(enrollError?.message || 'Failed to enroll MFA. Make sure MFA is enabled in your Supabase project settings.'); 
+        setMfaLoading(false); 
+        return; 
+      }
+      setMfaFactorId(enrollData.id);
+      setMfaQrCode(enrollData.totp.qr_code);
+      setMfaUri(enrollData.totp.uri);
+      const { data: challengeData, error: challengeError } = await supabase!.auth.mfa.challenge({ factorId: enrollData.id });
+      if (challengeError || !challengeData) { 
+        setMfaError(challengeError?.message || 'Failed to create MFA challenge'); 
+        setMfaLoading(false); 
+        return; 
+      }
+      setMfaChallengeId(challengeData.id);
+    } catch (err: any) {
+      setMfaError(err?.message || 'An unexpected error occurred');
+    }
+    setMfaLoading(false);
+  }
+
+  async function handleVerifyMfa() {
+    if (!mfaCode || mfaCode.length !== 6) { setMfaError('Please enter a valid 6-digit code.'); return; }
+    setMfaLoading(true); setMfaError('');
+    try {
+      const { error } = await supabase!.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code: mfaCode });
+      if (error) { 
+        setMfaError(error.message); 
+      } else { 
+        setMfaStatus('enabled'); 
+        setTwoFA(true); 
+        setShowMfaSetup(false); 
+        showToast('2FA enabled successfully!'); 
+      }
+    } catch (err: any) {
+      setMfaError(err?.message || 'Verification failed');
+    }
+    setMfaLoading(false);
+  }
+
+  async function handleDisableMfa() {
+    if (!mfaFactorId) { showToast('No MFA factor found to disable.'); return; }
+    setIsToggling2FA(true);
+    try {
+      const { error } = await supabase!.auth.mfa.unenroll({ factorId: mfaFactorId });
+      if (!error) { 
+        setMfaStatus('disabled'); 
+        setTwoFA(false); 
+        setMfaFactorId(''); 
+        showToast('2FA disabled successfully'); 
+      } else {
+        showToast('Failed to disable 2FA: ' + error.message);
+      }
+    } catch (err: any) {
+      showToast('An error occurred while disabling 2FA');
+    }
+    setIsToggling2FA(false);
+  }
+
+  // Check MFA status on mount
+  useEffect(() => {
+    async function checkMfaStatus() {
+      if (!supabase) { setMfaStatus('disabled'); return; }
+      try {
+        const { data: factors, error } = await supabase.auth.mfa.listFactors();
+        if (!error && factors?.totp?.length > 0) {
+          const activeTotp = factors.totp.find((f: any) => f.status === 'verified');
+          if (activeTotp) {
+            setMfaStatus('enabled');
+            setTwoFA(true);
+            setMfaFactorId(activeTotp.id);
+          } else {
+            setMfaStatus('disabled');
+          }
+        } else {
+          setMfaStatus('disabled');
+        }
+      } catch {
+        setMfaStatus('disabled');
+      }
+    }
+    checkMfaStatus();
+  }, [supabase]);
 
   const TABS = OWNER_TABS;
 
@@ -617,6 +717,7 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
               className={['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all text-left', activeTab === tab.key ? 'bg-[rgba(124,58,237,0.15)] text-[#c084fc]' : 'text-[#6b7280] hover:bg-[#18191d] hover:text-[#e8eaf0]'].join(' ')}>
               <OwnerTabIcon name={tab.iconName} />{tab.label}
               {tab.key === 'members' && (<span className="ml-auto font-mono text-[9px] px-1.5 py-0.5 rounded-full bg-[#1e2026] text-[#6b7280]">{members.length}</span>)}
+              {tab.key === 'id_requests' && idRequests.length > 0 && (<span className="ml-auto font-mono text-[9px] px-1.5 py-0.5 rounded-full bg-[rgba(245,158,11,0.15)] text-[#f59e0b] border border-[rgba(245,158,11,0.25)]">{idRequests.length}</span>)}
             </button>
           ))}
         </div>
@@ -914,35 +1015,7 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
               </div>
             </Section>
 
-            {idRequests.length > 0 && (
-              <Section title="ID Card Requests">
-                <div className="space-y-0.5 mb-6">
-                  {idRequests.map(req => {
-                    // Normalize joined users (handles array vs object returns in Supabase JS based on schema config)
-                    const u = Array.isArray(req.users) ? req.users[0] : req.users; 
-                    if (!u) return null;
-                    const avatarStr = (u.display_name || u.username || 'U')[0].toUpperCase();
-                    const color = u.avatar_gradient || GRADIENT_PRESETS[0];
-                    return (
-                      <div key={req.id} className="flex items-center gap-3 px-3 py-3 bg-[#18191d] border border-[rgba(245,158,11,0.2)] rounded-xl relative overflow-hidden group">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-[#f59e0b]" />
-                        <div className="relative shrink-0 ml-2">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold text-white shadow-md" style={{ background: color }}>{avatarStr}</div>
-                          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#18191d]" style={{ background: STATUS_CONFIG[(u.status || 'offline') as Status]?.color || '#6b7280' }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-bold text-[#e8eaf0]">{u.display_name || u.username}</p>
-                          <p className="font-mono text-[11px] text-[#8b92a5] truncate">{u.email} · Requested an ID card</p>
-                        </div>
-                        <button onClick={() => issueIdCard(req.id)} disabled={loadingRequests} className="flex items-center gap-1.5 bg-[#f59e0b] hover:bg-[#d97706] text-[#0e0f11] text-[12px] font-bold px-4 h-9 rounded-lg transition-all shadow-sm">
-                          <Check size={14} color="#0e0f11" strokeWidth={3} /> Issue ID
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Section>
-            )}
+
 
             <Section title="All members">
               <div className="flex items-center gap-2 bg-[#111214] border border-[#2a2c33] rounded-lg px-3 py-2 mb-4 focus-within:border-[#7c3aed] transition-colors">
@@ -1006,17 +1079,94 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
             </Section>
             <Section title="Two-factor authentication">
               <div className="flex items-center justify-between mb-3">
-                <div><p className="text-[13px] font-semibold">{twoFA ? '2FA is enabled' : '2FA is disabled'}</p><p className="font-mono text-[11px] text-[#6b7280] mt-0.5">{twoFA ? 'Authenticator app connected.' : 'Strongly recommended for workspace owners.'}</p></div>
+                <div>
+                  <p className="text-[13px] font-semibold">
+                    {mfaStatus === 'loading' ? 'Checking MFA status...' : twoFA ? '2FA is enabled' : '2FA is disabled'}
+                  </p>
+                  <p className="font-mono text-[11px] text-[#6b7280] mt-0.5">
+                    {mfaStatus === 'loading' ? 'Please wait...' : twoFA ? 'Authenticator app connected.' : 'Strongly recommended for workspace owners.'}
+                  </p>
+                </div>
                 <button 
                   onClick={handleToggle2FA} 
-                  disabled={isToggling2FA}
-                  className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all', twoFA ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white', isToggling2FA ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
+                  disabled={isToggling2FA || mfaLoading || mfaStatus === 'loading'}
+                  className={['flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all disabled:opacity-50', twoFA ? 'bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-[#ef4444]' : 'bg-[#7c3aed] hover:bg-[#a855f7] text-white'].join(' ')}
                 >
-                  <Shield size={13} />
-                  {isToggling2FA ? 'Updating...' : (twoFA ? 'Disable' : 'Enable 2FA')}
+                  {(isToggling2FA || mfaLoading) ? <Loader2 size={13} className="animate-spin" /> : <Shield size={13} />}
+                  {isToggling2FA ? 'Updating...' : (twoFA ? 'Disable 2FA' : 'Enable 2FA')}
                 </button>
               </div>
-              {twoFA && (<div className="flex items-center gap-2 p-3 bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.2)] rounded-xl"><Check size={13} className="text-[#10b981] shrink-0" /><p className="font-mono text-[11px] text-[#10b981]">Authenticator app connected \u00b7 Last used 2h ago</p></div>)}
+
+              {twoFA && !showMfaSetup && (
+                <div className="flex items-center gap-2 p-3 bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.2)] rounded-xl">
+                  <Check size={13} className="text-[#10b981] shrink-0" />
+                  <p className="font-mono text-[11px] text-[#10b981]">Authenticator app verified and active</p>
+                </div>
+              )}
+
+              {/* MFA Setup Panel with QR Code */}
+              {showMfaSetup && !twoFA && (
+                <div className="mt-2 p-5 bg-[#111214] border border-[#2a2c33] rounded-xl relative" style={{ animation: 'fadeIn 0.3s ease' }}>
+                  <button onClick={() => setShowMfaSetup(false)} className="absolute top-3 right-3 text-[#6b7280] hover:text-[#e8eaf0] transition-colors"><X size={14} /></button>
+                  
+                  <h3 className="text-[14px] font-bold mb-1">Configure Authenticator App</h3>
+                  <p className="text-[11px] text-[#6b7280] mb-5 font-mono">Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.) then enter the 6-digit code.</p>
+                  
+                  <div className="flex flex-col items-center gap-4">
+                    {mfaLoading && !mfaQrCode ? (
+                      <div className="w-[180px] h-[180px] bg-[#1a1b20] rounded-xl flex items-center justify-center border border-[#2a2c33]">
+                        <Loader2 size={24} className="animate-spin text-[#6b7280]" />
+                      </div>
+                    ) : mfaQrCode ? (
+                      <>
+                        <div className="bg-white p-3 rounded-xl shadow-lg" dangerouslySetInnerHTML={{ __html: mfaQrCode }} />
+                        
+                        {/* Manual entry URI */}
+                        {mfaUri && (
+                          <div className="w-full max-w-[320px]">
+                            <p className="font-mono text-[9px] uppercase tracking-widest text-[#33363f] mb-1.5 text-center">Can't scan? Copy this key:</p>
+                            <div className="flex items-center gap-1.5 bg-[#1a1b20] border border-[#2a2c33] rounded-lg px-3 py-2">
+                              <code className="flex-1 font-mono text-[10px] text-[#6b7280] truncate select-all">{mfaUri}</code>
+                              <button onClick={() => { navigator.clipboard.writeText(mfaUri); showToast('Key copied!'); }} className="text-[#6b7280] hover:text-[#a855f7] transition-colors shrink-0">
+                                <Copy size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : mfaError ? (
+                      <div className="w-[180px] h-[180px] bg-[#1a1b20] rounded-xl flex flex-col items-center justify-center border border-[rgba(239,68,68,0.2)] gap-2 px-4">
+                        <AlertTriangle size={20} className="text-[#ef4444]" />
+                        <p className="font-mono text-[10px] text-[#ef4444] text-center">{mfaError}</p>
+                        <button onClick={handleEnableMfa} className="font-mono text-[10px] text-[#a855f7] hover:underline mt-1">Try again</button>
+                      </div>
+                    ) : null}
+
+                    {/* Verification code input */}
+                    {mfaQrCode && (
+                      <div className="w-full max-w-[240px] space-y-3 mt-2">
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-[#33363f] text-center">Enter 6-digit code</p>
+                        <input 
+                          type="text" 
+                          placeholder="000 000" 
+                          maxLength={6}
+                          value={mfaCode} 
+                          onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                          className="w-full text-center tracking-[0.4em] bg-[#1a1b20] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[18px] px-3 h-[46px] rounded-lg outline-none transition-colors placeholder-[#33363f]" 
+                        />
+                        {mfaError && <p className="text-[#ef4444] text-[11px] font-mono text-center">{mfaError}</p>}
+                        <button 
+                          onClick={handleVerifyMfa} 
+                          disabled={mfaCode.length !== 6 || mfaLoading}
+                          className="w-full flex justify-center items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12.5px] font-semibold h-[42px] rounded-lg transition-all disabled:opacity-50"
+                        >
+                          {mfaLoading && <Loader2 size={14} className="animate-spin" />} Verify & Enable
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </Section>
             <div className="bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.2)] rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-4"><AlertTriangle size={14} className="text-[#ef4444]" /><p className="font-mono text-[10px] uppercase tracking-widest text-[#ef4444]">Danger zone</p></div>
@@ -1032,6 +1182,71 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
         {activeTab === 'notifications' && (
           <div className="max-w-[680px] mx-auto px-8 py-4">
             <NotificationSettings />
+          </div>
+        )}
+
+        {/* ID CARD REQUESTS TAB */}
+        {activeTab === 'id_requests' && (
+          <div className="max-w-[680px] mx-auto px-8 py-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-xl bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.2)] flex items-center justify-center">
+                <CreditCard size={16} className="text-[#f59e0b]" />
+              </div>
+              <div>
+                <h2 className="text-[20px] font-black text-[#e8eaf0]">ID Card Requests</h2>
+                <p className="font-mono text-[11px] text-[#6b7280]">Review and manage member ID card requests</p>
+              </div>
+            </div>
+
+            {loadingRequests ? (
+              <div className="flex items-center justify-center py-16">
+                <RefreshCw size={18} className="animate-spin text-[#6b7280]" />
+              </div>
+            ) : idRequests.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-[#18191d] border border-[#2a2c33] flex items-center justify-center">
+                  <CreditCard size={24} className="text-[#33363f]" />
+                </div>
+                <div className="text-center">
+                  <p className="text-[15px] font-bold text-[#e8eaf0] mb-1">No pending requests</p>
+                  <p className="font-mono text-[11px] text-[#6b7280] max-w-[300px]">
+                    When members request an ID card, they'll appear here for your review.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 mt-6">
+                {idRequests.map(req => {
+                  const u = Array.isArray(req.users) ? req.users[0] : req.users;
+                  if (!u) return null;
+                  const avatarStr = (u.display_name || u.username || 'U')[0].toUpperCase();
+                  const color = u.avatar_gradient || GRADIENT_PRESETS[0];
+                  const requestDate = req.created_at ? new Date(req.created_at).toLocaleDateString() : '';
+                  return (
+                    <div key={req.id} className="flex items-center gap-3 px-4 py-4 bg-[#18191d] border border-[rgba(245,158,11,0.2)] rounded-xl relative overflow-hidden group hover:border-[rgba(245,158,11,0.35)] transition-colors">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-[#f59e0b]" />
+                      <div className="relative shrink-0 ml-2">
+                        <div className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold text-white shadow-md" style={{ background: color }}>{avatarStr}</div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#18191d]" style={{ background: STATUS_CONFIG[(u.status || 'offline') as Status]?.color || '#6b7280' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-bold text-[#e8eaf0]">{u.display_name || u.username}</p>
+                        <p className="font-mono text-[11px] text-[#8b92a5] truncate">{u.email}</p>
+                        {requestDate && <p className="font-mono text-[9px] text-[#33363f] mt-0.5">Requested {requestDate}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => rejectIdCard(req.id)} disabled={loadingRequests} className="flex items-center gap-1.5 bg-[#1e2026] hover:bg-[rgba(239,68,68,0.15)] text-[#ef4444] text-[12px] font-bold px-3 h-9 rounded-lg transition-all border border-[#2a2c33] hover:border-[rgba(239,68,68,0.3)]">
+                          <X size={13} strokeWidth={2.5} /> Reject
+                        </button>
+                        <button onClick={() => issueIdCard(req.id)} disabled={loadingRequests} className="flex items-center gap-1.5 bg-[#f59e0b] hover:bg-[#d97706] text-[#0e0f11] text-[12px] font-bold px-4 h-9 rounded-lg transition-all shadow-sm">
+                          <Check size={14} color="#0e0f11" strokeWidth={3} /> Issue ID
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

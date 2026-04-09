@@ -438,7 +438,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       const isOwner = user?.role === 'admin' || user?.role === 'workspace_owner' || user?.role === 'owner' || activeWorkspace?.owner_id === user?.id;
       return isOwner
         ? <OwnerProfilePage user={user} activeWorkspace={activeWorkspace} refresh={refresh} /> 
-        : <ProfilePage user={user} refresh={refresh} />;
+        : <ProfilePage user={user} activeWorkspace={activeWorkspace} refresh={refresh} />;
     }
     if (activeView === 'files') return (
       <div className="flex-1 flex flex-col relative min-h-0">
