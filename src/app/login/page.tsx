@@ -170,13 +170,24 @@ function LoginContent() {
     }, { onConflict: 'id' });
 
     // Join the invited workspace
-    await supabase.from('workspace_memberships').insert({
+    const { error: joinError } = await supabase.from('workspace_memberships').insert({
       workspace_id: inviteWorkspaceId,
       user_id: user.id,
       role: 'member'
     });
 
     setIsLoading(false);
+
+    if (joinError) {
+      toast({ 
+        variant: 'destructive',
+        title: 'Account created, but join failed', 
+        description: `Could not join the workspace: ${joinError.message}. You may need the workspace owner to update security policies.` 
+      });
+      router.push('/workspace');
+      return;
+    }
+
     toast({ title: 'Account created!', description: `Welcome to ${inviteWorkspaceName || 'the workspace'}!` });
     router.push(`/workspace?ws=${inviteWorkspaceId}`);
   };

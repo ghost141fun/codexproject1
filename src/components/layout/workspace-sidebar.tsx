@@ -80,13 +80,18 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   const { toast } = useToast();
   
   useEffect(() => {
+    console.log('WorkspaceSidebar activeWorkspace:', activeWorkspace);
     if (activeWorkspace?.name) {
       setWorkspaceNameInput(activeWorkspace.name);
     }
-  }, [activeWorkspace?.name]);
+  }, [activeWorkspace]);
 
   const handleCopyInviteLink = () => {
-    const link = `${window.location.origin}/join?id=${activeWorkspace?.id || 'unknown'}`;
+    let wsId = activeWorkspace?.id;
+    if (!wsId && typeof window !== 'undefined') {
+      wsId = new URLSearchParams(window.location.search).get('ws');
+    }
+    const link = `${window.location.origin}/join?id=${wsId || ''}`;
     navigator.clipboard.writeText(link);
     setInviteCopied(true);
     toast({
@@ -383,7 +388,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                   </div>
                   <Input 
                     readOnly 
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join?id=${activeWorkspace?.id || ''}`} 
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join?id=${activeWorkspace?.id || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ws') : '') || ''}`} 
                     className="pl-10 bg-black/40 border-white/10 h-12 text-sm text-[#d1d2d3] rounded-xl focus-visible:ring-0 focus-visible:border-white/20 select-all cursor-default"
                   />
                 </div>
