@@ -148,17 +148,30 @@ export function Billing({ user }: BillingProps) {
 
   const handleRazorpayCheckout = async () => {
     try {
+      // Prices mapping
+      const PLAN_PRICES = {
+        pro: { monthly: 300, annual: 240 },
+        business: { monthly: 700, annual: 560 },
+      };
+
+      // Get the correct price based on the plan being upgraded to
+      let amount = 1; // Fallback/Verification amount
+      if (upgradingToPlan && (upgradingToPlan === 'pro' || upgradingToPlan === 'business')) {
+        amount = (PLAN_PRICES as any)[upgradingToPlan][billingCycle];
+      }
+
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 1, currency: 'INR' }),
+        body: JSON.stringify({ amount, currency: 'INR' }),
       });
       const order = await res.json();
       if (order.error) { alert(`Error: ${order.error}`); return; }
       const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_XXXXXXXXXXXXXX';
       const options = {
         key: keyId, amount: order.amount, currency: order.currency, name: 'Codex Teams',
-        description: 'Payment Method Verification', order_id: order.id,
+        description: upgradingToPlan ? `Upgrade to ${upgradingToPlan.toUpperCase()}` : 'Payment Method Verification',
+        order_id: order.id,
         handler: async (response: any) => {
           try {
             const verifyRes = await fetch('/api/razorpay/verify-payment', {
