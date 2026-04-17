@@ -10,10 +10,11 @@ interface MessageInputProps {
   user: any;
   workspaceId?: string;
   placeholder?: string;
+  parentId?: string;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
-  channelId, user, workspaceId, placeholder = "Message channel",
+  channelId, user, workspaceId, placeholder = "Message channel", parentId
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [members, setMembers] = useState<Person[]>([]);
@@ -139,14 +140,44 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       setIsUploading(false);
     }
 
-    const { error } = await supabase.from('messages').insert([{
+    const { data: newMessage, error } = await supabase.from('messages').insert([{
       channel_id: channelId,
       author_id: user.id,
       content: finalContent.trim(),
-    }]);
+      parent_id: parentId || null
+    }]).select().single();
 
     if (error) {
       console.error('Error sending message:', error.message);
+      return;
+    }
+
+    // ── Mention Notifications ──
+    const mentionRegex = /@(\w+)/g;
+    const mentions = Array.from(finalContent.matchAll(mentionRegex));
+    
+    if (mentions.length > 0 && newMessage) {
+      const notificationPromises = mentions.map(async (match) => {
+        const mentionedName = match[1];
+        const targetMember = members.find(m => m.name === mentionedName);
+        
+        if (targetMember && targetMember.id !== user.id) {
+          return supabase.from('notifications').insert([{
+            user_id: targetMember.id,
+            actor_id: user.id,
+            type: 'mention',
+            title: `${user.display_name || user.username} mentioned you`,
+            body: finalContent.trim(),
+            channel_id: channelId,
+            meta: { 
+              messageId: newMessage.id,
+              priority: 'high'
+            }
+          }]);
+        }
+      });
+      
+      await Promise.all(notificationPromises);
     }
   };
 

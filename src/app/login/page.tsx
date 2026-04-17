@@ -315,9 +315,6 @@ function LoginContent() {
                   : <>We suggest using the <span className="font-bold text-white/90">email address you use at work.</span></>
                 }
               </p>
-              <p className="text-[18px] text-white/60 mb-8">
-                We suggest using the <span className="font-bold text-white/90">email address you use at work.</span>
-              </p>
               <form onSubmit={handleEmailContinue} className="w-full space-y-4">
                 <Input type="email" placeholder="name@work-email.com" value={email}
                   onChange={e => setEmail(e.target.value)} required autoFocus

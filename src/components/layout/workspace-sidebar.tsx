@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
 import { 
   Hash, 
@@ -16,7 +16,10 @@ import {
   UserPlus,
   Link as LinkIcon,
   Copy,
-  Check
+  Check,
+  Camera,
+  AlertTriangle,
+  Trash2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,6 +56,9 @@ interface WorkspaceSidebarProps {
   workspaces?: any[];
   onRenameWorkspace?: (newName: string) => Promise<void>;
   onWorkspaceSwitch?: (id: string) => void;
+  isOwner?: boolean;
+  onDeleteWorkspace?: (id: string) => Promise<void>;
+  onUpdateWorkspaceImage?: (url: string) => Promise<void>;
 }
 
 export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ 
@@ -65,8 +71,15 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   activeWorkspace,
   workspaces = [],
   onRenameWorkspace,
-  onWorkspaceSwitch
+  onWorkspaceSwitch,
+  isOwner,
+  onDeleteWorkspace,
+  onUpdateWorkspaceImage
 }) => {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -80,7 +93,6 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   const { toast } = useToast();
   
   useEffect(() => {
-    console.log('WorkspaceSidebar activeWorkspace:', activeWorkspace);
     if (activeWorkspace?.name) {
       setWorkspaceNameInput(activeWorkspace.name);
     }
@@ -143,9 +155,132 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="flex items-center gap-1">
-          <button className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white">
-            <Settings className="w-4 h-4" />
-          </button>
+          {isOwner ? (
+            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+              <DialogTrigger asChild>
+                <button className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white">
+                  <Settings className="w-4 h-4" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="bg-[#1a1d21] border-[#222529] text-white sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Workspace Settings</DialogTitle>
+                  <DialogDescription className="text-muted-foreground">
+                    Manage workspace picture or delete the workspace.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-6 py-4">
+                  {/* Workspace Image Selection */}
+                  <div className="space-y-3">
+                    <Label className="text-white">Workspace Image</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#222529] flex items-center justify-center shrink-0 border border-white/10 relative group">
+                        {activeWorkspace?.logo_url ? (
+                          <img src={activeWorkspace.logo_url} alt="Workspace Logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-2xl">{activeWorkspace?.emoji || '🏢'}</span>
+                        )}
+                        <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera className="w-5 h-5 text-white" />
+                        </button>
+                      </div>
+                      <div className="flex-1">
+                        <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="w-full bg-transparent border-white/10 hover:bg-white/5 text-white mb-2">Change Image</Button>
+                        <p className="text-[10px] text-muted-foreground">Recommended size: 256x256px</p>
+                      </div>
+                      <input 
+                        ref={fileRef} type="file" accept="image/*" className="hidden" 
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f && onUpdateWorkspaceImage) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const img = new Image();
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                const MAX_SIZE = 256;
+                                let width = img.width;
+                                let height = img.height;
+                                if (width > height) {
+                                  if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                                } else {
+                                  if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                                }
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx?.drawImage(img, 0, 0, width, height);
+                                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                                
+                                onUpdateWorkspaceImage(dataUrl);
+                              };
+                              img.src = event.target?.result as string;
+                            };
+                            reader.readAsDataURL(f);
+                          }
+                          e.target.value = '';
+                        }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div className="space-y-3 pt-4 border-t border-red-500/20 mt-2">
+                    <Label className="text-red-400 flex items-center gap-2 uppercase tracking-wider text-[10px] font-black">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Danger Zone
+                    </Label>
+                    <p className="text-sm text-muted-foreground mb-3">Deleting your workspace is irreversible. All channels, messages, and files will be lost forever.</p>
+                    {isDeleting ? (
+                      <div className="space-y-3 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                        <Label className="text-xs text-red-200">Type <span className="font-mono bg-black/30 px-1 rounded font-bold">{activeWorkspace?.name}</span> to confirm</Label>
+                        <Input 
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          className="bg-black/40 border-red-500/30 text-white focus-visible:ring-red-500"
+                          placeholder={activeWorkspace?.name}
+                        />
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => { setIsDeleting(false); setDeleteConfirmText(''); }}
+                            className="flex-1 hover:bg-white/5 text-white"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            variant="destructive"
+                            onClick={() => {
+                              if (activeWorkspace?.id) onDeleteWorkspace?.(activeWorkspace.id);
+                            }}
+                            disabled={deleteConfirmText !== activeWorkspace?.name}
+                            className="flex-1 bg-red-600 hover:bg-red-700 font-bold"
+                          >
+                            Delete Forever
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => setIsDeleting(true)}
+                        className="w-full bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/30 font-semibold flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete Workspace
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <button 
+              className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground opacity-50 cursor-not-allowed" 
+              title="Only workspace owners can access settings"
+              onClick={() => toast({ title: 'Access Denied', description: 'Only workspace owners can modify workspace settings.' })}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
           
           <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
             <DialogTrigger asChild>
@@ -345,12 +480,13 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               >
                 <div className="relative">
                   <Avatar className="w-5 h-5 rounded-md">
-                    <div 
-                      className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white rounded-md"
-                      style={{ background: dm.avatar || '#6366f1' }}
+                    <AvatarImage src={dm.avatar} />
+                    <AvatarFallback 
+                      className="rounded-md text-[8px] text-white font-bold"
+                      style={{ background: dm.color || '#4a154b' }}
                     >
-                      {dm.name[0].toUpperCase()}
-                    </div>
+                      {dm.name?.[0]?.toUpperCase() ?? 'U'}
+                    </AvatarFallback>
                   </Avatar>
                   <div className={cn(
                     "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#19171d]",

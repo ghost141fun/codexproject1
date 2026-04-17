@@ -29,6 +29,7 @@ export type DirectMessage = {
   userId: string;
   name: string;
   avatar: string;
+  color?: string;
   type: 'dm';
 };
 

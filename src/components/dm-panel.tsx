@@ -335,7 +335,7 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
         return [];
       }
 
-      const memberIds = members.map(m => m.user_id);
+      const memberIds = Array.from(new Set(members.map(m => m.user_id)));
       const { data } = await supabase
         .from('users')
         .select('id, display_name, username, email, avatar_gradient, status, role')
@@ -419,7 +419,14 @@ export function DMPage({ user, activeWorkspace, initialConvId }: { user: any; ac
       };
     });
 
-    setConversations(formatted);
+    // Deduplicate conversations based on other user ID
+    const uniqueFormatted: Conversation[] = Array.from(
+      new Map(
+        formatted.map(c => [c.participants[0].id, c])
+      ).values()
+    );
+
+    setConversations(uniqueFormatted);
     setIsLoading(false);
     if (formatted.length > 0 && !activeId) {
       setActiveId(formatted[0].id);

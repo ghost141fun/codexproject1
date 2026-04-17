@@ -75,7 +75,7 @@ export default function WorkspacePage() {
             .eq('workspace_id', workspaceId)
         : { data: [] };
 
-      let memberIds = (memberRecords ?? []).map(m => m.user_id);
+      let memberIds = Array.from(new Set((memberRecords ?? []).map(m => m.user_id)));
 
 
 
@@ -93,7 +93,7 @@ export default function WorkspacePage() {
         { data: files, error: filesError },
       ] = await Promise.all([
         workspaceId 
-          ? supabase.from('channels').select('*').or(`workspace_id.eq.${workspaceId},and(workspace_id.is.null,created_by.eq.${user.id})`)
+          ? supabase.from('channels').select('*').eq('workspace_id', workspaceId)
           : supabase.from('channels').select('*').or(`created_by.eq.${user.id},workspace_id.is.null`),
         workspaceId
           ? supabase.from('direct_message_conversations').select('*')
@@ -124,16 +124,20 @@ export default function WorkspacePage() {
             id: existingConv?.id || `new-dm-${u.id}`,
             userId: u.id,
             name: u.display_name || u.username || 'User',
-            avatar: u.avatar_url || u.profile_picture_url || u.avatar_gradient || '',
+            avatar: u.avatar_url || u.profile_picture_url || '',
+            color: u.avatar_gradient || '',
             status: u.status || 'offline',
             type: 'dm' as const,
           };
         });
+      
+      // Secondary deduplication to ensure unique entries
+      const uniqueDMs = Array.from(new Map(formattedDMs.map(dm => [dm.userId, dm])).values());
 
       setData({
         user,
         channels: channels ?? [],
-        directMessages: formattedDMs as any[],
+        directMessages: uniqueDMs as any[],
         files: files ?? [],
         activeWorkspace: activeWorkspace || null,
         workspaces: allWorkspaces,
@@ -143,6 +147,19 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const workspacesChannel = supabase.channel('public:workspaces')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(workspacesChannel);
+    };
   }, [fetchData]);
 
   if (loading || !data) {

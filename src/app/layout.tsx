@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { DatabaseClientProvider } from '@/database/client-provider';
+import { AppearanceInitializer } from '@/components/appearance-initializer';
 
 export const metadata: Metadata = {
   title: 'Codex Teams | Collaborative Engineering Workspace',
@@ -44,6 +45,20 @@ export default function RootLayout({
                     document.documentElement.style.setProperty('--accent', accents[config.accent]);
                   }
                 }
+                if (config.fontSize) {
+                  document.documentElement.style.fontSize = config.fontSize + 'px';
+                }
+                if (config.fontFamily) {
+                  var fonts = {
+                    inter: "'Inter', sans-serif",
+                    roboto: "'Roboto', sans-serif",
+                    system: "system-ui, -apple-system, sans-serif"
+                  };
+                  if (fonts[config.fontFamily]) {
+                    document.documentElement.style.setProperty('--font-family', fonts[config.fontFamily]);
+                    document.documentElement.style.fontFamily = fonts[config.fontFamily];
+                  }
+                }
               } else {
                 document.documentElement.classList.add('dark');
               }
@@ -52,6 +67,7 @@ export default function RootLayout({
         `}} />
       </head>
       <body className="font-body antialiased selection:bg-primary/30 selection:text-primary-foreground">
+        <AppearanceInitializer />
         <DatabaseClientProvider>
           {children}
         </DatabaseClientProvider>

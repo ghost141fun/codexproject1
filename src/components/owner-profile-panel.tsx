@@ -311,7 +311,7 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
     const { data, error } = await supabase
       .from('id_card_requests')
       .select(`
-        id, status, user_id, created_at,
+        id, status, user_id, created_at, designation, dob, signature, email, mobile_number,
         users ( id, display_name, username, email, avatar_gradient, status )
       `)
       .eq('status', 'pending')
@@ -359,29 +359,33 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
 
   async function issueIdCard(requestId: string) {
     if (!supabase) return;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('id_card_requests')
       .update({ status: 'issued' })
-      .eq('id', requestId);
-    if (!error) {
+      .eq('id', requestId)
+      .select()
+      .single();
+    if (!error && data) {
       setIdRequests(prev => prev.filter(r => r.id !== requestId));
       showToast('ID card issued successfully!');
     } else {
-      showToast('Failed to issue ID card: ' + error.message);
+      showToast('Failed to issue ID card. You may missing database UPDATE permissions for this row.');
     }
   }
 
   async function rejectIdCard(requestId: string) {
     if (!supabase) return;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('id_card_requests')
       .delete()
-      .eq('id', requestId);
-    if (!error) {
+      .eq('id', requestId)
+      .select()
+      .single();
+    if (!error && data) {
       setIdRequests(prev => prev.filter(r => r.id !== requestId));
       showToast('ID card request rejected.');
     } else {
-      showToast('Failed to reject request: ' + error.message);
+      showToast('Failed to reject request. You may missing DELETE permissions.');
     }
   }
 
@@ -409,15 +413,11 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
       const { error } = await supabase.from('users').update({
         display_name: draft.displayName,
         username: draft.username,
-        bio: draft.bio,
         role: draft.role,
         timezone: draft.timezone,
-        website: draft.website,
-        twitter: draft.twitter,
-        github: draft.github,
         avatar_gradient: draft.avatarGradient,
         status: draft.status,
-        avatar_url: draft.avatarUrl
+        profile_picture_url: draft.avatarUrl
       }).eq('id', user.id);
 
       if (error) {
@@ -442,6 +442,7 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
   }
 
   function removeImage() {
+    setEditing(true);
     setDraft(p => ({ ...p, avatarUrl: '' }));
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -666,11 +667,32 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
                 const f = e.target.files?.[0]; 
                 if (f) {
                   const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setDraft(p => ({ ...p, avatarUrl: reader.result as string }));
+                  reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas');
+                      const MAX_SIZE = 256;
+                      let width = img.width;
+                      let height = img.height;
+                      if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                      } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                      }
+                      canvas.width = width;
+                      canvas.height = height;
+                      const ctx = canvas.getContext('2d');
+                      ctx?.drawImage(img, 0, 0, width, height);
+                      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                      setEditing(true);
+                      setDraft(p => ({ ...p, avatarUrl: dataUrl }));
+                    };
+                    img.src = event.target?.result as string;
                   };
                   reader.readAsDataURL(f);
                 }
+                e.target.value = ''; // allow selecting same file again
               }} 
             />
           </div>
@@ -773,7 +795,7 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-3">Avatar gradient</p>
                 <div className="flex gap-2 flex-wrap">
                   {GRADIENT_PRESETS.map((g, i) => (
-                    <button key={i} onClick={() => editing && setDraft(p => ({ ...p, avatarGradient: g }))}
+                    <button key={i} onClick={() => { setEditing(true); setDraft(p => ({ ...p, avatarGradient: g })); }}
                       className={['w-8 h-8 rounded-lg transition-all', (editing ? draft : profile).avatarGradient === g ? 'ring-2 ring-[#7c3aed] ring-offset-1 ring-offset-[#18191d] scale-110' : 'hover:scale-105'].join(' ')}
                       style={{ background: g }} />
                   ))}
@@ -1229,10 +1251,30 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
                         <div className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold text-white shadow-md" style={{ background: color }}>{avatarStr}</div>
                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#18191d]" style={{ background: STATUS_CONFIG[(u.status || 'offline') as Status]?.color || '#6b7280' }} />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-4">
                         <p className="text-[14px] font-bold text-[#e8eaf0]">{u.display_name || u.username}</p>
                         <p className="font-mono text-[11px] text-[#8b92a5] truncate">{u.email}</p>
-                        {requestDate && <p className="font-mono text-[9px] text-[#33363f] mt-0.5">Requested {requestDate}</p>}
+                        
+                        <div className="mt-3 grid grid-cols-2 gap-3 bg-[#111214] p-3 rounded-xl border border-[#2a2c33]">
+                          <div>
+                            <p className="font-mono text-[8.5px] uppercase tracking-widest text-[#6b7280]">Designation</p>
+                            <p className="font-mono text-[11px] text-[#e8eaf0] truncate">{req.designation || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="font-mono text-[8.5px] uppercase tracking-widest text-[#6b7280]">Mobile</p>
+                            <p className="font-mono text-[11px] text-[#e8eaf0] truncate">{req.mobile_number || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="font-mono text-[8.5px] uppercase tracking-widest text-[#6b7280]">Date of Birth</p>
+                            <p className="font-mono text-[11px] text-[#e8eaf0] truncate">{req.dob || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="font-mono text-[8.5px] uppercase tracking-widest text-[#6b7280]">Signature</p>
+                            <p className="font-serif italic text-[11px] text-[#a855f7] truncate">{req.signature || 'N/A'}</p>
+                          </div>
+                        </div>
+
+                        {requestDate && <p className="font-mono text-[9px] text-[#33363f] mt-2">Requested {requestDate}</p>}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => rejectIdCard(req.id)} disabled={loadingRequests} className="flex items-center gap-1.5 bg-[#1e2026] hover:bg-[rgba(239,68,68,0.15)] text-[#ef4444] text-[12px] font-bold px-3 h-9 rounded-lg transition-all border border-[#2a2c33] hover:border-[rgba(239,68,68,0.3)]">

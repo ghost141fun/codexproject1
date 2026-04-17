@@ -13,6 +13,7 @@ interface SideRailProps {
   onOpenAddMenu: () => void;
   activeWorkspace?: any;
   workspaces?: any[];
+  user?: any;
 }
 
 export const SideRail: React.FC<SideRailProps> = ({ 
@@ -20,9 +21,9 @@ export const SideRail: React.FC<SideRailProps> = ({
   onViewChange, 
   onOpenAddMenu, 
   activeWorkspace,
-  workspaces = [] 
+  workspaces = [],
+  user
 }) => {
-  const { user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -41,7 +42,7 @@ export const SideRail: React.FC<SideRailProps> = ({
   };
 
   const getDisplayName = () => {
-    const rawName = user?.user_metadata?.display_name || user?.email || 'U';
+    const rawName = user?.display_name || user?.user_metadata?.display_name || user?.email || 'U';
     if (rawName.includes('@')) {
       return rawName.split('@')[0];
     }
@@ -171,7 +172,7 @@ export const SideRail: React.FC<SideRailProps> = ({
             activeView === 'profile' ? "border-primary ring-2" : "border-white/10"
           )}
         >
-          <AvatarImage src={user?.avatar_url || ''} />
+          <AvatarImage src={user?.profile_picture_url || user?.avatar_url || ''} />
           <AvatarFallback className="rounded-lg bg-primary/20 text-primary">
             {displayName[0].toUpperCase()}
           </AvatarFallback>

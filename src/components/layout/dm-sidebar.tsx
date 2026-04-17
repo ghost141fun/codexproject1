@@ -61,8 +61,11 @@ export const DmSidebar: React.FC<DmSidebarProps> = ({
                   <div className="relative">
                     <Avatar className="w-6 h-6 rounded-md">
                       <AvatarImage src={dm.avatar} />
-                      <AvatarFallback className="rounded-md text-[10px]">
-                        {dm.name?.[0] ?? 'U'}
+                      <AvatarFallback 
+                        className="rounded-md text-[10px] text-white font-bold"
+                        style={{ background: dm.color || '#4a154b' }}
+                      >
+                        {dm.name?.[0]?.toUpperCase() ?? 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#19171d] bg-green-500" />

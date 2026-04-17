@@ -71,6 +71,12 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
   const { supabase } = useAuth();
   const router = useRouter();
 
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  function showToast(msg: string) {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  }
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('profile');
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.display_name || user?.email?.split('@')[0] || 'Member',
@@ -86,7 +92,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
     github: user?.github || '',
     joinedDate: user?.joined_date || new Date().toLocaleDateString(),
     avatarGradient: user?.avatar_gradient || GRADIENT_PRESETS[0],
-    avatarUrl: user?.avatar_url || '',
+    avatarUrl: user?.profile_picture_url || user?.avatar_url || '',
   });
 
   const [editing, setEditing] = useState(false);
@@ -104,6 +110,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
   const [requestId, setRequestId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [idCardIssuedAt, setIdCardIssuedAt] = useState<string | null>(null);
+  const [issuedCardData, setIssuedCardData] = useState<any>(null);
 
   // ── Billing state ──────────────────────────────────────────────────────────
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'business' | 'enterprise'>('free');
@@ -147,6 +154,47 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
   const [mfaError, setMfaError] = useState('');
   const [showMfaModal, setShowMfaModal] = useState(false);
 
+  // ── ID Card Request Form ──────────────────────────────────────────────────
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestFormData, setRequestFormData] = useState({
+    designation: '',
+    dob: '',
+    signature: '',
+    email: '',
+    mobile_number: ''
+  });
+
+  // ── ID Card 3D Animation ──────────────────────────────────────────────────
+  const cardRef = useRef<HTMLDivElement>(null);
+  const glareRef = useRef<HTMLDivElement>(null);
+
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current || !glareRef.current) return;
+    const box = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - box.left;
+    const y = e.clientY - box.top;
+    const centerX = box.width / 2;
+    const centerY = box.height / 2;
+    
+    // Calculate rotation limits (max 15 degrees)
+    const rotateXValue = ((y - centerY) / centerY) * -15;
+    const rotateYValue = ((x - centerX) / centerX) * 15;
+    
+    cardRef.current.style.transform = `perspective(1000px) rotateX(${rotateXValue}deg) rotateY(${rotateYValue}deg) scale3d(1.05, 1.05, 1.05)`;
+    
+    // Calculate glare position
+    const percentageX = (x / box.width) * 100;
+    const percentageY = (y / box.height) * 100;
+    glareRef.current.style.background = `radial-gradient(circle at ${percentageX}% ${percentageY}%, rgba(255,255,255,0.15) 0%, transparent 60%)`;
+    glareRef.current.style.opacity = '1';
+  };
+
+  const handleCardMouseLeave = () => {
+    if (!cardRef.current || !glareRef.current) return;
+    cardRef.current.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+    glareRef.current.style.opacity = '0';
+  };
+
   // ── Notification prefs ────────────────────────────────────────────────────
   const [notifs, setNotifs] = useState({
     mentions: true, threads: true, reactions: false,
@@ -178,7 +226,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
     if (!user?.id || !supabase || !activeWorkspace?.id) return;
     const { data } = await supabase
       .from('id_card_requests')
-      .select('id, status, created_at')
+      .select('id, status, created_at, designation, dob, email, mobile_number, signature')
       .eq('user_id', user.id)
       .eq('workspace_id', activeWorkspace.id)
       .maybeSingle();
@@ -187,10 +235,14 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
       setIdCardStatus(data.status as 'pending' | 'issued');
       setRequestId(data.id);
       setIdCardIssuedAt(data.status === 'issued' ? data.created_at : null);
+      if (data.status === 'issued') {
+        setIssuedCardData(data);
+      }
     } else {
       setIdCardStatus('none');
       setRequestId(null);
       setIdCardIssuedAt(null);
+      setIssuedCardData(null);
     }
   }, [user?.id, supabase, activeWorkspace?.id]);
 
@@ -255,23 +307,76 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
       }));
     }
   }, [user?.id, supabase]);
-
   useEffect(() => { checkExistingRequest(); }, [checkExistingRequest]);
   useEffect(() => { fetchUserData(); }, [fetchUserData]);
+  
+  // Realtime subscription for ID Card updates
+  useEffect(() => {
+    if (!user?.id || !supabase || !activeWorkspace?.id) return;
+    
+    const channel = supabase.channel('id_card_updates')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'id_card_requests', 
+        filter: `user_id=eq.${user.id}` 
+      }, (payload) => {
+        if (payload.new.workspace_id === activeWorkspace.id) {
+          if (payload.new.status === 'issued') {
+            setIdCardStatus('issued');
+            setIdCardIssuedAt(payload.new.created_at);
+            setIssuedCardData(payload.new);
+            showToast('ID Card Issued! Your official ID has been created.');
+          }
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'id_card_requests', 
+        filter: `user_id=eq.${user.id}` 
+      }, (payload) => {
+        if (payload.old.workspace_id === activeWorkspace.id || idCardStatus === 'pending') {
+          setIdCardStatus('none');
+          setRequestId(null);
+          setIssuedCardData(null);
+          showToast('ID Card Request was rejected or cancelled.');
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, supabase, activeWorkspace?.id, idCardStatus]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSignOut = async () => {
     if (supabase) { await supabase.auth.signOut(); router.push('/login'); }
   };
 
-  const handleRequestIDCard = async () => {
+  const handleRequestIDCard = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!user?.id || !supabase || !activeWorkspace?.id) return;
     setIsRequesting(true);
     const { data, error } = await supabase
       .from('id_card_requests')
-      .insert({ user_id: user.id, workspace_id: activeWorkspace.id, status: 'pending' })
+      .insert({ 
+        user_id: user.id, 
+        workspace_id: activeWorkspace.id, 
+        status: 'pending',
+        designation: requestFormData.designation,
+        dob: requestFormData.dob,
+        signature: requestFormData.signature,
+        email: requestFormData.email,
+        mobile_number: requestFormData.mobile_number
+      })
       .select().single();
-    if (!error && data) { setIdCardStatus('pending'); setRequestId(data.id); }
+    if (!error && data) { 
+      setIdCardStatus('pending'); 
+      setRequestId(data.id); 
+      setShowRequestForm(false);
+    }
     else if (error) { console.error('Failed to request ID card:', error.message); }
     setIsRequesting(false);
   };
@@ -331,15 +436,11 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
     const { error } = await supabase.from('users').update({
       display_name: draft.displayName,
       username: draft.username,
-      bio: draft.bio,
       role: draft.role,
       timezone: draft.timezone,
-      website: draft.website,
-      twitter: draft.twitter,
-      github: draft.github,
       avatar_gradient: draft.avatarGradient,
       status: draft.status,
-      avatar_url: draft.avatarUrl,
+      profile_picture_url: draft.avatarUrl,
     }).eq('id', user.id);
 
     if (!error) {
@@ -348,6 +449,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
       setTimeout(() => setSaved(false), 2000);
     } else {
       console.error('Failed to update profile:', error);
+      showToast('Failed to update profile: ' + (error?.message || JSON.stringify(error)));
     }
   }
 
@@ -527,11 +629,32 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
                 const f = e.target.files?.[0];
                 if (f) {
                   const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setDraft(p => ({ ...p, avatarUrl: reader.result as string }));
+                  reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas');
+                      const MAX_SIZE = 256;
+                      let width = img.width;
+                      let height = img.height;
+                      if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                      } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                      }
+                      canvas.width = width;
+                      canvas.height = height;
+                      const ctx = canvas.getContext('2d');
+                      ctx?.drawImage(img, 0, 0, width, height);
+                      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                      setEditing(true);
+                      setDraft(p => ({ ...p, avatarUrl: dataUrl }));
+                    };
+                    img.src = event.target?.result as string;
                   };
                   reader.readAsDataURL(f);
                 }
+                e.target.value = ''; // allow selecting same file again
               }}
             />
           </div>
@@ -632,76 +755,91 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
                 <div className="flex flex-col items-center py-8 gap-5">
                   {idCardStatus === 'issued' ? (
                     <>
-                      {/* ── Rendered ID Card ── */}
-                      <div className="w-full max-w-[380px] rounded-2xl overflow-hidden border border-[#7c3aed]/30 shadow-[0_0_40px_rgba(124,58,237,0.15)]" style={{ background: 'linear-gradient(145deg, #1a1028 0%, #0e0f14 50%, #0d1117 100%)' }}>
-                        {/* Top accent bar */}
-                        <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #7c3aed, #a855f7, #ec4899)' }} />
+                      {/* ── Rendered Vertical ID Card ── */}
+                      <div className="relative w-full max-w-[260px] h-[380px] flex items-center justify-center" style={{ animation: 'floatCard 8s ease-in-out infinite' }}>
                         
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md bg-[#7c3aed] flex items-center justify-center">
-                              <Shield size={12} className="text-white" />
-                            </div>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#a855f7] font-bold">{activeWorkspace?.name || 'Codex Teams'}</span>
-                          </div>
-                          <span className="font-mono text-[9px] uppercase tracking-widest text-[#33363f]">ID Card</span>
-                        </div>
+                        {/* Glow Behind the Glass */}
+                        <div className="absolute w-[160px] h-[160px] rounded-full bg-[#7c3aed]/50 blur-[60px] -z-10 animate-pulse" style={{ animationDuration: '5s' }} />
+                        <div className="absolute top-10 right-10 w-[120px] h-[120px] rounded-full bg-[#3b82f6]/40 blur-[50px] -z-10 animate-pulse" style={{ animationDuration: '7s' }} />
 
-                        {/* Body */}
-                        <div className="flex gap-4 px-5 py-4">
-                          {/* Avatar */}
-                          <div className="shrink-0">
-                            <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-[#7c3aed]/30 shadow-lg" style={{ background: profile.avatarUrl ? '#111' : profile.avatarGradient }}>
+                        <div 
+                          ref={cardRef}
+                          onMouseMove={handleCardMouseMove}
+                          onMouseLeave={handleCardMouseLeave}
+                          className="relative w-full h-full rounded-[24px] overflow-hidden flex flex-col items-center justify-center transition-transform duration-200 ease-out will-change-transform cursor-pointer backdrop-blur-[32px] bg-clip-padding" 
+                          style={{ 
+                            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)', 
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.15), 0 24px 48px rgba(0,0,0,0.6)',
+                            transformStyle: 'preserve-3d' 
+                          }}
+                        >
+                          {/* Glare overlay */}
+                          <div 
+                            ref={glareRef} 
+                            className="absolute inset-0 z-30 pointer-events-none transition-opacity duration-300 opacity-0 rounded-[24px]"
+                          />
+
+                          {/* 3D Depth container */}
+                          <div className="flex flex-col items-center w-full h-full pt-12 pb-6" style={{ transform: 'translateZ(40px)' }}>
+
+                            {/* Wavy Background SVG */}
+                            <svg className="absolute inset-0 w-full h-full opacity-[0.03] pointer-events-none -z-10" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                              <defs>
+                                <pattern id="waves" x="0" y="0" width="100" height="40" patternUnits="userSpaceOnUse">
+                                  <path d="M0 20 Q 25 40, 50 20 T 100 20" fill="none" stroke="#ffffff" strokeWidth="2" />
+                                </pattern>
+                              </defs>
+                              <rect x="0" y="0" width="100%" height="100%" fill="url(#waves)" />
+                            </svg>
+
+                            {/* Top Lanyard Cutout & Clip - Fixed flat, no 3d transform on this element relative to the card */}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center" style={{ transform: 'translateZ(-40px)' }}>
+                              {/* Grey Lanyard Strap */}
+                              <div className="w-8 h-16 bg-gradient-to-b from-[#6b7280] to-[#4b5563] -mt-6 rounded-full shadow-md" style={{ background: 'linear-gradient(180deg, #8c8f96 0%, #56585c 100%)' }} />
+                              {/* Cutout Hole in the Card */}
+                              <div className="absolute top-[-2px] w-14 h-5 bg-[#18191d] rounded-b-full shadow-[inset_0_4px_6px_rgba(0,0,0,0.6)]" />
+                            </div>
+
+                            {/* Avatar */}
+                            <div className="relative z-10 w-[90px] h-[90px] mb-6 rounded-full overflow-hidden shadow-[0_12px_24px_rgba(0,0,0,0.4)]" style={{ background: profile.avatarUrl ? '#111' : profile.avatarGradient }}>
                               {profile.avatarUrl ? (
                                 <img src={profile.avatarUrl} className="w-full h-full object-cover" alt="" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold">
-                                  {(profile.displayName || 'U')[0].toUpperCase()}
+                                <div className="w-full h-full flex items-center justify-center text-white text-[32px] font-bold tracking-tight">
+                                  {(profile.displayName || 'U').substring(0, 2).toUpperCase()}
                                 </div>
                               )}
                             </div>
-                          </div>
 
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[17px] font-bold text-white truncate">{profile.displayName}</p>
-                            <p className="font-mono text-[11px] text-[#a855f7] mt-0.5">@{profile.username}</p>
-                            <p className="font-mono text-[10px] text-[#6b7280] mt-1">{profile.role || 'Member'}</p>
-                          </div>
-                        </div>
+                            {/* Name */}
+                            <h3 className="relative z-10 text-[18px] font-bold text-white tracking-wide drop-shadow-md">
+                              {profile.displayName}
+                            </h3>
 
-                        {/* Details grid */}
-                        <div className="grid grid-cols-2 gap-px mx-5 mb-4 rounded-lg overflow-hidden border border-[#2a2c33]">
-                          <div className="bg-[#111214] px-3 py-2">
-                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Email</p>
-                            <p className="font-mono text-[10px] text-[#8b92a5] truncate">{profile.email}</p>
-                          </div>
-                          <div className="bg-[#111214] px-3 py-2">
-                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Status</p>
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_CONFIG[profile.status]?.color || '#6b7280' }} />
-                              <p className="font-mono text-[10px] text-[#8b92a5]">{STATUS_CONFIG[profile.status]?.label || 'Offline'}</p>
-                            </div>
-                          </div>
-                          <div className="bg-[#111214] px-3 py-2">
-                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Workspace</p>
-                            <p className="font-mono text-[10px] text-[#8b92a5] truncate">{activeWorkspace?.name || 'N/A'}</p>
-                          </div>
-                          <div className="bg-[#111214] px-3 py-2">
-                            <p className="font-mono text-[8px] uppercase tracking-widest text-[#33363f] mb-0.5">Issued</p>
-                            <p className="font-mono text-[10px] text-[#8b92a5]">{idCardIssuedAt ? new Date(idCardIssuedAt).toLocaleDateString() : 'N/A'}</p>
-                          </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between px-5 py-3 border-t border-[#1e2026]">
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 size={12} className="text-emerald-500" />
-                            <span className="font-mono text-[9px] text-emerald-500 uppercase tracking-widest font-bold">Verified</span>
-                          </div>
-                          <div className="font-mono text-[8px] text-[#33363f] tracking-wider">
-                            ID-{requestId?.slice(0,8).toUpperCase()}
+                            {/* Details */}
+                            {issuedCardData && (
+                              <div className="relative z-10 flex flex-col items-center mt-3 w-full px-6 opacity-90">
+                                <p className="text-[11px] font-mono text-[#a855f7] uppercase tracking-[0.15em] font-bold mb-4 text-center drop-shadow-sm">
+                                  {issuedCardData.designation || 'Member'}
+                                </p>
+                                
+                                <div className="w-full space-y-2 mt-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-mono uppercase tracking-widest text-[#6b7280]">DOB</span>
+                                    <span className="text-[10px] font-mono text-[#e8eaf0]">{issuedCardData.dob || 'N/A'}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-mono uppercase tracking-widest text-[#6b7280]">Email</span>
+                                    <span className="text-[10px] font-mono text-[#e8eaf0] truncate max-w-[130px]">{issuedCardData.email || 'N/A'}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-mono uppercase tracking-widest text-[#6b7280]">Mobile</span>
+                                    <span className="text-[10px] font-mono text-[#e8eaf0]">{issuedCardData.mobile_number || 'N/A'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -736,12 +874,58 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
                       )}
 
                       <div className="flex gap-2">
-                        {idCardStatus === 'none' ? (
-                          <button onClick={handleRequestIDCard} disabled={isRequesting}
+                        {idCardStatus === 'none' && !showRequestForm ? (
+                          <button onClick={() => setShowRequestForm(true)} disabled={isRequesting}
                             className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50">
                             {isRequesting ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                            Request ID Card
+                            Provide Details & Request ID
                           </button>
+                        ) : idCardStatus === 'none' && showRequestForm ? (
+                          <form onSubmit={handleRequestIDCard} className="w-full text-left space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-white/70 uppercase tracking-wider ml-1">Designation</label>
+                                <input required type="text" placeholder="e.g. Software Engineer"
+                                  className="w-full bg-[#111214] border border-[#2a2c33] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                                  value={requestFormData.designation} onChange={e => setRequestFormData({...requestFormData, designation: e.target.value})} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-white/70 uppercase tracking-wider ml-1">Date of Birth</label>
+                                <input required type="date"
+                                  className="w-full bg-[#111214] border border-[#2a2c33] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                                  value={requestFormData.dob} onChange={e => setRequestFormData({...requestFormData, dob: e.target.value})} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-white/70 uppercase tracking-wider ml-1">Email</label>
+                                <input required type="email" placeholder="work@example.com"
+                                  className="w-full bg-[#111214] border border-[#2a2c33] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                                  value={requestFormData.email} onChange={e => setRequestFormData({...requestFormData, email: e.target.value})} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-white/70 uppercase tracking-wider ml-1">Mobile Number</label>
+                                <input required type="tel" placeholder="+1 234 567 8900"
+                                  className="w-full bg-[#111214] border border-[#2a2c33] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                                  value={requestFormData.mobile_number} onChange={e => setRequestFormData({...requestFormData, mobile_number: e.target.value})} />
+                              </div>
+                              <div className="col-span-2 space-y-1.5">
+                                <label className="text-[11px] font-bold text-white/70 uppercase tracking-wider ml-1">Digital Signature (Type your full name)</label>
+                                <input required type="text" placeholder="John Doe"
+                                  className="w-full font-serif italic text-lg bg-[#111214] border border-[#2a2c33] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                                  value={requestFormData.signature} onChange={e => setRequestFormData({...requestFormData, signature: e.target.value})} />
+                              </div>
+                            </div>
+                            <div className="flex gap-2 justify-center pt-2">
+                              <button type="button" onClick={() => setShowRequestForm(false)} disabled={isRequesting}
+                                className="flex items-center gap-2 bg-[#1e2026] hover:bg-[#2a2c33] text-[#e8eaf0] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50 border border-[#2a2c33]">
+                                Cancel
+                              </button>
+                              <button type="submit" disabled={isRequesting}
+                                className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-50">
+                                {isRequesting ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                                Submit Request
+                              </button>
+                            </div>
+                          </form>
                         ) : (
                           <div className="flex gap-2">
                             <button onClick={handleCancelRequest} disabled={isRequesting}
@@ -784,7 +968,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
                 <div className="flex-1">
                   <div className="flex gap-2 mb-3">
                     <button onClick={() => fileInputRef.current?.click()} className="bg-[#7c3aed] hover:bg-[#a855f7] text-white text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"><Upload size={12} /> Upload photo</button>
-                    <button onClick={() => setDraft(p => ({ ...p, avatarUrl: '' }))} className="bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"><Trash2 size={12} /> Remove</button>
+                    <button onClick={() => { setEditing(true); setDraft(p => ({ ...p, avatarUrl: '' })); }} className="bg-[#1e2026] border border-[#2a2c33] text-[#6b7280] hover:text-[#e8eaf0] text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"><Trash2 size={12} /> Remove</button>
                   </div>
                   <p className="font-mono text-[10.5px] text-[#6b7280]">JPG, PNG or GIF · Max 4MB</p>
                 </div>
@@ -793,7 +977,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#6b7280] mb-3">Avatar gradient</p>
                 <div className="flex gap-2 flex-wrap">
                   {GRADIENT_PRESETS.map((g, i) => (
-                    <button key={i} onClick={() => editing && setDraft(p => ({ ...p, avatarGradient: g }))}
+                    <button key={i} onClick={() => { setEditing(true); setDraft(p => ({ ...p, avatarGradient: g })); }}
                       className={['w-8 h-8 rounded-lg transition-all', (editing ? draft : profile).avatarGradient === g ? 'ring-2 ring-[#7c3aed] ring-offset-1 ring-offset-[#18191d] scale-110' : 'hover:scale-105'].join(' ')}
                       style={{ background: g }} />
                   ))}
@@ -1460,9 +1644,21 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
         )}
       </div>
 
+      {/* Local Toast UI */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 bg-[#7c3aed] text-white px-5 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 border border-[#a855f7] animate-in fade-in slide-in-from-bottom-4">
+          <Check size={16} />
+          <p className="font-mono text-[12px] font-semibold tracking-wide">{toastMsg}</p>
+        </div>
+      )}
+
       <style>{`
         @keyframes fadeIn        { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: translateY(0) } }
         @keyframes cardSectionIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes floatCard     {
+          0%, 100% { transform: translateY(0) rotateX(0) rotateY(0); }
+          50%      { transform: translateY(-10px) rotateX(2deg) rotateY(-2deg); }
+        }
       `}</style>
     </div>
   );

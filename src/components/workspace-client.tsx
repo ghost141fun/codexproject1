@@ -8,6 +8,7 @@ import { FilesSidebar } from "@/components/layout/files-sidebar";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { MessageList } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
+import { ThreadPanel } from "@/components/chat/thread-panel";
 import { HuddleMeeting } from "@/components/chat/huddle-meeting";
 import { Toaster } from "@/components/ui/toaster";
 import { createClient } from '@/lib/supabase/client';
@@ -257,7 +258,12 @@ function DmChatView({ activeDm }: { activeDm: any }) {
         <div className="flex items-center gap-2">
           <Avatar className="w-7 h-7 rounded-lg">
             <AvatarImage src={activeDm.avatar} />
-            <AvatarFallback className="rounded-lg text-xs bg-[#4a154b] text-white">{activeDm.name?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
+            <AvatarFallback 
+              className="rounded-lg text-xs text-white font-bold"
+              style={{ background: activeDm.color || '#4a154b' }}
+            >
+              {activeDm.name?.[0]?.toUpperCase() ?? 'U'}
+            </AvatarFallback>
           </Avatar>
           <span className="font-bold text-[15px] text-white">{activeDm.name}</span>
           <div className="w-2 h-2 rounded-full bg-green-500 ml-1" />
@@ -266,7 +272,12 @@ function DmChatView({ activeDm }: { activeDm: any }) {
       <div className="flex-1 flex items-center justify-center flex-col gap-3 text-[#b9babd]">
         <Avatar className="w-16 h-16 rounded-2xl">
           <AvatarImage src={activeDm.avatar} />
-          <AvatarFallback className="rounded-2xl text-2xl bg-[#4a154b] text-white">{activeDm.name?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
+          <AvatarFallback 
+            className="rounded-2xl text-2xl text-white font-bold"
+            style={{ background: activeDm.color || '#4a154b' }}
+          >
+            {activeDm.name?.[0]?.toUpperCase() ?? 'U'}
+          </AvatarFallback>
         </Avatar>
         <p className="font-bold text-white text-[18px]">{activeDm.name.includes('@') ? activeDm.name.split('@')[0] : activeDm.name}</p>
         <p className="text-sm text-[#b9babd]">This is the beginning of your conversation</p>
@@ -299,6 +310,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
   const [huddleChannelName, setHuddleChannelName] = useState<string | null>(null);
   const [activeHuddles, setActiveHuddles] = useState<{ channelId: string; channelName: string }[]>([]);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [activeThreadParent, setActiveThreadParent] = useState<any | null>(null);
 
   const supabase = createClient();
 
@@ -315,6 +327,28 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
     }
     
     if (refresh) {
+      await refresh();
+    }
+  };
+
+  const handleDeleteWorkspace = async (id: string) => {
+    if (!supabase || !id) return;
+    const { error } = await supabase.from('workspaces').delete().eq('id', id);
+    if (!error) {
+      window.location.href = '/';
+    } else {
+      console.error('Error deleting workspace:', error);
+    }
+  };
+
+  const handleUpdateWorkspaceImage = async (url: string) => {
+    if (!supabase || !activeWorkspace?.id) return;
+    const { error } = await supabase
+      .from('workspaces')
+      .update({ logo_url: url })
+      .eq('id', activeWorkspace.id);
+      
+    if (!error && refresh) {
       await refresh();
     }
   };
@@ -412,6 +446,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
       case 'integrations':
         return null;
       default:
+        const isOwner = user?.role === 'admin' || user?.role === 'workspace_owner' || user?.role === 'owner' || activeWorkspace?.owner_id === user?.id;
         return (
           <WorkspaceSidebar
             activeId={activeId}
@@ -424,6 +459,9 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
             workspaces={workspaces}
             onRenameWorkspace={handleRenameWorkspace}
             onWorkspaceSwitch={(id) => router.push(`/workspace?ws=${id}`)}
+            onDeleteWorkspace={handleDeleteWorkspace}
+            onUpdateWorkspaceImage={handleUpdateWorkspaceImage}
+            isOwner={isOwner}
           />
         );
     }
@@ -474,15 +512,30 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
           <>
             {/* Messages tab */}
             {activeTab === 'messages' && (
-              <>
-                <MessageList channelId={activeChannel.id} />
-                <MessageInput 
-                  channelId={activeChannel.id} 
-                  user={user} 
-                  workspaceId={activeWorkspace?.id}
-                  placeholder={`Message #${activeChannel.name}`} 
-                />
-              </>
+              <div className="flex-1 flex min-h-0 relative">
+                <div className="flex-1 flex flex-col min-w-0">
+                  <MessageList 
+                    channelId={activeChannel.id} 
+                    onThread={(msg) => setActiveThreadParent(msg)}
+                    activeThreadId={activeThreadParent?.id}
+                  />
+                  <MessageInput 
+                    channelId={activeChannel.id} 
+                    user={user} 
+                    workspaceId={activeWorkspace?.id}
+                    placeholder={`Message #${activeChannel.name}`} 
+                  />
+                </div>
+
+                {/* Thread Panel Sidebar */}
+                {activeThreadParent && (
+                  <ThreadPanel 
+                    parentMessage={activeThreadParent}
+                    user={user}
+                    onClose={() => setActiveThreadParent(null)}
+                  />
+                )}
+              </div>
             )}
 
             {/* Files tab — channel-specific files */}
@@ -565,6 +618,7 @@ export function WorkspaceClient({ user, channels: initialChannels, directMessage
         onOpenAddMenu={() => setIsAddMenuOpen(true)}
         activeWorkspace={activeWorkspace}
         workspaces={workspaces}
+        user={user}
       />
       {renderSidebar()}
       <main className="flex flex-col flex-1 min-w-0 relative overflow-hidden">
