@@ -132,10 +132,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       
       if (uploadedUrl) {
         attachmentUrl = uploadedUrl;
-        // Construct markdown link for the channel message list to render
+        // Construct markdown for the channel message list to render
         const label = msg.attachmentName || msg.attachmentType || 'Attachment';
-        const prefix = msg.attachmentType === 'audio' ? '🎵' : msg.attachmentType === 'video' ? '🎬' : '📎';
-        finalContent += `\n${prefix} [${label}](${uploadedUrl})`;
+        
+        if (msg.attachmentType === 'image') {
+          // Use standard markdown image syntax to trigger preview in MessageList
+          finalContent += `\n![${label}](${uploadedUrl})`;
+        } else {
+          const prefix = msg.attachmentType === 'audio' ? '🎵' : msg.attachmentType === 'video' ? '🎬' : '📎';
+          finalContent += `\n${prefix} [${label}](${uploadedUrl})`;
+        }
       }
       setIsUploading(false);
     }
