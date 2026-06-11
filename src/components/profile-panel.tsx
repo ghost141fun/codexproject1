@@ -565,7 +565,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
             } else { alert('Verification failed: ' + vData.message); }
           } catch (e) { alert('Payment verification error.'); }
         },
-        prefill: { name: 'User', email: 'user@devtalk.com', contact: formPhone },
+        prefill: { name: 'User', email: 'user@codex-teams.com', contact: formPhone },
         theme: { color: '#7c3aed' },
       };
       const rzp = new (window as any).Razorpay(options);
@@ -1264,7 +1264,7 @@ export function ProfilePage({ user, activeWorkspace, refresh }: { user: any; act
                       <button onClick={() => {
                         if (currentPlan === plan.key) return;
                         if (plan.key === 'free') { setCurrentPlan('free'); return; }
-                        if (plan.key === 'enterprise') { window.open('mailto:sales@devtalk.dev?subject=Enterprise+Plan+Inquiry', '_blank'); return; }
+                        if (plan.key === 'enterprise') { window.open('mailto:sales@codexteams.dev?subject=Enterprise+Plan+Inquiry', '_blank'); return; }
                         setUpgradingToPlan(plan.key); setBillingSubTab('methods'); setShowAddMethod(true);
                       }}
                         className={['w-full py-2.5 rounded-xl font-bold text-[13px] transition-all mb-5',

@@ -1,4 +1,4 @@
-package devtalk.app.hq;
+package codexteams.app.hq;
 
 import com.getcapacitor.BridgeActivity;
 

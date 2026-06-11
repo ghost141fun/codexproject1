@@ -189,7 +189,7 @@ export function Billing({ user }: BillingProps) {
             } else { alert('Verification failed: ' + vData.message); }
           } catch (e) { alert('Payment verification error.'); }
         },
-        prefill: { name: 'User', email: 'user@devtalk.com', contact: formPhone },
+        prefill: { name: 'User', email: 'user@codex-teams.com', contact: formPhone },
         theme: { color: '#7c3aed' },
       };
       if (order.demo) {

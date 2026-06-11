@@ -1,4 +1,4 @@
-# Queries for DevTalk Workspace
+# Queries for Codex Teams Workspace
 
 query ListChannels @auth(level: USER) {
   channels {

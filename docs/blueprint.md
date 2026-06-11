@@ -1,4 +1,4 @@
-# **App Name**: DevTalk
+# **App Name**: Codex Teams
 
 ## Core Features:
 

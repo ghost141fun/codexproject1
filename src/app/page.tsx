@@ -39,7 +39,7 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: '10M+', label: 'developers trust DevTalk' },
+  { value: '10M+', label: 'developers trust Codex Teams' },
   { value: '99.9%', label: 'uptime SLA' },
   { value: '< 50ms', label: 'message delivery' },
   { value: '256-bit', label: 'AES encryption' },
@@ -163,7 +163,7 @@ export default function LandingPage() {
             <span style={{ color: '#00d4b4', fontSize: 12, fontFamily: 'monospace' }}>{'>'}_</span>
             <div style={{ position: 'absolute', top: -1, right: -1, width: 5, height: 5, background: '#00d4b4' }} />
           </div>
-          <span style={{ color: '#e0f7f4', fontSize: 16, letterSpacing: 4, fontWeight: 600, fontFamily: 'monospace' }}>DEVTALK</span>
+          <span style={{ color: '#e0f7f4', fontSize: 16, letterSpacing: 4, fontWeight: 600, fontFamily: 'monospace' }}>CODEX TEAMS</span>
         </div>
 
         {/* Desktop nav */}
@@ -309,7 +309,7 @@ export default function LandingPage() {
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f57' }} />
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#28c940' }} />
-              <span style={{ marginLeft: 16, fontSize: 12, color: 'rgba(224,247,244,0.3)', fontFamily: 'monospace' }}># engineering — DevTalk Workspace</span>
+              <span style={{ marginLeft: 16, fontSize: 12, color: 'rgba(224,247,244,0.3)', fontFamily: 'monospace' }}># engineering — Codex Teams Workspace</span>
             </div>
             <div className="chat-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr' }}>
               {/* Sidebar */}
@@ -329,7 +329,7 @@ export default function LandingPage() {
                 {[
                   { user: 'AK', name: 'Arjun K', msg: 'PR #423 is ready for review — refactored the auth middleware', time: '10:42 AM', color: '#7c6fcd' },
                   { user: 'SR', name: 'Sneha R', msg: 'On it! Left some comments on the token refresh logic', time: '10:44 AM', color: '#00d4b4' },
-                  { user: 'AI', name: 'DevTalk AI', msg: '✦ Summary: Auth middleware refactor adds token rotation support. 2 files changed, 48 insertions. Review requested on error handling path.', time: '10:44 AM', color: '#f59e0b', ai: true },
+                  { user: 'AI', name: 'Codex Teams AI', msg: '✦ Summary: Auth middleware refactor adds token rotation support. 2 files changed, 48 insertions. Review requested on error handling path.', time: '10:44 AM', color: '#f59e0b', ai: true },
                 ].map(m => (
                   <div key={m.user} style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
                     <div style={{ width: 36, height: 36, borderRadius: '50%', background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#020d0f', flexShrink: 0 }}>{m.user}</div>
@@ -388,7 +388,7 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer style={{ padding: '40px', borderTop: '1px solid rgba(0,210,180,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, letterSpacing: 3, fontFamily: 'monospace', color: 'rgba(0,210,180,0.3)' }}>DEVTALK © 2025</span>
+        <span style={{ fontSize: 12, letterSpacing: 3, fontFamily: 'monospace', color: 'rgba(0,210,180,0.3)' }}>CODEX TEAMS © 2025</span>
         <div style={{ display: 'flex', gap: 28 }}>
           {['Privacy', 'Terms', 'Security', 'Status'].map(l => (
             <a key={l} href="#" style={{ fontSize: 13, color: 'rgba(224,247,244,0.25)', textDecoration: 'none', transition: 'color 0.2s' }}

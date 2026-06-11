@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'devtalk.app.hq',
-  appName: 'DevTalk',
+  appId: 'codexteams.app.hq',
+  appName: 'Codex Teams',
   webDir: 'out'
 };
 

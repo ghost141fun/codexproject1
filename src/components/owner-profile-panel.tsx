@@ -881,7 +881,7 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
                     {totalUnread > 0 && (<span className="font-mono text-[9px] px-1.5 py-0.5 rounded-full bg-[rgba(239,68,68,0.15)] text-[#ef4444] border border-[rgba(239,68,68,0.3)]">{totalUnread} unread</span>)}
                   </div>
                   <p className="font-mono text-[11px] text-[#6b7280]">{profile.workspaceDescription}</p>
-                  <p className="font-mono text-[10.5px] text-[#33363f] mt-0.5">devtalk.dev/{profile.workspaceSlug} \u00b7 Created {profile.workspaceCreated}</p>
+                  <p className="font-mono text-[10.5px] text-[#33363f] mt-0.5">codexteams.dev/{profile.workspaceSlug} \u00b7 Created {profile.workspaceCreated}</p>
                 </div>
                 <button onClick={() => showToast('Opening workspace settings...')} className="flex items-center gap-1.5 bg-[#1e2026] border border-[#2a2c33] hover:border-[#7c3aed] text-[#e8eaf0] text-[12px] font-semibold px-3 py-1.5 rounded-xl transition-all shrink-0"><Settings size={12} /> Settings</button>
               </div>
@@ -1072,8 +1072,8 @@ export function OwnerProfilePage({ user, activeWorkspace, refresh }: { user: any
               </div>
               <div className="mt-4 flex items-center gap-2.5 px-3.5 py-3 bg-[#111214] border border-[#2a2c33] rounded-xl">
                 <Link2 size={13} className="text-[#6b7280] shrink-0" />
-                <span className="font-mono text-[11px] text-[#6b7280] flex-1 truncate">devtalk.dev/invite/ws-a7b3c2f1</span>
-                <button onClick={() => { navigator.clipboard?.writeText('https://devtalk.dev/invite/ws-a7b3c2f1').catch(() => { }); showToast('Invite link copied!'); }} className="flex items-center gap-1.5 font-mono text-[11px] text-[#a855f7] hover:text-[#c084fc] transition-colors shrink-0"><Copy size={11} /> Copy link</button>
+                <span className="font-mono text-[11px] text-[#6b7280] flex-1 truncate">codexteams.dev/invite/ws-a7b3c2f1</span>
+                <button onClick={() => { navigator.clipboard?.writeText('https://codexteams.dev/invite/ws-a7b3c2f1').catch(() => { }); showToast('Invite link copied!'); }} className="flex items-center gap-1.5 font-mono text-[11px] text-[#a855f7] hover:text-[#c084fc] transition-colors shrink-0"><Copy size={11} /> Copy link</button>
               </div>
             </Section>
           </div>

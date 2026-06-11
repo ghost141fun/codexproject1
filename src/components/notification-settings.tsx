@@ -476,7 +476,7 @@ const TonePicker: React.FC<TonePickerProps> = ({ selected, volume, onSelect }) =
 export default function NotificationSettings() {
   const [settings, setSettings] = useState<NotificationSettings>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('devtalk-notifications');
+      const saved = localStorage.getItem('codex-teams-notifications');
       if (saved) {
         try { return { ...DEFAULTS, ...JSON.parse(saved) }; } catch (e) {}
       }
@@ -510,7 +510,7 @@ export default function NotificationSettings() {
   ) => {
     setSettings((prev) => {
       const next = { ...prev, [key]: value };
-      localStorage.setItem('devtalk-notifications', JSON.stringify(next));
+      localStorage.setItem('codex-teams-notifications', JSON.stringify(next));
       return next;
     });
   };
@@ -519,7 +519,7 @@ export default function NotificationSettings() {
     setSettings((prev) => {
       const nextVal = !prev[key] as NotificationSettings[typeof key];
       const nextSettings = { ...prev, [key]: nextVal };
-      localStorage.setItem('devtalk-notifications', JSON.stringify(nextSettings));
+      localStorage.setItem('codex-teams-notifications', JSON.stringify(nextSettings));
       showToast(label, nextVal ? "Enabled." : "Disabled.", nextVal ? "green" : "red");
       return nextSettings;
     });
@@ -606,13 +606,13 @@ export default function NotificationSettings() {
   };
 
   const save = () => {
-    localStorage.setItem('devtalk-notifications', JSON.stringify(settings));
+    localStorage.setItem('codex-teams-notifications', JSON.stringify(settings));
     showToast("Settings saved", "Your notification preferences have been updated.", "green");
   };
 
   const reset = () => {
     setSettings(DEFAULTS);
-    localStorage.setItem('devtalk-notifications', JSON.stringify(DEFAULTS));
+    localStorage.setItem('codex-teams-notifications', JSON.stringify(DEFAULTS));
     showToast("Reset complete", "All settings restored to defaults.", "blue");
   };
 

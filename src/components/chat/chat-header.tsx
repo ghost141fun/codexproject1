@@ -362,7 +362,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
 
   const copyInviteLink = () => {
-    const link = `https://devtalk.app/join/${activeItem?.id || 'general'}`;
+    const link = `https://codex-teams.app/join/${activeItem?.id || 'general'}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({

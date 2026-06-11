@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "devtalk.app.hq"
+    namespace = "codexteams.app.hq"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "devtalk.app.hq"
+        applicationId "codexteams.app.hq"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

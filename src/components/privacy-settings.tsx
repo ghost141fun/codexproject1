@@ -33,7 +33,7 @@ const Toggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked,
 export default function PrivacySettings() {
   const [config, setConfig] = useState<PrivacyConfig>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('devtalk-privacy');
+      const saved = localStorage.getItem('codex-teams-privacy');
       if (saved) {
         try { return { ...DEFAULTS, ...JSON.parse(saved) }; } catch (e) {}
       }
@@ -52,7 +52,7 @@ export default function PrivacySettings() {
   const update = <K extends keyof PrivacyConfig>(key: K, val: PrivacyConfig[K]) => {
     setConfig(prev => {
       const next = { ...prev, [key]: val };
-      localStorage.setItem('devtalk-privacy', JSON.stringify(next));
+      localStorage.setItem('codex-teams-privacy', JSON.stringify(next));
       return next;
     });
     showToast('Privacy settings updated');
@@ -75,7 +75,7 @@ export default function PrivacySettings() {
             <div className="flex items-center justify-between p-4 border-b border-[#2a2c33]">
               <div>
                 <div className="text-[13.5px] font-semibold text-[#e8eaf0]">Display current activity as a status message</div>
-                <div className="text-[12px] text-[#9ca3af] mt-1 max-w-[400px] leading-snug">DevTalk will automatically update your status to show the application or game you are currently running.</div>
+                <div className="text-[12px] text-[#9ca3af] mt-1 max-w-[400px] leading-snug">Codex Teams will automatically update your status to show the application or game you are currently running.</div>
               </div>
               <Toggle checked={config.showActivity} onChange={() => update('showActivity', !config.showActivity)} />
             </div>
@@ -115,7 +115,7 @@ export default function PrivacySettings() {
             <div className="flex items-center justify-between p-4 border-b border-[#2a2c33]">
               <div>
                 <div className="text-[13.5px] font-semibold text-[#e8eaf0]">Allow search by Email</div>
-                <div className="text-[12px] text-[#9ca3af] mt-1">Let people find and add you on DevTalk using your email address.</div>
+                <div className="text-[12px] text-[#9ca3af] mt-1">Let people find and add you on Codex Teams using your email address.</div>
               </div>
               <Toggle checked={config.allowSearchByEmail} onChange={() => update('allowSearchByEmail', !config.allowSearchByEmail)} />
             </div>

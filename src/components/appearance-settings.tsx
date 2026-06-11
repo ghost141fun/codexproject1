@@ -37,7 +37,7 @@ export default function AppearanceSettings() {
 
   useEffect(() => {
     // Load from LocalStorage
-    const saved = localStorage.getItem('devtalk-appearance');
+    const saved = localStorage.getItem('codex-teams-appearance');
     if (saved) {
       try { setConfig(JSON.parse(saved)); } catch (e) {}
     }
@@ -46,7 +46,7 @@ export default function AppearanceSettings() {
   const update = <K extends keyof AppearanceConfig>(key: K, val: AppearanceConfig[K]) => {
     setConfig(prev => {
       const next = { ...prev, [key]: val };
-      localStorage.setItem('devtalk-appearance', JSON.stringify(next));
+      localStorage.setItem('codex-teams-appearance', JSON.stringify(next));
       return next;
     });
     showToast('Appearance updated');
@@ -98,7 +98,7 @@ export default function AppearanceSettings() {
     <div className="max-w-[680px] mx-auto px-8 py-8" style={{ fontFamily: FONT_FAMILIES[config.fontFamily] }}>
       <div className="mb-8">
         <h2 className="text-[20px] font-bold tracking-tight text-[#e8eaf0] mb-1">Appearance</h2>
-        <p className="font-mono text-[11.5px] text-[#6b7280]">Customize how DevTalk looks and feels on your device.</p>
+        <p className="font-mono text-[11.5px] text-[#6b7280]">Customize how Codex Teams looks and feels on your device.</p>
       </div>
 
       <div className="flex gap-8 items-start">

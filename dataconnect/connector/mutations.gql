@@ -1,4 +1,4 @@
-# Mutations for DevTalk Workspace
+# Mutations for Codex Teams Workspace
 
 mutation CreateMessage(
   $content: String!,

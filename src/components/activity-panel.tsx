@@ -103,8 +103,8 @@ function seedActivities(): Activity[] {
     {
       id: 'a9', type: 'milestone', priority: 'high', read: false, pinned: false,
       title: 'Milestone reached',
-      body: 'DevTalk just hit 1,000 messages in the workspace this week. Team velocity is up 34%.',
-      actor: { name: 'DevTalk', avatar: 'DT', color: '#a855f7' },
+      body: 'Codex Teams just hit 1,000 messages in the workspace this week. Team velocity is up 34%.',
+      actor: { name: 'Codex Teams', avatar: 'DT', color: '#a855f7' },
       timestamp: ago(220),
       meta: { milestone: '1,000 messages', growth: '+34%' },
     },

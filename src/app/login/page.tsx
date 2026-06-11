@@ -268,7 +268,7 @@ function LoginContent() {
     }
 
     setIsLoading(false);
-    toast({ title: 'Account and workspace created!', description: 'Welcome to DevTalk!' });
+    toast({ title: 'Account and workspace created!', description: 'Welcome to Codex Teams!' });
     router.push('/workspace');
   };
 
@@ -343,11 +343,11 @@ function LoginContent() {
               </div>
 
               <div className="text-[13px] text-white/40 leading-relaxed max-w-[350px]">
-                By continuing, you're agreeing to our <span className="text-[#00d4b4] cursor-pointer hover:underline">Main Services Agreement</span>, <span className="text-[#00d4b4] cursor-pointer hover:underline">User Terms of Service</span>, and <span className="text-[#00d4b4] cursor-pointer hover:underline">DevTalk Supplemental Terms</span>. Additional disclosures are available in our <span className="text-[#00d4b4] cursor-pointer hover:underline">Privacy Policy</span> and <span className="text-[#00d4b4] cursor-pointer hover:underline">Cookie Policy</span>.
+                By continuing, you're agreeing to our <span className="text-[#00d4b4] cursor-pointer hover:underline">Main Services Agreement</span>, <span className="text-[#00d4b4] cursor-pointer hover:underline">User Terms of Service</span>, and <span className="text-[#00d4b4] cursor-pointer hover:underline">Codex Teams Supplemental Terms</span>. Additional disclosures are available in our <span className="text-[#00d4b4] cursor-pointer hover:underline">Privacy Policy</span> and <span className="text-[#00d4b4] cursor-pointer hover:underline">Cookie Policy</span>.
               </div>
 
               <div className="mt-8 text-[15px] text-white/60">
-                Already using DevTalk?{' '}
+                Already using Codex Teams?{' '}
                 <Link href="/sign-in" className="text-[#00d4b4] font-bold hover:underline">
                   Sign in to an existing workspace
                 </Link>

@@ -63,8 +63,8 @@ function evalCmd(raw: string): string[] {
   const arg   = parts.slice(1).join(' ');
   const map: Record<string, string[]> = {
     help:   ['Commands: help, ls, ls -la, pwd, whoami, date, uptime, echo, ping, curl, cat, git, node, npm, clear'],
-    pwd:    ['/workspace/devtalk'],
-    whoami: ['devtalk-user'],
+    pwd:    ['/workspace/codex-teams'],
+    whoami: ['codex-teams-user'],
     date:   [new Date().toString()],
     uptime: ['up 3 days, 14 hours, 22 minutes'],
     clear:  ['__CLEAR__'],
@@ -72,7 +72,7 @@ function evalCmd(raw: string): string[] {
   };
   if (cmd==='echo') return [arg||''];
   if (cmd==='ping') return ['PING '+(arg||'localhost')+': 56 bytes','64 bytes: icmp_seq=0 ttl=64 time=0.42 ms','1 packet, 0% loss'];
-  if (cmd==='cat')  return arg ? ['{"name":"devtalk","version":"0.1.0"}'] : ['cat: missing operand'];
+  if (cmd==='cat')  return arg ? ['{"name":"codex-teams","version":"0.1.0"}'] : ['cat: missing operand'];
   if (cmd==='curl') return arg ? ['{"status":"ok","url":"'+arg+'"}'] : ['curl: try curl <url>'];
   if (cmd==='node') return ['Node.js v20.11.0 — type .help'];
   if (cmd==='npm' && parts[1]==='install') return ['added 847 packages in 4.2s'];
@@ -120,7 +120,7 @@ export function RichTextEditor({
 
   // Terminal
   const [termLines,   setTermLines]   = useState<TermLine[]>([
-    { type:'system', text:'DevTalk Terminal — type help for commands' },
+    { type:'system', text:'Codex Teams Terminal — type help for commands' },
     { type:'info',   text:'Type send to paste output into message.' },
   ]);
   const [termInput,   setTermInput]   = useState('');
@@ -443,7 +443,7 @@ export function RichTextEditor({
                 <div className="w-3 h-3 rounded-full bg-[#f59e0b]"/>
                 <div className="w-3 h-3 rounded-full bg-[#10b981]"/>
               </div>
-              <span className="font-mono text-[10.5px] text-[#6b7280] ml-1">devtalk — bash</span>
+              <span className="font-mono text-[10.5px] text-[#6b7280] ml-1">codex-teams — bash</span>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={sendTermOutput} className="font-mono text-[10px] text-[#a855f7] hover:text-[#c084fc] px-2 py-0.5 rounded border border-[rgba(168,85,247,0.3)] hover:border-[rgba(168,85,247,0.5)] transition-colors">

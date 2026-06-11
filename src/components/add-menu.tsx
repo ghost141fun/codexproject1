@@ -50,13 +50,13 @@ const INITIAL_CHANNELS: WorkspaceChannel[] = [
 ];
 
 const WORKSPACE_MEMBERS: WorkspaceMember[] = [
-  { id:'p1', name:'Arjun Sharma',  email:'arjun@devtalk.dev',  avatar:'AS', color:'#7c3aed', role:'Product Manager',   status:'online'  },
-  { id:'p2', name:'Priya Nair',    email:'priya@devtalk.dev',  avatar:'PN', color:'#10b981', role:'Backend Engineer',  status:'online'  },
-  { id:'p3', name:'Meera Das',     email:'meera@devtalk.dev',  avatar:'MD', color:'#f59e0b', role:'UX Designer',       status:'away'    },
-  { id:'p4', name:'Ravi Kumar',    email:'ravi@devtalk.dev',   avatar:'RK', color:'#3b82f6', role:'DevOps Engineer',   status:'busy'    },
-  { id:'p5', name:'Sneha Rao',     email:'sneha@devtalk.dev',  avatar:'SR', color:'#ec4899', role:'Frontend Engineer', status:'offline' },
-  { id:'p6', name:'Kabir Singh',   email:'kabir@devtalk.dev',  avatar:'KS', color:'#06b6d4', role:'Data Analyst',      status:'online'  },
-  { id:'p7', name:'Divya Menon',   email:'divya@devtalk.dev',  avatar:'DM', color:'#8b5cf6', role:'QA Engineer',       status:'away'    },
+  { id:'p1', name:'Arjun Sharma',  email:'arjun@codexteams.dev',  avatar:'AS', color:'#7c3aed', role:'Product Manager',   status:'online'  },
+  { id:'p2', name:'Priya Nair',    email:'priya@codexteams.dev',  avatar:'PN', color:'#10b981', role:'Backend Engineer',  status:'online'  },
+  { id:'p3', name:'Meera Das',     email:'meera@codexteams.dev',  avatar:'MD', color:'#f59e0b', role:'UX Designer',       status:'away'    },
+  { id:'p4', name:'Ravi Kumar',    email:'ravi@codexteams.dev',   avatar:'RK', color:'#3b82f6', role:'DevOps Engineer',   status:'busy'    },
+  { id:'p5', name:'Sneha Rao',     email:'sneha@codexteams.dev',  avatar:'SR', color:'#ec4899', role:'Frontend Engineer', status:'offline' },
+  { id:'p6', name:'Kabir Singh',   email:'kabir@codexteams.dev',  avatar:'KS', color:'#06b6d4', role:'Data Analyst',      status:'online'  },
+  { id:'p7', name:'Divya Menon',   email:'divya@codexteams.dev',  avatar:'DM', color:'#8b5cf6', role:'QA Engineer',       status:'away'    },
 ];
 
 const STATUS_DOT: Record<string, string> = {
@@ -209,7 +209,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
   }
 
   function copyInviteLink() {
-    const link = 'https://devtalk.dev/invite/ws-' + Math.random().toString(36).slice(2,8);
+    const link = 'https://codexteams.dev/invite/ws-' + Math.random().toString(36).slice(2,8);
     navigator.clipboard?.writeText(link).catch(()=>{});
     setInvCopied(true);
     setTimeout(() => setInvCopied(false), 2500);
@@ -285,7 +285,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
           style={{ animation:'amSlide 0.2s cubic-bezier(0.34,1.2,0.64,1)' }}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2c33]">
             <div>
-              <p className="text-[16px] font-bold">Add to DevTalk</p>
+              <p className="text-[16px] font-bold">Add to Codex Teams</p>
               <p className="font-mono text-[10.5px] text-[#6b7280] mt-0.5">
                 {joinedCount} channels joined · {WORKSPACE_MEMBERS.length} members
               </p>
@@ -310,7 +310,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
                 icon: <UserPlus size={19} className="text-[#10b981]"/>,
                 bg:   'rgba(16,185,129,0.14)',
                 label:'Invite people',
-                desc: 'Add teammates to your DevTalk workspace',
+                desc: 'Add teammates to your Codex Teams workspace',
                 badge: WORKSPACE_MEMBERS.length + ' members',
                 go:   () => setView('invite-people'),
               },
@@ -355,7 +355,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
 
           <div className="px-5 py-3 border-t border-[#2a2c33]">
             <p className="font-mono text-[10px] text-[#33363f] text-center">
-              DevTalk workspace · {WORKSPACE_MEMBERS.length} members · {channels.length} channels
+              Codex Teams workspace · {WORKSPACE_MEMBERS.length} members · {channels.length} channels
             </p>
           </div>
         </div>
@@ -619,7 +619,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
             <div className="flex items-center gap-2.5 px-3.5 py-3 bg-[#111214] border border-[#2a2c33] rounded-xl">
               <Link2 size={13} className="text-[#6b7280] shrink-0"/>
               <span className="font-mono text-[11px] text-[#6b7280] flex-1 truncate">
-                devtalk.dev/invite/ws-••••••
+                codexteams.dev/invite/ws-••••••
               </span>
               <button onClick={copyInviteLink}
                 className={[
@@ -849,7 +849,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
                     className="w-full bg-[#111214] border border-[#2a2c33] focus:border-[#7c3aed] text-[#e8eaf0] font-mono text-[13px] px-3 h-[40px] rounded-lg outline-none transition-colors placeholder-[#33363f]"/>
                   {wsName && (
                     <p className="font-mono text-[10.5px] text-[#33363f] mt-1">
-                      devtalk.dev/<span className="text-[#a855f7]">{slugify(wsName) || '...'}</span>
+                      codexteams.dev/<span className="text-[#a855f7]">{slugify(wsName) || '...'}</span>
                     </p>
                   )}
                 </div>
@@ -948,7 +948,7 @@ export function AddMenu({ onClose, onChannelCreated, onWorkspaceCreated, onMembe
             </div>
 
             <p className="text-[20px] font-bold mb-1">{wsCreated.name}</p>
-            <p className="font-mono text-[11.5px] text-[#a855f7] mb-1">devtalk.dev/{wsCreated.slug}</p>
+            <p className="font-mono text-[11.5px] text-[#a855f7] mb-1">codexteams.dev/{wsCreated.slug}</p>
             <p className="font-mono text-[11.5px] text-[#6b7280] mb-6">
               Your workspace is ready. Start by inviting your team.
             </p>

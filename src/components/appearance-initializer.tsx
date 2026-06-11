@@ -51,7 +51,7 @@ export function AppearanceInitializer() {
     };
 
     // Initial Load
-    const saved = localStorage.getItem('devtalk-appearance');
+    const saved = localStorage.getItem('codex-teams-appearance');
     if (saved) {
       try {
         const config = JSON.parse(saved);
@@ -65,7 +65,7 @@ export function AppearanceInitializer() {
 
     // Listen for changes from other tabs?
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'devtalk-appearance' && e.newValue) {
+      if (e.key === 'codex-teams-appearance' && e.newValue) {
         try {
           applyConfig(JSON.parse(e.newValue));
         } catch {}

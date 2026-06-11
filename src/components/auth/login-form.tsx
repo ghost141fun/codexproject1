@@ -162,7 +162,7 @@ export function LoginForm() {
     }
 
     setIsLoading(false);
-    toast({ title: 'Account and workspace created!', description: 'Welcome to DevTalk!' });
+    toast({ title: 'Account and workspace created!', description: 'Welcome to Codex Teams!' });
     router.push('/workspace');
   };
 
@@ -192,7 +192,7 @@ export function LoginForm() {
           <div className="w-8 h-8 bg-[#00d4b4] rounded flex items-center justify-center">
             <span className="text-[#020d0f] font-bold text-lg leading-none">D</span>
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">devtalk</span>
+          <span className="text-2xl font-black tracking-tight text-white">codex-teams</span>
         </div>
 
         <div className="w-full flex flex-col items-center text-center">
@@ -234,11 +234,11 @@ export function LoginForm() {
               </div>
 
               <div className="text-[13px] text-white/40 leading-relaxed max-w-[350px]">
-                By continuing, you're agreeing to our <span className="text-[#00d4b4] cursor-pointer hover:underline">Main Services Agreement</span>, <span className="text-[#00d4b4] cursor-pointer hover:underline">User Terms of Service</span>, and <span className="text-[#00d4b4] cursor-pointer hover:underline">DevTalk Supplemental Terms</span>. Additional disclosures are available in our <span className="text-[#00d4b4] cursor-pointer hover:underline">Privacy Policy</span> and <span className="text-[#00d4b4] cursor-pointer hover:underline">Cookie Policy</span>.
+                By continuing, you're agreeing to our <span className="text-[#00d4b4] cursor-pointer hover:underline">Main Services Agreement</span>, <span className="text-[#00d4b4] cursor-pointer hover:underline">User Terms of Service</span>, and <span className="text-[#00d4b4] cursor-pointer hover:underline">Codex Teams Supplemental Terms</span>. Additional disclosures are available in our <span className="text-[#00d4b4] cursor-pointer hover:underline">Privacy Policy</span> and <span className="text-[#00d4b4] cursor-pointer hover:underline">Cookie Policy</span>.
               </div>
 
               <div className="mt-8 text-[15px] text-white/60">
-                Already using DevTalk?{' '}
+                Already using Codex Teams?{' '}
                 <Link href="/signin" className="text-[#00d4b4] font-bold hover:underline">
                   Sign in to an existing workspace
                 </Link>

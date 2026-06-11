@@ -22,7 +22,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {
-              var config = JSON.parse(localStorage.getItem('devtalk-appearance'));
+              var config = JSON.parse(localStorage.getItem('codex-teams-appearance'));
               if (config) {
                 if (config.theme === 'light') {
                   document.documentElement.classList.add('light-mode');
